@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Tiny persistent scheduler API for OwnTone Dashboard.
+"""Tiny persistent companion service for OwnTone Dashboard.
 
-No third-party Python packages are required. The service stores schedules in
-/var/lib/owntone-dashboard/schedules.json and talks to OwnTone on localhost.
+No third-party Python packages are required. Besides scheduled playback, this
+service keeps a small now-playing history and performs server-side radio stream
+health probes so browser CORS rules never get in the way.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ import uuid
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import quote, urlencode, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
 from urllib.request import Request, urlopen
 
 HOST = os.environ.get("OWNTONE_SCHEDULER_HOST", "127.0.0.1")
@@ -25,9 +26,15 @@ OWNTONE_BASE = os.environ.get("OWNTONE_BASE", "http://127.0.0.1:3689/api").rstri
 DATA_DIR = Path(os.environ.get("OWNTONE_SCHEDULER_DATA", "/var/lib/owntone-dashboard"))
 SCHEDULES_FILE = DATA_DIR / "schedules.json"
 STATE_FILE = DATA_DIR / "scheduler-state.json"
+HISTORY_FILE = DATA_DIR / "history.json"
 LOCK = threading.RLock()
 DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 TIME_RE = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
+HISTORY_LIMIT = 50
+RADIO_HEALTH_TTL = 90
+RADIO_MAP_TTL = 600
+RADIO_HEALTH_CACHE: dict[str, dict] = {}
+RADIO_MAP_CACHE = {"expires": 0.0, "by_path": {}}
 
 
 def _read_json(path: Path, fallback):
@@ -53,6 +60,17 @@ def load_schedules():
 def save_schedules(items) -> None:
     with LOCK:
         _atomic_write(SCHEDULES_FILE, items)
+
+
+def load_history():
+    with LOCK:
+        data = _read_json(HISTORY_FILE, [])
+        return data if isinstance(data, list) else []
+
+
+def save_history(items) -> None:
+    with LOCK:
+        _atomic_write(HISTORY_FILE, list(items)[:HISTORY_LIMIT])
 
 
 def load_runtime_state():
@@ -159,7 +177,6 @@ def execute_schedule(item: dict) -> dict:
 def stop_playback(item: dict) -> dict:
     output_id = str(item.get("output_id") or "")
     if output_id:
-        # Keep the intended output selected so stop cannot accidentally affect an unrelated stale selection.
         owntone_request("/outputs/set", "PUT", {"outputs": [output_id]})
     owntone_request("/player/stop", "PUT")
     return {"ok": True, "message": f"Stopped {item['name']}"}
@@ -188,6 +205,178 @@ def next_run(item: dict, now: datetime | None = None):
     return None
 
 
+def _is_radio_playlist(item: dict) -> bool:
+    path = str(item.get("path") or "").lower()
+    name = str(item.get("name") or "").lower()
+    return "/radio/" in path or "radio" in name or "naxi" in name or name in {"202", "s1"}
+
+
+def _refresh_radio_map() -> dict:
+    now = time.monotonic()
+    with LOCK:
+        if RADIO_MAP_CACHE["expires"] > now:
+            return dict(RADIO_MAP_CACHE["by_path"])
+    by_path = {}
+    try:
+        playlists = owntone_request("/library/playlists?limit=500") or {}
+        for playlist in playlists.get("items", []):
+            if playlist.get("folder") or not _is_radio_playlist(playlist):
+                continue
+            pid = playlist.get("id")
+            if pid is None:
+                continue
+            try:
+                tracks = owntone_request(f"/library/playlists/{pid}/tracks?limit=1", timeout=4) or {}
+                track = (tracks.get("items") or [None])[0]
+                stream = str((track or {}).get("path") or "")
+                if stream.startswith(("http://", "https://")):
+                    by_path[stream] = {
+                        "name": playlist.get("name") or "Radio",
+                        "uri": playlist.get("uri") or "",
+                        "id": str(pid),
+                    }
+            except Exception:
+                continue
+    finally:
+        with LOCK:
+            RADIO_MAP_CACHE["by_path"] = by_path
+            RADIO_MAP_CACHE["expires"] = time.monotonic() + RADIO_MAP_TTL
+    return dict(by_path)
+
+
+def _quality_from_track(track: dict, headers=None) -> str:
+    kind = str(track.get("type") or "").upper()
+    bitrate = str(track.get("bitrate") or "").strip()
+    headers = headers or {}
+    icy_br = str(headers.get("icy-br") or "").strip()
+    content_type = str(headers.get("content-type") or "").lower()
+    if not kind:
+        if "flac" in content_type:
+            kind = "FLAC"
+        elif "aac" in content_type:
+            kind = "AAC"
+        elif "mpeg" in content_type or "mp3" in content_type:
+            kind = "MP3"
+    if kind in {"FLAC", "ALAC"}:
+        return kind
+    rate = bitrate or icy_br
+    if rate:
+        rate = re.sub(r"[^0-9]", "", rate)
+        if rate:
+            return f"{kind or 'STREAM'} {rate}k"
+    return kind or "STREAM"
+
+
+def playlist_stream_info(playlist_id: str) -> dict:
+    tracks = owntone_request(f"/library/playlists/{playlist_id}/tracks?limit=1", timeout=5) or {}
+    track = (tracks.get("items") or [None])[0]
+    if not isinstance(track, dict):
+        raise ValueError("Radio playlist has no stream track")
+    url = str(track.get("path") or "")
+    if not url.startswith(("http://", "https://")):
+        raise ValueError("Playlist item is not an HTTP radio stream")
+    return {"url": url, "track": track, "quality": _quality_from_track(track)}
+
+
+def probe_radio(playlist_id: str, force: bool = False) -> dict:
+    key = str(playlist_id)
+    now = time.monotonic()
+    with LOCK:
+        cached = RADIO_HEALTH_CACHE.get(key)
+        if cached and not force and now - float(cached.get("_mono", 0)) < RADIO_HEALTH_TTL:
+            return {k: v for k, v in cached.items() if k != "_mono"}
+
+    checked = datetime.now().astimezone().isoformat()
+    started = time.monotonic()
+    try:
+        info = playlist_stream_info(key)
+        req = Request(info["url"], headers={
+            "User-Agent": "OwnToneDashboard/1.0",
+            "Accept": "audio/*,*/*;q=0.5",
+            "Icy-MetaData": "1",
+            "Connection": "close",
+        }, method="GET")
+        with urlopen(req, timeout=5) as response:
+            response.read(768)
+            headers = {str(k).lower(): str(v) for k, v in response.headers.items()}
+            quality = _quality_from_track(info["track"], headers) or info["quality"]
+            result = {
+                "playlist_id": key,
+                "online": True,
+                "status": "LIVE",
+                "quality": quality,
+                "http_status": int(getattr(response, "status", 200) or 200),
+                "latency_ms": int((time.monotonic() - started) * 1000),
+                "checked_at": checked,
+            }
+    except Exception as exc:
+        result = {
+            "playlist_id": key,
+            "online": False,
+            "status": "OFFLINE",
+            "quality": "STREAM",
+            "latency_ms": int((time.monotonic() - started) * 1000),
+            "checked_at": checked,
+            "error": str(exc)[:240],
+        }
+    with LOCK:
+        RADIO_HEALTH_CACHE[key] = dict(result, _mono=time.monotonic())
+    return result
+
+
+def capture_history_once() -> None:
+    try:
+        player = owntone_request("/player", timeout=4) or {}
+        if player.get("state") == "stop":
+            return
+        queue = owntone_request("/queue?id=now_playing", timeout=4) or {}
+        item = (queue.get("items") or [None])[0]
+        if not isinstance(item, dict):
+            return
+        title = str(item.get("title") or "").strip()
+        artist = str(item.get("artist") or "").strip()
+        album = str(item.get("album") or "").strip()
+        path = str(item.get("path") or "").strip()
+        if not (title or path):
+            return
+        is_radio = item.get("data_kind") == "url" or path.startswith(("http://", "https://"))
+        play_uri = str(item.get("uri") or "").strip()
+        station_name = ""
+        if is_radio and path:
+            radio = _refresh_radio_map().get(path) or {}
+            if radio.get("uri"):
+                play_uri = str(radio["uri"])
+                station_name = str(radio.get("name") or "")
+        key = "|".join([str(item.get("id") or ""), title, artist, album, path])
+        history = load_history()
+        if history and history[0].get("key") == key:
+            return
+        record = {
+            "key": key,
+            "played_at": datetime.now().astimezone().isoformat(),
+            "title": title or station_name or "Unknown",
+            "artist": artist,
+            "album": album,
+            "station_name": station_name,
+            "is_radio": bool(is_radio),
+            "uri": str(item.get("uri") or ""),
+            "play_uri": play_uri,
+            "artwork_url": item.get("artwork_url") or "",
+            "type": item.get("type") or "",
+            "bitrate": item.get("bitrate") or "",
+        }
+        history.insert(0, record)
+        save_history(history[:HISTORY_LIMIT])
+    except Exception:
+        return
+
+
+def history_loop():
+    while True:
+        capture_history_once()
+        time.sleep(12)
+
+
 def scheduler_loop():
     while True:
         try:
@@ -210,7 +399,7 @@ def scheduler_loop():
                         execute_schedule(item)
                         runs[schedule_id] = minute_key
                         runtime["last_error"] = None
-                    except Exception as exc:  # scheduler must never die on an OwnTone failure
+                    except Exception as exc:
                         runs[schedule_id] = minute_key
                         runtime["last_error"] = {
                             "at": datetime.now().astimezone().isoformat(),
@@ -244,7 +433,7 @@ def scheduler_loop():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "OwnToneDashboardScheduler/1.0"
+    server_version = "OwnToneDashboardCompanion/1.1"
 
     def log_message(self, fmt, *args):
         print(f"[{self.log_date_time_string()}] {fmt % args}", flush=True)
@@ -273,15 +462,18 @@ class Handler(BaseHTTPRequestHandler):
         return None
 
     def do_GET(self):
-        path = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        path = parsed.path
+        query = parse_qs(parsed.query)
         if path in ("/health", "/"):
             state = load_runtime_state()
             self._send(200, {
                 "ok": True,
-                "service": "owntone-dashboard-scheduler",
+                "service": "owntone-dashboard-companion",
                 "time": datetime.now().astimezone().isoformat(),
                 "timezone": str(datetime.now().astimezone().tzinfo),
                 "owntone": OWNTONE_BASE,
+                "history_count": len(load_history()),
                 "last_error": state.get("last_error"),
             })
             return
@@ -294,6 +486,24 @@ class Handler(BaseHTTPRequestHandler):
                 enriched["next_run"] = nxt.isoformat() if nxt else None
                 items.append(enriched)
             self._send(200, {"items": items, "time": now.isoformat()})
+            return
+        if path == "/history":
+            try:
+                limit = max(1, min(HISTORY_LIMIT, int((query.get("limit") or [HISTORY_LIMIT])[0])))
+            except ValueError:
+                limit = HISTORY_LIMIT
+            self._send(200, {"items": load_history()[:limit]})
+            return
+        if path == "/radio-health":
+            playlist_id = str((query.get("playlist_id") or [""])[0]).strip()
+            if not playlist_id or not re.match(r"^[A-Za-z0-9_-]+$", playlist_id):
+                self._send(400, {"error": "playlist_id is required"})
+                return
+            try:
+                result = probe_radio(playlist_id, force=(query.get("force") or ["0"])[0] == "1")
+                self._send(200, result)
+            except Exception as exc:
+                self._send(200, {"playlist_id": playlist_id, "online": False, "status": "OFFLINE", "error": str(exc)})
             return
         self._send(404, {"error": "Not found"})
 
@@ -358,10 +568,12 @@ def main():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     if not SCHEDULES_FILE.exists():
         _atomic_write(SCHEDULES_FILE, [])
-    thread = threading.Thread(target=scheduler_loop, name="scheduler", daemon=True)
-    thread.start()
+    if not HISTORY_FILE.exists():
+        _atomic_write(HISTORY_FILE, [])
+    threading.Thread(target=scheduler_loop, name="scheduler", daemon=True).start()
+    threading.Thread(target=history_loop, name="history", daemon=True).start()
     server = ThreadingHTTPServer((HOST, PORT), Handler)
-    print(f"OwnTone dashboard scheduler listening on http://{HOST}:{PORT}", flush=True)
+    print(f"OwnTone dashboard companion listening on http://{HOST}:{PORT}", flush=True)
     server.serve_forever()
 
 
