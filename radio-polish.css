@@ -1,0 +1,137 @@
+/* Radio library interaction polish: positional colors, larger type, quality pills and drag feedback. */
+.radio-grid{
+  --radio-gap:10px;
+  gap:var(--radio-gap)!important;
+}
+
+.radio-card{
+  min-height:178px!important;
+  padding:14px!important;
+  border-radius:20px!important;
+  cursor:grab!important;
+  user-select:none;
+  -webkit-user-select:none;
+  transition:transform .20s cubic-bezier(.2,.8,.2,1),box-shadow .20s ease,filter .20s ease,opacity .20s ease,background .34s ease!important;
+  will-change:transform,opacity;
+}
+.radio-card:active{cursor:grabbing!important}
+.radio-card:hover{
+  transform:translateY(-3px)!important;
+  box-shadow:0 18px 36px rgba(0,0,0,.16)!important;
+}
+.radio-card.dragging{
+  opacity:.28!important;
+  transform:scale(.965)!important;
+  filter:saturate(.7)!important;
+  box-shadow:none!important;
+}
+.radio-card.drop-target{
+  transform:translateY(-4px) scale(1.018)!important;
+  box-shadow:0 0 0 2px rgba(242,92,67,.7),0 22px 44px rgba(0,0,0,.18)!important;
+}
+.radio-card.drop-settle{animation:radioDropFade .46s cubic-bezier(.2,.75,.2,1)}
+@keyframes radioDropFade{
+  0%{opacity:.45;transform:scale(.975)}
+  58%{opacity:1;transform:scale(1.018)}
+  100%{opacity:1;transform:scale(1)}
+}
+
+/* Slot color belongs to the position, not to the station. Dragging a station to a new slot gives it that slot's color. */
+.radio-card:nth-child(5n+1){background:linear-gradient(145deg,#ff694f,#ea4b34)!important}
+.radio-card:nth-child(5n+2){background:linear-gradient(145deg,#25211f,#12100f)!important}
+.radio-card:nth-child(5n+3){background:linear-gradient(145deg,#8499bb,#657b9e)!important}
+.radio-card:nth-child(5n+4){background:linear-gradient(145deg,#b48c70,#916d56)!important}
+.radio-card:nth-child(5n+5){background:linear-gradient(145deg,#3a342f,#211d1a)!important}
+
+.radio-card-top{
+  gap:8px;
+  align-items:center!important;
+}
+.radio-card-top>span:first-child{
+  font-size:8px!important;
+  letter-spacing:.16em!important;
+  opacity:.82;
+  white-space:nowrap;
+}
+.radio-card-copy{
+  left:14px!important;
+  right:14px!important;
+  bottom:14px!important;
+}
+.radio-card-copy b{
+  font-size:clamp(17px,1.4vw,22px)!important;
+  line-height:.98!important;
+  letter-spacing:-.042em!important;
+  font-weight:800!important;
+  text-wrap:balance;
+}
+.radio-card-copy small{
+  display:none!important;
+}
+.radio-quality-pill{
+  display:inline-flex;
+  align-items:center;
+  min-height:22px;
+  margin-top:9px;
+  padding:0 8px;
+  border-radius:999px;
+  background:rgba(255,255,255,.14);
+  border:1px solid rgba(255,255,255,.14);
+  color:rgba(255,255,255,.92);
+  font-size:7.5px;
+  line-height:1;
+  font-weight:800;
+  letter-spacing:.10em;
+  text-transform:uppercase;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+.radio-drag-handle{
+  width:26px;
+  height:26px;
+  border-radius:999px;
+  display:grid;
+  place-items:center;
+  margin-left:auto;
+  color:rgba(255,255,255,.72);
+  background:rgba(255,255,255,.09);
+  border:1px solid rgba(255,255,255,.10);
+  font-size:12px;
+  letter-spacing:-2px;
+  cursor:grab;
+}
+.radio-drag-handle:active{cursor:grabbing}
+.radio-play{
+  width:34px!important;
+  height:34px!important;
+  flex:0 0 auto;
+  background:rgba(255,255,255,.13)!important;
+  border:1px solid rgba(255,255,255,.09);
+  backdrop-filter:blur(10px);
+}
+.radio-card:hover .radio-play{background:rgba(255,255,255,.22)!important}
+.radio-card.is-active{
+  box-shadow:0 0 0 2px #f25c43,0 20px 42px rgba(0,0,0,.20)!important;
+}
+.radio-card.is-active .radio-quality-pill{background:#f25c43;border-color:#f25c43;color:#fff}
+
+/* Fine-grain desktop hierarchy. */
+@media(min-width:981px){
+  .radio-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+  .radio-card{min-height:182px!important}
+}
+
+@media(max-width:980px){
+  .radio-card{min-height:176px!important}
+  .radio-card-copy b{font-size:19px!important}
+}
+
+@media(max-width:620px){
+  .radio-grid{gap:8px!important}
+  .radio-card{min-height:158px!important;padding:12px!important;border-radius:18px!important}
+  .radio-card-copy{left:12px!important;right:12px!important;bottom:12px!important}
+  .radio-card-copy b{font-size:17px!important}
+  .radio-quality-pill{min-height:20px;margin-top:7px;padding:0 7px;font-size:7px}
+  .radio-drag-handle{width:24px;height:24px}
+  .radio-play{width:31px!important;height:31px!important}
+}
