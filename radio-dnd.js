@@ -22,6 +22,13 @@
     return card?.querySelector('.radio-card-copy b')?.textContent?.trim() || '';
   }
 
+  function displayName(name) {
+    const source = String(name || '').replace(/\s+/g, ' ').trim();
+    const withoutPrefix = source.replace(/^radio\s+/i, '');
+    const withoutSuffix = withoutPrefix.replace(/\s+radio$/i, '');
+    return withoutSuffix.trim() || source || 'LIVE';
+  }
+
   function readSavedOrder() {
     try {
       const value = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
@@ -104,14 +111,6 @@
       || 'STREAM';
   }
 
-  function monogram(name) {
-    const cleaned = String(name || '').replace(/\bradio\b/ig, '').trim();
-    const words = cleaned.split(/\s+/).filter(Boolean);
-    if (!words.length) return 'LIVE';
-    if (words.length === 1) return words[0].slice(0, 7);
-    return words.slice(0, 2).map(word => word.slice(0, 5)).join('\n');
-  }
-
   function updateActiveAndQuality() {
     const currentTitle = normalize(document.getElementById('trackTitle')?.textContent || '');
     document.querySelectorAll('#radioGrid .radio-card').forEach(card => {
@@ -119,7 +118,8 @@
       const station = normalize(name);
       const active = !!station && !!currentTitle && (station.includes(currentTitle) || currentTitle.includes(station));
       card.classList.toggle('is-active', active);
-      card.dataset.monogram = monogram(name);
+      card.dataset.monogram = displayName(name);
+      card.title = `${name}${active ? ' · On air' : ''}`;
       const quality = card.querySelector('.radio-quality-pill');
       if (quality) {
         const value = qualityFor(card);
@@ -159,7 +159,7 @@
     card.dataset.dragEnhanced = '1';
     card.draggable = true;
     card.setAttribute('aria-grabbed', 'false');
-    card.dataset.monogram = monogram(stationName(card));
+    card.dataset.monogram = displayName(stationName(card));
 
     const top = card.querySelector('.radio-card-top');
     if (top && !top.querySelector('.radio-drag-handle')) {
