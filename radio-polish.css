@@ -1,36 +1,62 @@
 /* Radio library interaction polish: positional colors, larger type, quality pills and drag feedback. */
+@property --radio-border-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
 .radio-grid{
   --radio-gap:10px;
   gap:var(--radio-gap)!important;
 }
 
 .radio-card{
+  --slot-fill:linear-gradient(145deg,#25211f,#12100f);
   min-height:178px!important;
   padding:14px!important;
   border-radius:20px!important;
+  border:1px solid transparent!important;
+  background:
+    var(--slot-fill) padding-box,
+    conic-gradient(
+      from var(--radio-border-angle),
+      rgba(255,255,255,.025) 0deg,
+      rgba(255,255,255,.025) 270deg,
+      rgba(255,255,255,.22) 300deg,
+      rgba(255,126,98,.24) 316deg,
+      rgba(255,255,255,.065) 336deg,
+      rgba(255,255,255,.025) 360deg
+    ) border-box!important;
+  animation:radioBorderOrbit 18s linear infinite;
   cursor:grab!important;
   user-select:none;
   -webkit-user-select:none;
-  transition:transform .20s cubic-bezier(.2,.8,.2,1),box-shadow .20s ease,filter .20s ease,opacity .20s ease,background .34s ease!important;
+  transition:transform .20s cubic-bezier(.2,.8,.2,1),box-shadow .20s ease,filter .20s ease,opacity .20s ease!important;
   will-change:transform,opacity;
   isolation:isolate;
 }
+@keyframes radioBorderOrbit{to{--radio-border-angle:360deg}}
+.radio-card:nth-child(2n){animation-delay:-4.5s}
+.radio-card:nth-child(3n){animation-delay:-9s}
+.radio-card:nth-child(5n){animation-delay:-13.5s}
+
 .radio-card:before{
   content:attr(data-monogram);
   position:absolute;
   left:14px;
-  top:49px;
+  top:51px;
   z-index:0;
-  max-width:72%;
-  white-space:pre-line;
-  color:rgba(255,255,255,.90);
-  font-size:clamp(23px,2.1vw,34px);
-  line-height:.82;
+  max-width:78%;
+  white-space:normal;
+  color:rgba(255,255,255,.92);
+  font-size:clamp(24px,2.15vw,36px);
+  line-height:.86;
   letter-spacing:-.06em;
   font-weight:900;
   text-transform:uppercase;
+  text-wrap:balance;
   pointer-events:none;
-  opacity:.92;
+  opacity:.96;
 }
 .radio-card:active{cursor:grabbing!important}
 .radio-card:hover{
@@ -45,9 +71,9 @@
 }
 .radio-card.drop-target{
   transform:translateY(-4px) scale(1.018)!important;
-  box-shadow:0 0 0 2px rgba(242,92,67,.7),0 22px 44px rgba(0,0,0,.18)!important;
+  box-shadow:0 0 0 1px rgba(242,92,67,.48),0 22px 44px rgba(0,0,0,.18)!important;
 }
-.radio-card.drop-settle{animation:radioDropFade .46s cubic-bezier(.2,.75,.2,1)}
+.radio-card.drop-settle{animation:radioDropFade .46s cubic-bezier(.2,.75,.2,1),radioBorderOrbit 18s linear infinite}
 @keyframes radioDropFade{
   0%{opacity:.45;transform:scale(.975)}
   58%{opacity:1;transform:scale(1.018)}
@@ -55,11 +81,11 @@
 }
 
 /* Slot color belongs to the position, not to the station. Dragging a station to a new slot gives it that slot's color. */
-.radio-card:nth-child(5n+1){background:linear-gradient(145deg,#ff694f,#ea4b34)!important}
-.radio-card:nth-child(5n+2){background:linear-gradient(145deg,#25211f,#12100f)!important}
-.radio-card:nth-child(5n+3){background:linear-gradient(145deg,#8499bb,#657b9e)!important}
-.radio-card:nth-child(5n+4){background:linear-gradient(145deg,#b48c70,#916d56)!important}
-.radio-card:nth-child(5n+5){background:linear-gradient(145deg,#3a342f,#211d1a)!important}
+.radio-card:nth-child(5n+1){--slot-fill:linear-gradient(145deg,#ff694f,#ea4b34)}
+.radio-card:nth-child(5n+2){--slot-fill:linear-gradient(145deg,#25211f,#12100f)}
+.radio-card:nth-child(5n+3){--slot-fill:linear-gradient(145deg,#8499bb,#657b9e)}
+.radio-card:nth-child(5n+4){--slot-fill:linear-gradient(145deg,#b48c70,#916d56)}
+.radio-card:nth-child(5n+5){--slot-fill:linear-gradient(145deg,#3a342f,#211d1a)}
 
 .radio-card-top{
   gap:8px;
@@ -70,7 +96,7 @@
 .radio-card-top>span:first-child{
   font-size:8px!important;
   letter-spacing:.16em!important;
-  opacity:.82;
+  opacity:.78;
   white-space:nowrap;
 }
 .radio-card-copy{
@@ -79,30 +105,33 @@
   bottom:14px!important;
   z-index:3!important;
 }
-.radio-card-copy b{
-  font-size:clamp(17px,1.4vw,22px)!important;
-  line-height:.98!important;
-  letter-spacing:-.042em!important;
-  font-weight:800!important;
-  text-wrap:balance;
-}
+/* The large name is the only title. Keep the hidden original in the DOM for API/drag matching. */
+.radio-card-copy b,
 .radio-card-copy small{
-  display:none!important;
+  position:absolute!important;
+  width:1px!important;
+  height:1px!important;
+  padding:0!important;
+  margin:-1px!important;
+  overflow:hidden!important;
+  clip:rect(0 0 0 0)!important;
+  white-space:nowrap!important;
+  border:0!important;
 }
 .radio-quality-pill{
   display:inline-flex;
   align-items:center;
-  min-height:22px;
-  margin-top:9px;
-  padding:0 8px;
+  min-height:27px;
+  margin-top:0;
+  padding:0 10px;
   border-radius:999px;
-  background:rgba(255,255,255,.14);
-  border:1px solid rgba(255,255,255,.14);
-  color:rgba(255,255,255,.92);
-  font-size:7.5px;
+  background:rgba(255,255,255,.15);
+  border:1px solid rgba(255,255,255,.16);
+  color:rgba(255,255,255,.96);
+  font-size:10px;
   line-height:1;
-  font-weight:800;
-  letter-spacing:.10em;
+  font-weight:850;
+  letter-spacing:.105em;
   text-transform:uppercase;
   backdrop-filter:blur(10px);
   -webkit-backdrop-filter:blur(10px);
@@ -136,9 +165,13 @@
 }
 .radio-card:hover .radio-play{background:rgba(255,255,255,.22)!important}
 .radio-card.is-active{
-  box-shadow:0 0 0 2px #f25c43,0 20px 42px rgba(0,0,0,.20)!important;
+  box-shadow:0 10px 30px rgba(0,0,0,.19)!important;
 }
-.radio-card.is-active .radio-quality-pill{background:#f25c43;border-color:#f25c43;color:#fff}
+.radio-card.is-active .radio-quality-pill{
+  background:rgba(255,102,76,.86);
+  border-color:rgba(255,150,128,.42);
+  color:#fff;
+}
 
 /* Fine-grain desktop hierarchy. */
 @media(min-width:981px){
@@ -148,16 +181,19 @@
 
 @media(max-width:980px){
   .radio-card{min-height:176px!important}
-  .radio-card-copy b{font-size:19px!important}
+  .radio-card:before{font-size:30px}
 }
 
 @media(max-width:620px){
   .radio-grid{gap:8px!important}
   .radio-card{min-height:158px!important;padding:12px!important;border-radius:18px!important}
-  .radio-card:before{left:12px;top:44px;font-size:26px;max-width:70%}
+  .radio-card:before{left:12px;top:45px;font-size:27px;max-width:76%}
   .radio-card-copy{left:12px!important;right:12px!important;bottom:12px!important}
-  .radio-card-copy b{font-size:17px!important}
-  .radio-quality-pill{min-height:20px;margin-top:7px;padding:0 7px;font-size:7px}
+  .radio-quality-pill{min-height:24px;padding:0 9px;font-size:9px}
   .radio-drag-handle{width:24px;height:24px}
   .radio-play{width:31px!important;height:31px!important}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .radio-card{animation:none!important}
 }
