@@ -203,6 +203,14 @@
     const valid = uris.filter(Boolean);
     if (!valid.length) return;
     try {
+      if (cfg.manualVolume != null) {
+        const outs = await request('/outputs').catch(() => null);
+        const out = (outs?.outputs || []).find(o => o.selected);
+        if (out?.id != null) {
+          const v = new URLSearchParams({volume:String(cfg.manualVolume), output_id:String(out.id)});
+          await request(`/player/volume?${v}`, {method:'PUT'});
+        }
+      }
       const qs = new URLSearchParams({uris:valid.join(','), clear:'true', playback:'start', shuffle:String(!!shuffle)});
       await request(`/queue/items/add?${qs}`, {method:'POST'});
       dialog?.close();

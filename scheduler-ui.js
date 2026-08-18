@@ -178,8 +178,8 @@
     dialog.querySelectorAll('#scheduleKind button').forEach(button => button.classList.toggle('active',button.dataset.kind===item.kind));
     populateSources(item.kind, item.source_uri);
     populateOutputs(item.output_id);
-    dialog.querySelector('#scheduleVolume').value = item.volume ?? 10;
-    dialog.querySelector('#scheduleVolumeValue').textContent = `${item.volume ?? 10}%`;
+    dialog.querySelector('#scheduleVolume').value = item.volume ?? 55;
+    dialog.querySelector('#scheduleVolumeValue').textContent = `${item.volume ?? 55}%`;
     dialog.querySelector('#scheduleShuffle').checked = !!item.shuffle;
     dialog.querySelector('#scheduleEnabled').checked = item.enabled !== false;
     dialog.querySelector('#scheduleDelete').hidden = false;

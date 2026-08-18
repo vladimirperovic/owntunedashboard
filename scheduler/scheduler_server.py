@@ -101,7 +101,7 @@ def clean_schedule(raw: dict, existing_id: str | None = None) -> dict:
         raise ValueError("output_id is required")
 
     try:
-        volume = max(0, min(100, int(raw.get("volume", 10))))
+        volume = max(0, min(100, int(raw.get("volume", 55))))
     except (TypeError, ValueError):
         raise ValueError("volume must be 0-100")
 

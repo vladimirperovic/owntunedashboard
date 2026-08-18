@@ -7,6 +7,8 @@ window.OWNTONE_DASHBOARD = {
   pollMs: 3000,
   radioPathHint: '/Radio/',
   preferredOutput: 'HomePod',
+  // Volume applied whenever the user starts playback manually (not the morning scheduler).
+  manualVolume: 50,
 
   // Optional per-station quality labels. Add verified ffprobe results here when
   // OwnTone's playlist metadata does not expose codec/bitrate.
