@@ -1,0 +1,11 @@
+{
+  "name": "OwnTone Dashboard",
+  "short_name": "OwnTone",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f0e8de",
+  "theme_color": "#f0e8de",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
