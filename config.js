@@ -18,7 +18,7 @@ window.OWNTONE_DASHBOARD = {
 // Lightweight UI extensions are deliberately isolated from app.js so playback logic
 // remains small and future OwnTone API changes are easier to maintain.
 (() => {
-  const BUILD = '20260818-5';
+  const BUILD = '20260818-6';
   const asset = path => `${path}?v=${BUILD}`;
 
   const addStyle = (href, dataKey) => {
@@ -48,4 +48,5 @@ window.OWNTONE_DASHBOARD = {
   addScript('radio-dnd.js', 'owntone-radio-dnd');
   addScript('library-browser.js', 'owntone-library-browser-js');
   addScript('scheduler-ui.js', 'owntone-scheduler-ui-js');
+  addScript('radio-visualizer.js', 'owntone-radio-visualizer-js');
 })();
