@@ -26,10 +26,11 @@
         <div class="nav-label">Library</div>
         <button class="side-link" type="button" onclick="document.getElementById('albumsSection').scrollIntoView({behavior:'smooth'})"><span>◎</span>Albums</button>
         <button class="side-link" type="button" onclick="document.getElementById('playlistsSection').scrollIntoView({behavior:'smooth'})"><span>≡</span>Playlists</button>
-        <button class="side-link" type="button" onclick="document.querySelector('[data-playlist=\"Favorites\"]')?.click()"><span>♡</span>Favorites</button>
+        <button class="side-link" type="button" onclick="document.querySelector('[data-playlist=&quot;Favorites&quot;]')?.click()"><span>♡</span>Favorites</button>
+        <button class="side-link" type="button" onclick="document.querySelector('[data-playlist=&quot;Random 500&quot;]')?.click()"><span>◷</span>Recently played</button>
         <div class="nav-label">Quick access</div>
-        <button class="side-link" type="button" onclick="document.querySelector('[data-playlist=\"Random 500\"]')?.click()"><span>⌘</span>Random 500</button>
-        <button class="side-link" type="button" onclick="document.querySelector('[data-playlist=\"Morning\"]')?.click()"><span>☼</span>Morning</button>
+        <button class="side-link" type="button" onclick="document.querySelector('[data-playlist=&quot;Random 500&quot;]')?.click()"><span>⌘</span>Random 500</button>
+        <button class="side-link" type="button" onclick="document.querySelector('[data-playlist=&quot;Morning&quot;]')?.click()"><span>☼</span>Morning</button>
         <button class="side-link" type="button" onclick="document.getElementById('shuffleLibraryButton')?.click()"><span>♫</span>My Music</button>
       </nav>
 
@@ -57,43 +58,51 @@
       </header>
 
       <main>
-        <section class="player-card" id="playerCard">
-          <div class="player-art-wrap">
-            <div class="player-art" id="playerArt">
-              <div class="art-placeholder" id="artPlaceholder"><div class="record-art"><span></span></div></div>
-              <img id="artwork" alt="" />
-              <div class="live-pill" id="livePill">LIVE</div>
-              <div class="format-pill" id="formatPill">FLAC</div>
-            </div>
-          </div>
-
-          <div class="player-content">
-            <div class="player-kicker-row">
-              <span class="section-kicker" id="playerKicker">NOW PLAYING</span>
-              <span class="status-dot-wrap"><span class="status-dot" id="statusDot"></span><span id="outputName">No output</span></span>
+        <section class="hero-stack">
+          <section class="player-card" id="playerCard">
+            <div class="player-art-wrap">
+              <div class="player-art" id="playerArt">
+                <div class="art-placeholder" id="artPlaceholder"><div class="record-art"><span></span></div></div>
+                <img id="artwork" alt="" />
+                <div class="live-pill" id="livePill">LIVE</div>
+                <div class="format-pill" id="formatPill">FLAC</div>
+              </div>
             </div>
 
-            <div class="track-copy">
-              <h1 id="trackTitle">Your music, beautifully simple.</h1>
-              <p id="trackArtist">OwnTone</p>
-              <p class="track-meta" id="trackMeta">Waiting for the server</p>
-            </div>
+            <div class="player-content">
+              <div class="player-kicker-row">
+                <span class="section-kicker" id="playerKicker">NOW PLAYING</span>
+                <span class="status-dot-wrap"><span class="status-dot" id="statusDot"></span><span id="outputName">No output</span></span>
+              </div>
 
-            <div class="radio-wave" aria-hidden="true">
-              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-            </div>
+              <div class="track-copy">
+                <h1 id="trackTitle">Your music, beautifully simple.</h1>
+                <p id="trackArtist">OwnTone</p>
+                <p class="track-meta" id="trackMeta">Waiting for the server</p>
+              </div>
 
-            <div class="transport" aria-label="Playback controls">
-              <button class="transport-button" id="previousButton" type="button" aria-label="Previous"><svg viewBox="0 0 24 24"><path d="M6 5v14M18 6l-9 6 9 6V6Z"/></svg></button>
-              <button class="play-button" id="playButton" type="button" aria-label="Play"><span id="playIcon"></span></button>
-              <button class="transport-button" id="nextButton" type="button" aria-label="Next"><svg viewBox="0 0 24 24"><path d="M18 5v14M6 6l9 6-9 6V6Z"/></svg></button>
-            </div>
+              <div class="radio-wave" aria-hidden="true">
+                <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              </div>
 
-            <div class="progress-block" id="progressBlock">
-              <input id="progressRange" class="range" type="range" min="0" max="1000" value="0" aria-label="Track progress" />
-              <div class="time-row"><span id="elapsedTime">0:00</span><span id="remainingTime">−0:00</span></div>
-            </div>
+              <div class="transport-row">
+                <button class="micro-action" type="button" aria-label="Random 500" title="Random 500" onclick="document.querySelector('[data-playlist=&quot;Random 500&quot;]')?.click()">⌘</button>
+                <div class="transport" aria-label="Playback controls">
+                  <button class="transport-button" id="previousButton" type="button" aria-label="Previous"><svg viewBox="0 0 24 24"><path d="M6 5v14M18 6l-9 6 9 6V6Z"/></svg></button>
+                  <button class="play-button" id="playButton" type="button" aria-label="Play"><span id="playIcon"></span></button>
+                  <button class="transport-button" id="nextButton" type="button" aria-label="Next"><svg viewBox="0 0 24 24"><path d="M18 5v14M6 6l9 6-9 6V6Z"/></svg></button>
+                </div>
+                <button class="micro-action" type="button" aria-label="Favorites" title="Favorites" onclick="document.querySelector('[data-playlist=&quot;Favorites&quot;]')?.click()">♡</button>
+              </div>
 
+              <div class="progress-block" id="progressBlock">
+                <input id="progressRange" class="range" type="range" min="0" max="1000" value="0" aria-label="Track progress" />
+                <div class="time-row"><span id="elapsedTime">0:00</span><span id="remainingTime">−0:00</span></div>
+              </div>
+            </div>
+          </section>
+
+          <div class="audio-dock">
             <div class="volume-output-row">
               <div class="volume-wrap">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9v6h4l5 4V5L9 9H5Zm12.5 1.2a3 3 0 0 1 0 3.6M19.8 7.8a6 6 0 0 1 0 8.4"/></svg>
@@ -102,12 +111,13 @@
               </div>
               <select id="outputSelect" class="output-select" aria-label="Audio output"><option value="">No output</option></select>
             </div>
+            <button class="dock-heart" type="button" aria-label="Play favorites" title="Favorites" onclick="document.querySelector('[data-playlist=&quot;Favorites&quot;]')?.click()">♡</button>
           </div>
         </section>
 
         <section class="music-view" id="musicView">
-          <div class="section-heading-row">
-            <div><span class="section-kicker">ONE TAP</span><h2>Start listening</h2></div>
+          <div class="section-heading-row compact-head">
+            <div><span class="section-kicker">QUICK ACCESS</span><h2>Start listening</h2></div>
             <button class="text-button" id="refreshButton" type="button">Refresh</button>
           </div>
 
@@ -118,7 +128,7 @@
             <button class="quick-card blue" id="shuffleLibraryButton" type="button"><span class="quick-icon">♫</span><span><b>My Music</b><small>Shuffle library</small></span></button>
           </div>
 
-          <div class="section-heading-row spaced" id="albumsSection"><div><span class="section-kicker">LIBRARY</span><h2>Albums</h2></div><div class="library-count" id="libraryCount">—</div></div>
+          <div class="section-heading-row spaced" id="albumsSection"><div><span class="section-kicker">LIBRARY</span><h2>Recently added albums</h2></div><div class="library-count" id="libraryCount">—</div></div>
           <div class="album-grid" id="albumGrid"></div>
 
           <div class="section-heading-row spaced" id="playlistsSection"><div><span class="section-kicker">COLLECTIONS</span><h2>Playlists</h2></div></div>
@@ -126,7 +136,7 @@
         </section>
 
         <section class="radio-view" id="radioView" hidden>
-          <div class="radio-intro"><span class="section-kicker">LIVE RADIO</span><h2>Popular stations</h2><p>Your saved high-quality streams. Tap a station and it immediately takes over the selected AirPlay output.</p></div>
+          <div class="radio-intro"><span class="section-kicker">LIVE RADIO</span><h2>Popular stations</h2><p>Your saved high-quality streams. Tap once and the station takes over the selected AirPlay output.</p></div>
           <div class="radio-grid" id="radioGrid"></div>
         </section>
       </main>
@@ -134,6 +144,14 @@
       <footer class="footer"><span>OwnTone Dashboard</span><span>Local · AirPlay first</span></footer>
     </div>
   </div>
+
+  <nav class="mobile-nav" aria-label="Mobile navigation">
+    <button class="active" type="button" onclick="window.scrollTo({top:0,behavior:'smooth'})"><span>⌂</span><small>Home</small></button>
+    <button type="button" onclick="document.getElementById('searchButton').click()"><span>⌕</span><small>Search</small></button>
+    <button type="button" onclick="document.getElementById('albumsSection').scrollIntoView({behavior:'smooth'})"><span>◎</span><small>Library</small></button>
+    <button type="button" onclick="document.getElementById('playlistsSection').scrollIntoView({behavior:'smooth'})"><span>≡</span><small>Playlists</small></button>
+    <button type="button" onclick="document.getElementById('modeToggle').click()"><span>◉</span><small>Radio</small></button>
+  </nav>
 
   <dialog class="search-dialog" id="searchDialog">
     <form method="dialog" class="search-panel" id="searchForm">
