@@ -18,13 +18,19 @@ window.OWNTONE_DASHBOARD = {
 // Lightweight UI extensions are kept separate from the OwnTone API layer so future
 // dashboard updates do not have to modify playback logic.
 (() => {
-  if (!document.querySelector('link[data-owntone-radio-polish]')) {
+  const addStyle = (href, dataKey) => {
+    if (document.querySelector(`link[data-${dataKey}]`)) return;
     const style = document.createElement('link');
     style.rel = 'stylesheet';
-    style.href = 'radio-polish.css';
-    style.dataset.owntoneRadioPolish = '1';
+    style.href = href;
+    style.setAttribute(`data-${dataKey}`, '1');
     document.head.appendChild(style);
-  }
+  };
+
+  // Load radio-specific styling first, then the final global refinement layer so
+  // the latter can make tiny spacing/interaction adjustments without fighting CSS.
+  addStyle('radio-polish.css', 'owntone-radio-polish');
+  addStyle('ui-polish.css', 'owntone-ui-polish');
 
   if (!document.querySelector('script[data-owntone-radio-dnd]')) {
     const script = document.createElement('script');
