@@ -9,6 +9,8 @@ window.OWNTONE_DASHBOARD = {
   preferredOutput: 'HomePod',
   // Volume applied whenever the user starts playback manually (not the morning scheduler).
   manualVolume: 50,
+  // If the dashboard has never remembered a pre-mute level, unmute restores gently to this value.
+  safeUnmuteVolume: 10,
 
   // Optional per-station quality labels. Add verified ffprobe results here when
   // OwnTone's playlist metadata does not expose codec/bitrate.
@@ -20,7 +22,7 @@ window.OWNTONE_DASHBOARD = {
 // Lightweight UI extensions are deliberately isolated from app.js so playback logic
 // remains small and future OwnTone API changes are easier to maintain.
 (() => {
-  const BUILD = '20260818-6';
+  const BUILD = '20260819-1';
   const asset = path => `${path}?v=${BUILD}`;
 
   const addStyle = (href, dataKey) => {
@@ -46,9 +48,11 @@ window.OWNTONE_DASHBOARD = {
   addStyle('scheduler-ui.css', 'owntone-scheduler-ui');
   addStyle('ui-polish.css', 'owntone-ui-polish');
   addStyle('final-fixes.css', 'owntone-final-fixes');
+  addStyle('mute-control.css', 'owntone-mute-control');
 
   addScript('radio-dnd.js', 'owntone-radio-dnd');
   addScript('library-browser.js', 'owntone-library-browser-js');
   addScript('scheduler-ui.js', 'owntone-scheduler-ui-js');
   addScript('radio-visualizer.js', 'owntone-radio-visualizer-js');
+  addScript('mute-control.js', 'owntone-mute-control-js');
 })();
