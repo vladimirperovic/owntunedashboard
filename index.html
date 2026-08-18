@@ -168,7 +168,7 @@
     new MutationObserver(() => {
       const src=document.getElementById('connectionText');
       const dst=document.getElementById('desktopConnection');
-      if(src&&dst) dst.textContent=src.textContent;
+      if(src&&dst&&dst.textContent!==src.textContent) dst.textContent=src.textContent;
     }).observe(document.documentElement,{subtree:true,childList:true,characterData:true});
   </script>
 </body>
