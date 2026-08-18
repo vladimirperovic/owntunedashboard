@@ -1,0 +1,51 @@
+/* Compact mute control placed at the start of the volume row. */
+.mute-button{
+  width:34px;
+  height:34px;
+  flex:0 0 34px;
+  border:1px solid rgba(20,16,12,.08);
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  padding:0;
+  background:rgba(255,255,255,.46);
+  color:var(--ink,#0b0a09);
+  cursor:pointer;
+  box-shadow:0 4px 12px rgba(30,20,13,.035);
+}
+.mute-button svg{
+  width:16px;
+  height:16px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.mute-button:hover{transform:translateY(-1px);background:rgba(255,255,255,.72)}
+.mute-button:active{transform:scale(.94)}
+.mute-button.is-muted{
+  background:rgba(239,91,67,.14);
+  border-color:rgba(239,91,67,.28);
+  color:var(--coral,#ef5b43);
+}
+.mute-button.is-busy{opacity:.58;pointer-events:none}
+
+body.radio-mode .mute-button{
+  background:rgba(255,255,255,.055);
+  border-color:rgba(255,255,255,.07);
+  color:rgba(255,255,255,.86);
+  box-shadow:none;
+}
+body.radio-mode .mute-button:hover{background:rgba(255,255,255,.10)}
+body.radio-mode .mute-button.is-muted{
+  background:rgba(239,91,67,.13);
+  border-color:rgba(239,91,67,.30);
+  color:#ff745f;
+}
+
+@media(max-width:620px){
+  .mute-button{width:38px;height:38px;flex-basis:38px}
+  .mute-button svg{width:18px;height:18px}
+  .volume-output-row{gap:10px!important}
+}
