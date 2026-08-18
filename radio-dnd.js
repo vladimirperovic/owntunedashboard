@@ -6,6 +6,10 @@
   let dragged = null;
   let moved = false;
   let suppressClickUntil = 0;
+  let touchPointerId = null;
+  let touchCard = null;
+  let touchActive = false;
+  let touchStartTimer = null;
 
   const normalize = (value) => String(value || '')
     .toLowerCase()
@@ -38,16 +42,24 @@
     const saved = readSavedOrder();
     if (!saved.length) return;
     const cards = [...el.querySelectorAll('.radio-card')];
+    if (!cards.length) return;
+
     const byName = new Map(cards.map(card => [normalize(stationName(card)), card]));
+    const ordered = [];
     const used = new Set();
     saved.forEach(name => {
       const card = byName.get(normalize(name));
-      if (card) {
-        el.appendChild(card);
+      if (card && !used.has(card)) {
+        ordered.push(card);
         used.add(card);
       }
     });
-    cards.forEach(card => { if (!used.has(card)) el.appendChild(card); });
+    cards.forEach(card => { if (!used.has(card)) ordered.push(card); });
+
+    const current = cards.map(card => normalize(stationName(card))).join('|');
+    const wanted = ordered.map(card => normalize(stationName(card))).join('|');
+    if (current === wanted) return;
+    ordered.forEach(card => el.appendChild(card));
   }
 
   function extractQuality(text) {
@@ -111,12 +123,35 @@
       const quality = card.querySelector('.radio-quality-pill');
       if (quality) {
         const value = qualityFor(card);
-        quality.textContent = value;
+        if (quality.textContent !== value) quality.textContent = value;
         quality.title = value === 'STREAM'
           ? 'Exact codec/bitrate is not available in the playlist metadata'
           : `Stream quality: ${value}`;
       }
     });
+  }
+
+  function animateSettle(el) {
+    [...el.querySelectorAll('.radio-card')].forEach((node, index) => {
+      node.classList.remove('drop-settle');
+      void node.offsetWidth;
+      setTimeout(() => node.classList.add('drop-settle'), Math.min(index * 18, 110));
+      setTimeout(() => node.classList.remove('drop-settle'), 650);
+    });
+  }
+
+  function finishReorder(card, el) {
+    card?.classList.remove('dragging', 'touch-dragging');
+    card?.setAttribute('aria-grabbed', 'false');
+    el?.querySelectorAll('.drop-target').forEach(node => node.classList.remove('drop-target'));
+    if (moved && el) {
+      saveOrder();
+      animateSettle(el);
+      suppressClickUntil = Date.now() + 400;
+    }
+    dragged = null;
+    moved = false;
+    updateActiveAndQuality();
   }
 
   function enhanceCard(card) {
@@ -152,28 +187,24 @@
       card.setAttribute('aria-grabbed', 'true');
       event.dataTransfer.effectAllowed = 'move';
       try { event.dataTransfer.setData('text/plain', stationName(card)); } catch (_) {}
-      requestAnimationFrame(() => card.classList.add('dragging'));
     });
 
-    card.addEventListener('dragend', () => {
-      const el = grid();
-      card.classList.remove('dragging');
-      card.setAttribute('aria-grabbed', 'false');
-      el?.querySelectorAll('.drop-target').forEach(node => node.classList.remove('drop-target'));
-      if (moved && el) {
-        saveOrder();
-        [...el.querySelectorAll('.radio-card')].forEach((node, index) => {
-          node.classList.remove('drop-settle');
-          void node.offsetWidth;
-          setTimeout(() => node.classList.add('drop-settle'), Math.min(index * 18, 110));
-          setTimeout(() => node.classList.remove('drop-settle'), 650);
-        });
-        suppressClickUntil = Date.now() + 350;
-      }
-      dragged = null;
-      moved = false;
-      updateActiveAndQuality();
-    });
+    card.addEventListener('dragend', () => finishReorder(card, grid()));
+  }
+
+  function reorderTowardPoint(el, card, x, y) {
+    const hit = document.elementFromPoint(x, y)?.closest('.radio-card');
+    if (!hit || hit === card || !el.contains(hit)) return;
+    el.querySelectorAll('.drop-target').forEach(node => node.classList.remove('drop-target'));
+    hit.classList.add('drop-target');
+    const rect = hit.getBoundingClientRect();
+    const rowBias = Math.abs(y - (rect.top + rect.height / 2)) > rect.height * .34;
+    const before = rowBias ? y < rect.top + rect.height / 2 : x < rect.left + rect.width / 2;
+    const anchor = before ? hit : hit.nextSibling;
+    if (anchor !== card) {
+      el.insertBefore(card, anchor);
+      moved = true;
+    }
   }
 
   function wireGrid(el) {
@@ -184,17 +215,7 @@
       if (!dragged) return;
       event.preventDefault();
       event.dataTransfer.dropEffect = 'move';
-      const target = event.target.closest('.radio-card');
-      if (!target || target === dragged || !el.contains(target)) return;
-      el.querySelectorAll('.drop-target').forEach(node => node.classList.remove('drop-target'));
-      target.classList.add('drop-target');
-      const rect = target.getBoundingClientRect();
-      const before = event.clientX < rect.left + rect.width / 2;
-      const anchor = before ? target : target.nextSibling;
-      if (anchor !== dragged && target !== dragged.nextSibling) {
-        el.insertBefore(dragged, anchor);
-        moved = true;
-      }
+      reorderTowardPoint(el, dragged, event.clientX, event.clientY);
     });
 
     el.addEventListener('drop', (event) => {
@@ -203,6 +224,44 @@
       moved = true;
       el.querySelectorAll('.drop-target').forEach(node => node.classList.remove('drop-target'));
     });
+
+    /* Pointer based reordering makes the drag handle work on iPhone/iPad as well. */
+    el.addEventListener('pointerdown', (event) => {
+      const handle = event.target.closest('.radio-drag-handle');
+      if (!handle) return;
+      const card = handle.closest('.radio-card');
+      if (!card) return;
+      touchPointerId = event.pointerId;
+      touchCard = card;
+      touchActive = false;
+      moved = false;
+      clearTimeout(touchStartTimer);
+      touchStartTimer = setTimeout(() => {
+        touchActive = true;
+        dragged = card;
+        card.classList.add('touch-dragging');
+        card.setAttribute('aria-grabbed', 'true');
+        try { handle.setPointerCapture(touchPointerId); } catch (_) {}
+        if (navigator.vibrate) navigator.vibrate(15);
+      }, 120);
+    });
+
+    el.addEventListener('pointermove', (event) => {
+      if (!touchActive || event.pointerId !== touchPointerId || !touchCard) return;
+      event.preventDefault();
+      reorderTowardPoint(el, touchCard, event.clientX, event.clientY);
+    }, {passive:false});
+
+    const endPointer = (event) => {
+      if (event.pointerId !== touchPointerId) return;
+      clearTimeout(touchStartTimer);
+      if (touchActive && touchCard) finishReorder(touchCard, el);
+      touchPointerId = null;
+      touchCard = null;
+      touchActive = false;
+    };
+    el.addEventListener('pointerup', endPointer);
+    el.addEventListener('pointercancel', endPointer);
 
     el.addEventListener('click', (event) => {
       if (Date.now() < suppressClickUntil) {
