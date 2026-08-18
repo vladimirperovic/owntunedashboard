@@ -1,0 +1,27 @@
+[Unit]
+Description=OwnTone Dashboard Scheduler
+After=network-online.target owntone.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/owntunedashboard
+Environment=PYTHONUNBUFFERED=1
+Environment=OWNTONE_BASE=http://127.0.0.1:3689/api
+Environment=OWNTONE_SCHEDULER_HOST=127.0.0.1
+Environment=OWNTONE_SCHEDULER_PORT=3691
+Environment=OWNTONE_SCHEDULER_DATA=/var/lib/owntone-dashboard
+ExecStart=/usr/bin/python3 /opt/owntunedashboard/scheduler/scheduler_server.py
+Restart=on-failure
+RestartSec=3
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/owntone-dashboard
+
+[Install]
+WantedBy=multi-user.target
