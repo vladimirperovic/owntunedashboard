@@ -1,0 +1,21 @@
+/* Tiny last-mile overrides based on the real Safari screenshots. */
+html,body{padding-top:0!important}
+.app-shell{margin-top:0!important;min-height:100vh!important}
+.sidebar{top:8px!important;height:calc(100vh - 16px)!important}
+
+/* The radio hero should feel inset, not outlined. */
+body.radio-mode .player-card{
+  border-color:rgba(255,255,255,.075)!important;
+  box-shadow:0 20px 56px rgba(0,0,0,.24)!important;
+}
+body.radio-mode .audio-dock{border-color:rgba(255,255,255,.055)!important}
+
+/* Keep the orbiting station border barely visible until hover/active. */
+body.radio-mode .radio-card{box-shadow:0 1px 0 rgba(255,255,255,.025) inset!important}
+body.radio-mode .radio-card:hover{box-shadow:0 16px 34px rgba(0,0,0,.18)!important}
+body.radio-mode .radio-card.is-active{box-shadow:0 12px 30px rgba(0,0,0,.20)!important}
+
+@media(max-width:980px){
+  .app-shell{margin-top:0!important}
+  .sidebar{top:0!important;height:auto!important}
+}
