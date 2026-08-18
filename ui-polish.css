@@ -1,0 +1,205 @@
+/* Final visual refinement layer. Keep this file small and override-only so future OwnTone/API work stays isolated. */
+:root{
+  --coral-soft:#f06a54;
+  --hairline:rgba(20,16,12,.075);
+  --glass:rgba(255,255,255,.46);
+  --ease:cubic-bezier(.2,.72,.2,1);
+}
+
+/* Small interaction details */
+button,select,input{transition:border-color .18s ease,background-color .18s ease,box-shadow .18s ease,transform .18s var(--ease),opacity .18s ease}
+button:focus-visible,select:focus-visible,input:focus-visible{
+  outline:none;
+  box-shadow:0 0 0 3px rgba(239,91,67,.18),0 0 0 1px rgba(239,91,67,.58)!important;
+}
+::selection{background:rgba(239,91,67,.20)}
+
+/* Sidebar: quieter, more premium hierarchy */
+.sidebar{
+  border-color:rgba(255,255,255,.76)!important;
+  box-shadow:0 18px 45px rgba(49,34,22,.075)!important;
+}
+.sidebar-brand{padding-bottom:20px!important}
+.side-link{position:relative;letter-spacing:-.012em}
+.side-link.active{font-weight:760}
+.side-link.active:before{
+  content:"";
+  position:absolute;
+  left:4px;
+  top:50%;
+  width:3px;
+  height:16px;
+  border-radius:99px;
+  background:var(--coral);
+  transform:translateY(-50%);
+}
+.nav-label{font-weight:650;opacity:.86}
+.sidebar-foot{opacity:.78}
+
+/* Top chrome */
+.topbar{padding-right:2px!important}
+.desktop-status{font-variant-numeric:tabular-nums}
+.icon-button,.mode-toggle{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.mode-toggle{box-shadow:0 8px 20px rgba(239,91,67,.18)!important}
+.mode-toggle:active,.icon-button:active{transform:scale(.96)!important}
+
+/* Player: slightly denser and closer to the reference proportions */
+.player-card{
+  grid-template-columns:264px minmax(0,1fr)!important;
+  height:294px!important;
+  border-radius:26px!important;
+  border-color:rgba(255,255,255,.72)!important;
+  box-shadow:0 18px 48px rgba(54,39,26,.085)!important;
+}
+.player-art-wrap{padding:12px!important}
+.player-art{
+  height:270px!important;
+  border-radius:19px!important;
+  border:1px solid rgba(255,255,255,.12);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.035);
+}
+.player-art img{transition:transform .55s var(--ease),filter .35s ease}
+.player-card:hover .player-art.has-art img{transform:scale(1.015)}
+.player-content{padding:25px 38px 20px!important}
+.player-kicker-row{margin-bottom:14px!important}
+.track-copy{min-height:82px!important}
+.track-copy h1{
+  max-width:760px!important;
+  font-size:clamp(27px,2.9vw,42px)!important;
+  line-height:.97!important;
+  letter-spacing:-.052em!important;
+}
+.track-copy p{margin-top:8px!important}
+.track-copy .track-meta{line-height:1.35}
+.transport-row{margin-top:9px!important}
+.play-button{box-shadow:0 10px 24px rgba(239,91,67,.24)!important}
+.play-button:active{transform:scale(.94)!important}
+.micro-action,.transport-button{opacity:.90}
+.micro-action:hover,.transport-button:hover{opacity:1}
+.progress-block{margin-top:10px!important}
+
+/* Volume/output dock */
+.audio-dock{
+  height:60px!important;
+  border-radius:18px!important;
+  border-color:rgba(255,255,255,.70)!important;
+  box-shadow:0 8px 24px rgba(54,39,26,.055)!important;
+}
+.output-select{
+  min-width:166px;
+  border-color:var(--hairline)!important;
+  background:rgba(255,255,255,.56)!important;
+}
+.output-select:hover{background:rgba(255,255,255,.78)!important}
+.dock-heart{width:44px!important;height:44px!important;border-radius:13px!important;font-size:21px!important}
+
+/* Section rhythm */
+.music-view,.radio-view{margin-top:22px!important}
+.section-heading-row.spaced{margin-top:25px!important}
+.compact-head h2{font-size:28px!important}
+h2{letter-spacing:-.052em!important}
+.text-button{opacity:.72}
+.text-button:hover{opacity:1;color:var(--ink)}
+
+/* Quick cards */
+.quick-grid{gap:8px!important;margin-top:10px!important}
+.quick-card{
+  min-height:74px!important;
+  border-radius:16px!important;
+  position:relative;
+  overflow:hidden;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.10);
+}
+.quick-card:before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:linear-gradient(125deg,rgba(255,255,255,.08),transparent 48%);
+}
+.quick-card:hover{transform:translateY(-2px) scale(1.006)!important;box-shadow:0 10px 22px rgba(41,29,20,.09),inset 0 0 0 1px rgba(255,255,255,.13)}
+.quick-card:active{transform:translateY(0) scale(.985)!important}
+.quick-icon{box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+
+/* Album/playlist cards */
+.album-grid,.playlist-grid{gap:8px!important;margin-top:10px!important}
+.album-card,.playlist-card{
+  border-color:rgba(255,255,255,.66)!important;
+  box-shadow:0 1px 0 rgba(255,255,255,.35) inset;
+}
+.album-card:hover,.playlist-card:hover{
+  transform:translateY(-3px)!important;
+  box-shadow:0 12px 26px rgba(48,34,23,.09)!important;
+}
+.album-art img{transition:transform .38s var(--ease),filter .25s ease}
+.album-card:hover .album-art img{transform:scale(1.025)}
+.album-copy{background:linear-gradient(180deg,rgba(255,255,255,.0),rgba(255,255,255,.11))}
+
+/* Radio mode: cleaner hero, less dead UI, stronger station focus */
+body.radio-mode .app-bg{
+  background:radial-gradient(circle at 72% 12%,rgba(239,91,67,.055),transparent 28%),linear-gradient(180deg,#0d0c0b,#090807 78%)!important;
+}
+body.radio-mode .sidebar{background:rgba(20,17,15,.90)!important;border-color:rgba(255,255,255,.055)!important}
+body.radio-mode .player-card{box-shadow:0 22px 58px rgba(0,0,0,.24)!important}
+body.radio-mode #progressBlock{display:none!important}
+body.radio-mode .track-copy{min-height:76px!important}
+body.radio-mode .radio-wave{margin-top:7px!important;margin-bottom:2px}
+body.radio-mode .audio-dock{background:rgba(26,23,21,.90)!important;border-color:rgba(255,255,255,.06)!important}
+body.radio-mode .dock-heart,body.radio-mode .output-select{background:rgba(255,255,255,.055)!important}
+body.radio-mode .radio-intro h2{font-size:31px!important}
+body.radio-mode .radio-intro p{max-width:610px;color:rgba(255,255,255,.46)!important}
+
+/* Radio cards: extra subtle detail without making them busy */
+.radio-card{overflow:hidden}
+.radio-card:after{
+  opacity:.72;
+  transition:opacity .2s ease,transform .28s var(--ease)!important;
+}
+.radio-card:hover:after{opacity:1;transform:translate(-4px,-3px) scale(1.03)}
+.radio-card:before{transition:opacity .22s ease,transform .28s var(--ease)!important}
+.radio-card:hover:before{transform:translateY(-2px);opacity:1!important}
+.radio-card-top>span:first-child{font-variant-numeric:tabular-nums;font-weight:850!important}
+.radio-drag-handle{opacity:.44;transition:opacity .18s ease,background .18s ease,transform .18s ease!important}
+.radio-card:hover .radio-drag-handle,.radio-card:focus-within .radio-drag-handle{opacity:.92}
+.radio-drag-handle:hover{transform:scale(1.06)}
+.radio-quality-pill{box-shadow:inset 0 0 0 1px rgba(255,255,255,.035)}
+.radio-card.is-active .radio-card-top>span:first-child:after{
+  content:"  • ON AIR";
+  color:#fff;
+  opacity:.94;
+}
+.radio-card.is-active{
+  transform:translateY(-1px);
+  box-shadow:0 0 0 1px rgba(255,107,79,.92),0 18px 42px rgba(0,0,0,.24)!important;
+}
+.radio-card.is-active:before{opacity:1!important}
+
+/* Smooth page-mode transition */
+.page-area,.sidebar,.audio-dock,.player-card{transition:background .28s ease,border-color .28s ease,box-shadow .28s ease,color .28s ease}
+
+@media(min-width:1280px){
+  .app-shell{grid-template-columns:198px minmax(0,1fr)!important;gap:16px!important}
+  .radio-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+}
+
+@media(max-width:980px){
+  .player-card{height:auto!important;grid-template-columns:1fr!important}
+  .player-art{height:auto!important;aspect-ratio:1.12!important}
+  .player-content{padding:25px 23px 22px!important}
+  body.radio-mode #progressBlock{display:none!important}
+}
+
+@media(max-width:620px){
+  .player-card{border-radius:23px!important}
+  .player-art{aspect-ratio:1!important;border-radius:17px!important}
+  .track-copy h1{font-size:34px!important}
+  .audio-dock{height:auto!important;min-height:58px}
+  .quick-card{min-height:78px!important}
+  .radio-card.is-active .radio-card-top>span:first-child:after{content:" • LIVE"}
+  .radio-drag-handle{opacity:.78}
+  .mobile-nav{box-shadow:0 -12px 32px rgba(25,18,13,.10)}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .player-art img,.album-art img,.radio-card:before,.radio-card:after{transition:none!important}
+}
