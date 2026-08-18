@@ -78,7 +78,11 @@
     button.setAttribute('aria-pressed', String(muted));
     button.setAttribute('aria-label', muted ? 'Unmute' : 'Mute');
     button.title = muted ? 'Unmute (M)' : 'Mute (M)';
-    button.innerHTML = muted ? icons.muted : icons.sound;
+    const key = muted ? 'muted' : 'sound';
+    if (button.dataset.icon !== key) {
+      button.innerHTML = icons[key];
+      button.dataset.icon = key;
+    }
   }
 
   async function toggleMute() {
