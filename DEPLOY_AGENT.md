@@ -14,27 +14,28 @@ git pull --ff-only origin main
 git log -1 --oneline
 ```
 
-Do not redeploy an older cached copy. The checkout must include at least these files:
+Do not redeploy an older cached copy. The checkout must include at least:
 
 - `scheduler/scheduler_server.py`
-- `scheduler-ui.js`
-- `scheduler-ui.css`
-- `library-browser.js`
-- `library-browser.css`
-- `radio-dnd.js`
-- `radio-polish.css`
+- `scheduler-ui.js` / `scheduler-ui.css`
+- `library-browser.js` / `library-browser.css`
+- `radio-dnd.js` / `radio-polish.css` / `radio-features.css`
+- `playback-tools.js` / `playback-tools.css`
+- `night-safety-history.js`
+- `mute-control.js` / `mute-control.css`
 - `final-fixes.css`
 - `deploy/owntone-dashboard-scheduler.service`
 
-## 2. Install the scheduler service
+## 2. Install or restart the companion scheduler service
 
-The scheduler is intentionally tiny: Python standard library only, no pip/Node/Docker dependencies. It runs locally on `127.0.0.1:3691`, stores persistent rules in `/var/lib/owntone-dashboard/schedules.json`, and calls OwnTone on `127.0.0.1:3689`.
+The service is Python standard-library only. It runs on `127.0.0.1:3691` and now provides scheduler, persistent Now Playing history and server-side radio health probes. Data is stored under `/var/lib/owntone-dashboard/`.
 
 ```bash
 install -m 0644 /opt/owntunedashboard/deploy/owntone-dashboard-scheduler.service \
   /etc/systemd/system/owntone-dashboard-scheduler.service
 systemctl daemon-reload
-systemctl enable --now owntone-dashboard-scheduler.service
+systemctl enable owntone-dashboard-scheduler.service
+systemctl restart owntone-dashboard-scheduler.service
 systemctl --no-pager --full status owntone-dashboard-scheduler.service
 ```
 
@@ -44,11 +45,11 @@ The service uses `TZ=Europe/Belgrade`. Confirm:
 curl -fsS http://127.0.0.1:3691/health
 ```
 
-Expected: JSON with `"ok": true` and no fatal `last_error`.
+Expected: `"ok": true`, `"service": "owntone-dashboard-companion"`, a `history_count` field, and no fatal `last_error`.
 
 ## 3. Update nginx reverse proxy
 
-The dashboard is served on port `3690`. Preserve the working existing server block, but make sure it contains the `/scheduler/` proxy from `deploy/nginx.conf`:
+The dashboard is served on port `3690`. Preserve the working server block and make sure it contains the `/scheduler/` proxy from `deploy/nginx.conf`:
 
 ```nginx
 location /scheduler/ {
@@ -60,102 +61,97 @@ location /scheduler/ {
 }
 ```
 
-If the current nginx dashboard file is already an exact deployment of `deploy/nginx.conf`, replace it with the new version. Otherwise merge only the missing scheduler location and preserve the current working settings.
-
 Then:
 
 ```bash
 nginx -t && systemctl reload nginx
-```
-
-Verify both proxied backends:
-
-```bash
 curl -fsS http://127.0.0.1:3690/api/library >/dev/null
 curl -fsS http://127.0.0.1:3690/scheduler/health
 ```
 
-## 4. Verify OwnTone folder browsing API
+## 4. Folder browsing
 
-The dashboard now has **Folders** under Library and uses OwnTone's native `/api/library/files` endpoint. Do not scan the filesystem directly from browser code.
+The dashboard uses OwnTone `/api/library/files`; do not scan the filesystem directly from browser code.
 
 ```bash
 curl -fsS 'http://127.0.0.1:3689/api/library/files' | head -c 1000
 ```
 
-Open at least one returned directory and verify it returns subdirectories/tracks:
+Verify at least one real music directory, then test folder navigation and individual FLAC playback in Safari.
+
+## 5. New playback tools
+
+Open the dashboard at its normal LAN URL, hard reload once, and test:
+
+1. The new **Queue** icon opens a right-side drawer.
+2. Queue shows the current item plus up to 20 upcoming items.
+3. Drag a queued track to a new position and verify OwnTone queue order changes.
+4. Delete one queued item with the trash button.
+5. On iPhone/Safari, swipe a queue row left and verify removal works.
+6. Switch the drawer to **History**. The companion service should retain up to 50 last played local tracks and radio metadata changes even while the browser is closed.
+7. Click a History item and confirm it plays again through OwnTone.
+8. After midnight and before 08:00, any **manual dashboard playback** must be capped to max **8%** before it starts. This includes albums, playlists, radio, folder tracks, search results and History replay. Scheduler rules are intentionally exempt and retain their configured volume.
+9. The audio dock should show the small Night cap indicator during the 00:00–08:00 safety window.
+
+Useful checks:
 
 ```bash
-curl -G -fsS 'http://127.0.0.1:3689/api/library/files' \
-  --data-urlencode 'directory=/media/music' | head -c 1500
+curl -fsS 'http://127.0.0.1:3690/scheduler/history?limit=5'
+curl -fsS 'http://127.0.0.1:3689/api/queue?start=0&end=20'
 ```
 
-If `/media/music` is not the directory returned by the API, use the actual returned directory. Do not change OwnTone's configured library path merely to make this test match the example.
+## 6. Radio favorites and health
 
-## 5. Browser functional tests
+Test every radio card:
 
-Open the dashboard through its normal LAN URL (currently `http://192.168.1.15:3690`, or the existing proxied dashboard URL if deployment maps it differently).
+- Heart pin/unpin works.
+- Favorites move before non-favorites; with five or fewer they occupy the first desktop row.
+- Manual drag/reorder still works and slot color still belongs to position, not station.
+- Each card gets `CHECKING`, then `LIVE` or `OFFLINE` from a server-side health probe.
+- Quality pill remains visible; if OwnTone/stream headers expose bitrate, health may refine the quality label.
+- An `OFFLINE` card must not immediately start playback; clicking it should re-check the stream.
 
-Hard reload once. `config.js` includes cache-busted extension assets, so subsequent releases should not require manual cache clearing.
+Test one real radio playlist ID returned by OwnTone:
 
-Test all of the following:
+```bash
+curl -fsS 'http://127.0.0.1:3689/api/library/playlists?limit=500' | head -c 2500
+curl -fsS 'http://127.0.0.1:3690/scheduler/radio-health?playlist_id=REPLACE_WITH_ID&force=1'
+```
 
-1. **Music / Radio toggle** still works.
-2. HomePod/AirPlay output is still listed and selectable.
-3. Radio cards still play and remain draggable; reordered cards keep their slot color.
-4. Radio card title is shown only once, quality pill is readable, and the card border animation is subtle.
-5. **Folders** appears under Library on desktop and in mobile navigation.
-6. Open Folders, navigate multiple directory levels, use breadcrumbs/back, and play an individual FLAC/MP3 track. Playback must go through OwnTone queue/API, not browser audio.
-7. Folder dialog must work in both Music and Radio theme.
-8. Clock/**Schedule** button appears in the top bar and Schedule appears in sidebar.
-9. Scheduler UI loads playlists, radio presets and AirPlay outputs.
-10. Create a temporary rule a few minutes in the future, save it, refresh the browser and confirm it persists.
-11. Use **Play now** on that rule and confirm the selected source starts on the selected output at the selected volume.
-12. Toggle rule OFF/ON and confirm state persists after refresh.
-13. Delete the temporary rule.
+Do not hardcode stream URLs into the dashboard health code. The companion asks OwnTone for the first track in the playlist and probes that URL server-side.
 
-## 6. Scheduler API smoke test
+## 7. Scheduler
+
+Schedule UI must continue to support start time, weekdays, Radio/Playlist source, AirPlay output, volume, shuffle, optional stop time, enable/disable and Play now.
+
+Smoke test:
 
 ```bash
 curl -fsS http://127.0.0.1:3690/scheduler/schedules
-journalctl -u owntone-dashboard-scheduler.service -n 80 --no-pager
+journalctl -u owntone-dashboard-scheduler.service -n 100 --no-pager
 ```
 
-A scheduler rule supports:
+Create a temporary rule a few minutes ahead, verify the real-time trigger, then delete it.
 
-- start time
-- selected weekdays
-- Radio or Playlist source
-- OwnTone/AirPlay output
-- volume 0–100
-- shuffle
-- optional same-day stop time
-- enabled/disabled state
-- Play now test
+## 8. Regression / resource check
 
-Example intended use:
-
-- Mon–Fri 09:00 → Morning playlist → HomePod → 8%
-- Sat–Sun 10:00 → Radio Porto Montenegro → HomePod → 10%
-
-## 7. Resource / regression check
-
-Do not install Node, npm, Docker, a database, Redis, or another web framework. Scheduler must remain the Python standard-library service committed in this repo.
+Do not install Node, npm, Docker, a database, Redis or another web framework. The companion remains Python standard-library only.
 
 After testing report:
 
 - latest deployed git commit
-- `owntone` service: PASS/FAIL
-- Plex service: PASS/FAIL
+- Plex: PASS/FAIL
+- OwnTone: PASS/FAIL
 - dashboard HTTP: PASS/FAIL
-- folder browsing: PASS/FAIL
-- individual folder-track playback: PASS/FAIL
-- scheduler service: PASS/FAIL
-- scheduler create/edit/toggle/delete: PASS/FAIL
-- scheduler Play now: PASS/FAIL
-- scheduled real-time trigger: PASS/FAIL
-- HomePod output + volume control: PASS/FAIL
-- RAM of OwnTone + scheduler while idle
-- any console/network errors seen in Safari
+- HomePod playback + volume: PASS/FAIL
+- folder browsing + FLAC playback: PASS/FAIL
+- scheduler: PASS/FAIL
+- Queue drawer list/reorder/delete/swipe: PASS/FAIL
+- Now Playing history persistence/replay: PASS/FAIL
+- Night Safe 00:00–08:00 max 8%: PASS/FAIL
+- radio favorites/pinning: PASS/FAIL
+- radio health LIVE/OFFLINE: PASS/FAIL
+- Safari desktop/mobile console errors
+- RAM of OwnTone + companion service while idle
 
-If a test fails, diagnose that component only. Do not make broad networking, Plex, Proxmox, or OwnTone library changes to hide the failure.
+If a test fails, diagnose that component only. Do not make broad networking, Plex, Proxmox or OwnTone library changes to hide the failure.
