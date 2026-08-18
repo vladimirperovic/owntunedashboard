@@ -105,8 +105,8 @@
     const pill = card.querySelector('.radio-health-pill');
     if (!pill) return;
     const status = health ? (health.online ? 'LIVE' : 'OFFLINE') : 'CHECKING';
-    pill.textContent = status;
-    pill.dataset.status = status.toLowerCase();
+    if (pill.textContent !== status) pill.textContent = status;
+    if (pill.dataset.status !== status.toLowerCase()) pill.dataset.status = status.toLowerCase();
     card.classList.toggle('is-offline', status === 'OFFLINE');
     card.classList.toggle('is-health-live', status === 'LIVE');
     if (health?.checked_at) pill.title = `${status} · checked ${new Date(health.checked_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
@@ -116,7 +116,8 @@
     const id = playlistId(card); if (!id) return;
     const existing = healthCache.get(id);
     if (!force && existing && Date.now() - Number(existing._checked || 0) < 75000) { renderHealth(card); return; }
-    card.querySelector('.radio-health-pill')?.setAttribute('data-status', 'checking');
+    const healthPill = card.querySelector('.radio-health-pill');
+    if (healthPill && healthPill.dataset.status !== 'checking') healthPill.dataset.status = 'checking';
     try {
       const response = await fetch(`${companionBase}/radio-health?playlist_id=${encodeURIComponent(id)}${force ? '&force=1' : ''}`, {cache:'no-store'});
       if (!response.ok) throw new Error(String(response.status));
@@ -126,7 +127,7 @@
       healthCache.set(id, {online:false,status:'OFFLINE',quality:'STREAM',error:String(error),_checked:Date.now()});
     }
     renderHealth(card);
-    const quality = card.querySelector('.radio-quality-pill'); if (quality) quality.textContent = qualityFor(card);
+    const quality = card.querySelector('.radio-quality-pill'); if (quality) { const value=qualityFor(card); if(quality.textContent!==value) quality.textContent=value; }
   }
 
   function checkAllHealth() {
@@ -145,7 +146,11 @@
       card.dataset.monogram = displayName(name);
       card.title = `${name}${active ? ' · On air' : ''}`;
       const favorite = card.querySelector('.radio-favorite');
-      if (favorite) { favorite.innerHTML = isFavorite(card, favorites) ? '♥' : '♡'; favorite.title = isFavorite(card, favorites) ? 'Unpin favorite' : 'Pin to first row'; }
+      if (favorite) {
+        const mark = isFavorite(card, favorites) ? '♥' : '♡';
+        if (favorite.textContent !== mark) favorite.textContent = mark;
+        favorite.title = isFavorite(card, favorites) ? 'Unpin favorite' : 'Pin to first row';
+      }
       const quality = card.querySelector('.radio-quality-pill');
       if (quality) { const value = qualityFor(card); if (quality.textContent !== value) quality.textContent = value; quality.title = `Stream quality: ${value}`; }
       renderHealth(card);
