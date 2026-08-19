@@ -36,7 +36,7 @@ window.OWNTONE_DASHBOARD = {
 // Lightweight UI extensions are deliberately isolated from app.js so playback logic
 // remains small and future OwnTone API changes are easier to maintain.
 (() => {
-  const BUILD = '20260819-9';
+  const BUILD = '20260819-10';
   const asset = path => `${path}?v=${BUILD}`;
 
   const addStyle = (href, dataKey) => {

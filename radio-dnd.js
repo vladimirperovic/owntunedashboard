@@ -204,7 +204,9 @@
 
   function enhanceCard(card) {
     if (card.dataset.dragEnhanced === '1') return;
-    card.dataset.dragEnhanced = '1'; card.draggable = true; card.setAttribute('aria-grabbed', 'false');
+    card.dataset.dragEnhanced = '1';
+    card.draggable = false;
+    card.setAttribute('aria-grabbed', 'false');
     
     // Ensure top container
     let top = card.querySelector('.radio-card-top');
@@ -242,14 +244,19 @@
       top.appendChild(actions);
     }
     
-    if (!actions.querySelector('.radio-drag-handle')) {
-      const handle = document.createElement('span');
+    let handle = actions.querySelector('.radio-drag-handle');
+    if (!handle) {
+      handle = document.createElement('span');
       handle.className = 'radio-drag-handle';
       handle.setAttribute('aria-hidden', 'true');
       handle.title = 'Drag to reorder';
       handle.textContent = '⠿';
       actions.appendChild(handle);
     }
+    handle.setAttribute('draggable', 'true');
+    handle.addEventListener('mousedown', () => { card.draggable = true; });
+    handle.addEventListener('mouseup', () => { card.draggable = false; });
+
     if (!actions.querySelector('.radio-favorite')) {
       const favorite = document.createElement('button');
       favorite.type = 'button';
@@ -287,10 +294,30 @@
     }
 
     card.addEventListener('dragstart', event => {
+      if (!event.target.closest('.radio-drag-handle') && !card.draggable) {
+        event.preventDefault();
+        return;
+      }
       dragged = card; moved = false; card.classList.add('dragging'); card.setAttribute('aria-grabbed','true'); event.dataTransfer.effectAllowed='move';
       try { event.dataTransfer.setData('text/plain', stationName(card)); } catch (_) {}
     });
-    card.addEventListener('dragend', () => finishReorder(card, grid()));
+    card.addEventListener('dragend', () => {
+      card.draggable = false;
+      finishReorder(card, grid());
+    });
+
+    // Direct click handler to ensure instant playback without relying solely on document bubbling
+    card.addEventListener('click', event => {
+      if (event.target.closest('.radio-favorite, .radio-drag-handle')) return;
+      if (Date.now() < suppressClickUntil) return;
+      const uri = card.dataset.uri;
+      if (uri) {
+        if (typeof window.OWNTONE_PLAY_URI === 'function') {
+          window.OWNTONE_PLAY_URI(uri);
+        }
+      }
+    });
+
     setTimeout(() => checkHealth(card), Math.random() * 650);
   }
 
@@ -314,14 +341,6 @@
     el.addEventListener('pointermove', event => { if(!touchActive||event.pointerId!==touchPointerId||!touchCard)return;event.preventDefault();reorderTowardPoint(el,touchCard,event.clientX,event.clientY); }, {passive:false});
     const endPointer = event => { if(event.pointerId!==touchPointerId)return;clearTimeout(touchStartTimer);if(touchActive&&touchCard)finishReorder(touchCard,el);touchPointerId=null;touchCard=null;touchActive=false; };
     el.addEventListener('pointerup',endPointer);el.addEventListener('pointercancel',endPointer);
-    el.addEventListener('click', event => {
-      if (event.target.closest('.radio-favorite,.radio-drag-handle')) return;
-      if (Date.now() < suppressClickUntil) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        return;
-      }
-    });
   }
 
   function enhance() {
