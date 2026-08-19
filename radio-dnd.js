@@ -160,6 +160,19 @@
       if (quality) { if (quality.textContent !== qVal) quality.textContent = qVal; quality.title = `Stream quality: ${qVal}`; }
       
       const sub = card.querySelector('.radio-station-sub, .radio-card-copy small');
+      if (card.classList.contains('is-starting')) {
+        if (active) {
+          card.classList.remove('is-starting');
+          const playBtn = card.querySelector('.radio-play-btn');
+          if (playBtn) playBtn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7L8 5Z"/></svg>';
+        } else {
+          if (sub) {
+            sub.textContent = 'Connecting to stream…';
+            sub.classList.add('is-live-meta');
+          }
+          return;
+        }
+      }
       if (sub) {
         if (active) {
           const liveText = [currentArtist !== 'OwnTone' && currentArtist, currentMeta].filter(Boolean).join(' · ');

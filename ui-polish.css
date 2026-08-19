@@ -149,6 +149,61 @@ body.radio-mode .dock-heart,body.radio-mode .output-select{background:rgba(255,2
 body.radio-mode .radio-intro h2{font-size:31px!important}
 body.radio-mode .radio-intro p{max-width:610px;color:rgba(255,255,255,.46)!important}
 
+/* Playback loading spinner & optimistic connecting animations */
+@keyframes spinPlayback {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.playback-spinner {
+  width: 22px !important;
+  height: 22px !important;
+  animation: spinPlayback 0.72s linear infinite !important;
+  stroke: currentColor;
+}
+
+.play-button.is-starting {
+  background: var(--coral) !important;
+  animation: playPulseGlow 1.2s ease-in-out infinite !important;
+}
+
+@keyframes playPulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(239, 91, 67, 0.75), 0 10px 24px rgba(239, 91, 67, 0.35) !important;
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 9px rgba(239, 91, 67, 0.22), 0 14px 32px rgba(239, 91, 67, 0.55) !important;
+    transform: scale(1.045);
+  }
+}
+
+.format-pill.is-buffering {
+  background: var(--coral) !important;
+  color: #fff !important;
+  animation: formatPillPulse 1s ease-in-out infinite !important;
+}
+
+@keyframes formatPillPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.72; transform: scale(0.96); }
+}
+
+/* Vinyl rotation animation when playing or starting */
+@keyframes vinylSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.player-card.is-playing .record-art,
+.player-card.is-starting .record-art {
+  animation: vinylSpin 14s linear infinite !important;
+}
+
+.player-card.is-starting .player-art {
+  box-shadow: 0 0 20px rgba(239, 91, 67, 0.25) !important;
+}
+
 /* Smooth page-mode transition */
 .page-area,.sidebar,.audio-dock,.player-card{transition:background .28s ease,border-color .28s ease,box-shadow .28s ease,color .28s ease}
 
@@ -176,5 +231,5 @@ body.radio-mode .radio-intro p{max-width:610px;color:rgba(255,255,255,.46)!impor
 }
 
 @media(prefers-reduced-motion:reduce){
-  .player-art img,.album-art img,.radio-card:before,
+  .player-art img,.album-art img,.playback-spinner,.record-art{animation:none!important}
 }
