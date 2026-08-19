@@ -131,3 +131,28 @@ body.radio-mode .radio-card.is-active{box-shadow:0 12px 30px rgba(0,0,0,.20)!imp
 @media(prefers-reduced-motion:reduce){
   .radio-visualizer-canvas{opacity:.82}
 }
+
+/* Radio: three sections (Favorite streams / Radio / Live text). */
+.radio-section{margin-top:26px}
+.radio-section-head{display:flex;align-items:baseline;gap:12px;margin-bottom:12px}
+.radio-section-head h3{margin:0;font-size:20px;line-height:1;letter-spacing:-.03em}
+.radio-section-head .section-kicker{font-size:9px}
+body.radio-mode .radio-section-head h3{color:#fff}
+.radio-live-card{
+  display:flex;align-items:center;gap:14px;max-width:560px;padding:16px 18px;border-radius:18px;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);
+}
+body:not(.radio-mode) .radio-live-card{background:rgba(248,242,234,.72);border:1px solid rgba(255,255,255,.72)}
+.radio-live-mark{flex:0 0 auto;padding:7px 12px;border-radius:999px;background:#ef5b43;color:#fff;font-size:9px;font-weight:850;letter-spacing:.12em}
+.radio-live-art{flex:0 0 auto;width:54px;height:54px;border-radius:12px;object-fit:cover}
+.radio-live-card>div:last-child{min-width:0;display:flex;flex-direction:column;gap:5px}
+.radio-live-station{font-size:12px;font-weight:800;letter-spacing:-.01em}
+body.radio-mode .radio-live-station{color:#fff}
+.radio-live-text{font-size:14px;line-height:1.25;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.radio-mode .radio-live-text{color:#b7ada6}
+.radio-live-empty{font-size:11px;color:var(--muted);opacity:.8}
+@media(max-width:620px){
+  .radio-section{margin-top:22px}
+  .radio-live-card{padding:13px 14px;border-radius:16px}
+  .radio-live-text{font-size:13px}
+}

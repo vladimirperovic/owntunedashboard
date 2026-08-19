@@ -5,6 +5,9 @@
   const FAVORITES_KEY = 'owntone-radio-favorites-v1';
   const companionBase = String(window.OWNTONE_DASHBOARD?.schedulerBase || '/scheduler').replace(/\/$/, '');
   const grid = () => document.getElementById('radioGrid');
+  const favGrid = () => document.getElementById('radioFavoritesGrid');
+  const grids = () => [favGrid(), grid()].filter(Boolean);
+  const allCards = () => grids().flatMap(el => [...el.querySelectorAll('.radio-card')]);
   let dragged = null;
   let moved = false;
   let suppressClickUntil = 0;
@@ -32,12 +35,11 @@
   function isFavorite(card, set=favoriteSet()) { return set.has(cardKey(card)) || set.has(stationName(card)); }
 
   function saveOrder() {
-    const el = grid(); if (!el) return;
-    writeArray(ORDER_KEY, [...el.querySelectorAll('.radio-card')].map(stationName).filter(Boolean));
+    writeArray(ORDER_KEY, allCards().map(stationName).filter(Boolean));
   }
 
-  function applySavedOrder(el) {
-    const cards = [...el.querySelectorAll('.radio-card')];
+  function applyPartition() {
+    const cards = allCards();
     if (!cards.length) return;
     const saved = readArray(ORDER_KEY);
     const byName = new Map(cards.map(card => [normalize(stationName(card)), card]));
@@ -50,11 +52,14 @@
     const favorites = favoriteSet();
     const pinned = ordered.filter(card => isFavorite(card, favorites));
     const normal = ordered.filter(card => !isFavorite(card, favorites));
-    const wantedCards = [...pinned, ...normal];
-    const current = cards.map(cardKey).join('|');
-    const wanted = wantedCards.map(cardKey).join('|');
-    if (current !== wanted) wantedCards.forEach(card => el.appendChild(card));
-    wantedCards.forEach(card => card.classList.toggle('is-favorite', isFavorite(card, favorites)));
+    const fg = favGrid(), g = grid();
+    const targets = [];
+    if (fg) targets.push(...pinned.map(card => [card, fg]));
+    if (g) targets.push(...normal.map(card => [card, g]));
+    const current = grids().map(el => [...el.querySelectorAll('.radio-card')].map(cardKey).join('|')).join('|');
+    const wanted = targets.map(([card]) => cardKey(card)).join('|');
+    if (current !== wanted) targets.forEach(([card, target]) => target.appendChild(card));
+    ordered.forEach(card => card.classList.toggle('is-favorite', isFavorite(card, favorites)));
   }
 
   function toggleFavorite(card) {
@@ -63,10 +68,9 @@
     const set = new Set(values);
     if (set.has(key)) set.delete(key); else set.add(key);
     writeArray(FAVORITES_KEY, [...set]);
-    const el = grid();
-    applySavedOrder(el);
+    applyPartition();
     saveOrder();
-    animateSettle(el);
+    animateSettle(grids()[0]);
     updateActiveAndQuality();
   }
 
@@ -131,14 +135,13 @@
   }
 
   function checkAllHealth() {
-    const cards = [...document.querySelectorAll('#radioGrid .radio-card')];
-    cards.forEach((card, index) => setTimeout(() => checkHealth(card), index * 280));
+    allCards().forEach((card, index) => setTimeout(() => checkHealth(card), index * 280));
   }
 
   function updateActiveAndQuality() {
     const currentTitle = normalize(document.getElementById('trackTitle')?.textContent || '');
     const favorites = favoriteSet();
-    document.querySelectorAll('#radioGrid .radio-card').forEach(card => {
+    allCards().forEach(card => {
       const name = stationName(card), station = normalize(name);
       const active = !!station && !!currentTitle && (station.includes(currentTitle) || currentTitle.includes(station));
       card.classList.toggle('is-active', active);
@@ -168,7 +171,7 @@
   function finishReorder(card, el) {
     card?.classList.remove('dragging', 'touch-dragging'); card?.setAttribute('aria-grabbed', 'false');
     el?.querySelectorAll('.drop-target').forEach(node => node.classList.remove('drop-target'));
-    if (moved && el) { saveOrder(); applySavedOrder(el); animateSettle(el); suppressClickUntil = Date.now() + 400; }
+    if (moved && el) { saveOrder(); applyPartition(); animateSettle(el); suppressClickUntil = Date.now() + 400; }
     dragged = null; moved = false; updateActiveAndQuality();
   }
 
@@ -231,7 +234,9 @@
   }
 
   function enhance() {
-    const el=grid(); if(!el)return; applySavedOrder(el); wireGrid(el); el.querySelectorAll('.radio-card').forEach(enhanceCard); updateActiveAndQuality();
+    applyPartition();
+    grids().forEach(el => { wireGrid(el); el.querySelectorAll('.radio-card').forEach(enhanceCard); });
+    updateActiveAndQuality();
   }
   let scheduled=false;
   const scheduleEnhance=()=>{if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;enhance();});};

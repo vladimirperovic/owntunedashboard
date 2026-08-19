@@ -137,13 +137,18 @@
       tip.className = 'volume-tooltip';
       tip.setAttribute('aria-hidden', 'true');
       volumeWrap.appendChild(tip);
-      range.addEventListener('input', () => {
+      const positionTip = () => {
         const v = Number(range.value) || 0;
+        const width = range.offsetWidth;
+        const thumb = 13;
         tip.textContent = `${v}%`;
-        tip.style.left = `calc((100% - 13px) * ${v} / 100 + 6.5px)`;
+        tip.style.left = `${range.offsetLeft + thumb / 2 + (width - thumb) * v / 100}px`;
         tip.classList.add('show');
-      });
+      };
+      range.addEventListener('input', positionTip);
+      range.addEventListener('pointerdown', positionTip);
       range.addEventListener('change', () => setTimeout(() => tip.classList.remove('show'), 450));
+      range.addEventListener('pointerup', () => setTimeout(() => tip.classList.remove('show'), 450));
     }
     range?.addEventListener('input', render);
     document.getElementById('outputSelect')?.addEventListener('change', () => setTimeout(render, 50));

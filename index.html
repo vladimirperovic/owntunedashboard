@@ -136,8 +136,19 @@
         </section>
 
         <section class="radio-view" id="radioView" hidden>
-          <div class="radio-intro"><span class="section-kicker">LIVE RADIO</span><h2>Popular stations</h2><p>Your saved high-quality streams. Tap once and the station takes over the selected AirPlay output.</p></div>
-          <div class="radio-grid" id="radioGrid"></div>
+          <div class="radio-intro"><span class="section-kicker">LIVE RADIO</span><h2>Stations</h2><p>Your saved high-quality streams. Tap once and the station takes over the selected AirPlay output.</p></div>
+          <div class="radio-section">
+            <div class="radio-section-head"><span class="section-kicker">PINNED</span><h3>Favorite streams</h3></div>
+            <div class="radio-grid" id="radioFavoritesGrid"></div>
+          </div>
+          <div class="radio-section">
+            <div class="radio-section-head"><span class="section-kicker">STATIONS</span><h3>Radio</h3></div>
+            <div class="radio-grid" id="radioGrid"></div>
+          </div>
+          <div class="radio-section">
+            <div class="radio-section-head"><span class="section-kicker">ON AIR</span><h3>Live text</h3></div>
+            <div id="radioLiveText"></div>
+          </div>
         </section>
       </main>
 
