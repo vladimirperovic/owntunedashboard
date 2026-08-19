@@ -23,6 +23,9 @@ window.OWNTONE_DASHBOARD = {
   historyLimit: 50,
   queueLimit: 20,
 
+  // Default folder path when opening the folder browser
+  defaultFolderPath: '/media/music/Music',
+
   // Optional per-station quality labels. Add verified ffprobe results here when
   // OwnTone's playlist metadata does not expose codec/bitrate.
   radioQuality: {
@@ -33,7 +36,7 @@ window.OWNTONE_DASHBOARD = {
 // Lightweight UI extensions are deliberately isolated from app.js so playback logic
 // remains small and future OwnTone API changes are easier to maintain.
 (() => {
-  const BUILD = '20260819-5';
+  const BUILD = '20260819-7';
   const asset = path => `${path}?v=${BUILD}`;
 
   const addStyle = (href, dataKey) => {

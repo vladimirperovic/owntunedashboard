@@ -171,27 +171,28 @@ def owntone_request(path: str, method: str = "GET", body=None, timeout: int = 8)
             return raw.decode("utf-8", errors="replace")
 
 
-def schedule_volume_bump(item: dict, runtime: dict) -> None:
+def schedule_volume_bump(item: dict, runtime: dict) -> bool:
     ramp_minutes = int(item.get("ramp_minutes") or 0)
     ramp_volume = int(item.get("ramp_volume") or 0)
     if ramp_minutes <= 0 or ramp_volume <= 0:
-        return
+        return False
     run_key = str((runtime.get("runs") or {}).get(str(item.get("id")), ""))
     if not run_key:
-        return
+        return False
     bumps = runtime.setdefault("bumps", {})
     if bumps.get(str(item.get("id"))) == run_key:
-        return
+        return False
     try:
         ran_at = datetime.strptime(run_key, "%Y-%m-%dT%H:%M").astimezone()
     except ValueError:
-        return
+        return False
     if datetime.now().astimezone() < ran_at + timedelta(minutes=ramp_minutes):
-        return
+        return False
     output_id = str(item.get("output_id") or "")
     volume_query = urlencode({"volume": ramp_volume, "output_id": output_id})
     owntone_request(f"/player/volume?{volume_query}", "PUT")
     bumps[str(item.get("id"))] = run_key
+    return True
 
 
 def execute_schedule(item: dict) -> dict:
@@ -444,7 +445,8 @@ def scheduler_loop():
                     dirty = True
 
                 try:
-                    schedule_volume_bump(item, runtime)
+                    if schedule_volume_bump(item, runtime):
+                        dirty = True
                 except Exception as exc:
                     runtime["last_error"] = {
                         "at": datetime.now().astimezone().isoformat(),

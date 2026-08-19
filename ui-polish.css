@@ -149,28 +149,6 @@ body.radio-mode .dock-heart,body.radio-mode .output-select{background:rgba(255,2
 body.radio-mode .radio-intro h2{font-size:31px!important}
 body.radio-mode .radio-intro p{max-width:610px;color:rgba(255,255,255,.46)!important}
 
-/* Radio cards: extra subtle detail without making them busy */
-.radio-card{overflow:hidden}
-
-
-.radio-card:before{transition:opacity .22s ease,transform .28s var(--ease)!important}
-.radio-card:hover:before{transform:translateY(-2px);opacity:1!important}
-.radio-card-top>span:first-child{font-variant-numeric:tabular-nums;font-weight:850!important}
-.radio-drag-handle{opacity:.44;transition:opacity .18s ease,background .18s ease,transform .18s ease!important}
-.radio-card:hover .radio-drag-handle,.radio-card:focus-within .radio-drag-handle{opacity:.92}
-.radio-drag-handle:hover{transform:scale(1.06)}
-.radio-quality-pill{box-shadow:inset 0 0 0 1px rgba(255,255,255,.035)}
-.radio-card.is-active .radio-card-top>span:first-child:after{
-  content:"  • ON AIR";
-  color:#fff;
-  opacity:.94;
-}
-.radio-card.is-active{
-  transform:translateY(-1px);
-  box-shadow:0 0 0 1px rgba(255,107,79,.92),0 18px 42px rgba(0,0,0,.24)!important;
-}
-.radio-card.is-active:before{opacity:1!important}
-
 /* Smooth page-mode transition */
 .page-area,.sidebar,.audio-dock,.player-card{transition:background .28s ease,border-color .28s ease,box-shadow .28s ease,color .28s ease}
 

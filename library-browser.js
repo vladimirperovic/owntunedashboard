@@ -1,13 +1,17 @@
 (() => {
   'use strict';
 
-  const cfg = Object.assign({apiBase:'/api'}, window.OWNTONE_DASHBOARD || {});
+  const cfg = Object.assign({apiBase:'/api', defaultFolderPath:'/media/music/Music'}, window.OWNTONE_DASHBOARD || {});
   const apiBase = String(cfg.apiBase || '/api').replace(/\/$/, '');
+  const defaultPath = String(cfg.defaultFolderPath || '/media/music/Music');
   let dialog;
   let body;
   let crumbs;
   let pathLabel;
-  let currentPath = '';
+  let searchInput;
+  let searchClear;
+  let countBadge;
+  let currentPath = defaultPath;
   let currentTracks = [];
   let busy = false;
 
@@ -18,6 +22,7 @@
     shuffle:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h2.5c4 0 5 10 9 10H20M17 14l3 3-3 3M4 17h2.5c1.5 0 2.6-1.4 3.6-3M15.5 7H20M17 4l3 3-3 3"/></svg>',
     next:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l9 7-9 7V5Z"/><path d="M18 5v14"/></svg>',
     add:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+    search:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
   };
 
   function apiUrl(path) { return `${apiBase}${path.startsWith('/') ? path : '/' + path}`; }
@@ -56,7 +61,7 @@
       button.type = 'button';
       button.id = 'foldersNavButton';
       button.innerHTML = `<span class="folder-nav-icon">${icon.folder}</span>Folders`;
-      button.addEventListener('click', openBrowser);
+      button.addEventListener('click', () => openBrowser(currentPath || defaultPath));
       albumLink.insertAdjacentElement('afterend', button);
     }
 
@@ -66,7 +71,7 @@
       button.type = 'button';
       button.id = 'foldersMobileButton';
       button.innerHTML = `<span class="folder-mobile-icon">${icon.folder}</span><small>Folders</small>`;
-      button.addEventListener('click', openBrowser);
+      button.addEventListener('click', () => openBrowser(currentPath || defaultPath));
       const library = [...mobile.querySelectorAll('button')].find(x => /library/i.test(x.textContent || ''));
       library ? library.insertAdjacentElement('afterend', button) : mobile.appendChild(button);
     }
@@ -89,22 +94,85 @@
           </div>
         </header>
         <div class="folder-crumbs" id="folderCrumbs"></div>
+        <div class="folder-search-row">
+          <div class="folder-search-wrap">
+            <span class="folder-search-icon">${icon.search}</span>
+            <input type="text" id="folderSearchInput" class="folder-search-input" placeholder="Filter folders and tracks in this folder…" aria-label="Filter folder contents" autocomplete="off" spellcheck="false" />
+            <button type="button" class="folder-search-clear" id="folderSearchClear" aria-label="Clear filter" style="display:none">×</button>
+          </div>
+          <span class="folder-count-badge" id="folderCountBadge">0 items</span>
+        </div>
         <div class="folder-body" id="folderBody"><div class="folder-loading">Loading folders…</div></div>
       </div>`;
     document.body.appendChild(dialog);
     body = dialog.querySelector('#folderBody');
     crumbs = dialog.querySelector('#folderCrumbs');
     pathLabel = dialog.querySelector('#folderPathLabel');
+    searchInput = dialog.querySelector('#folderSearchInput');
+    searchClear = dialog.querySelector('#folderSearchClear');
+    countBadge = dialog.querySelector('#folderCountBadge');
+
     dialog.querySelector('#folderClose').addEventListener('click', () => dialog.close());
     dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
     dialog.querySelector('#folderPlayAll').addEventListener('click', () => playTracks(currentTracks, false));
     dialog.querySelector('#folderShuffle').addEventListener('click', () => playTracks(currentTracks, true));
+
+    searchInput.addEventListener('input', () => filterCurrentDirectory(searchInput.value));
+    searchInput.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        if (searchInput.value) {
+          searchInput.value = '';
+          filterCurrentDirectory('');
+          e.stopPropagation();
+        }
+      }
+    });
+    searchClear.addEventListener('click', () => {
+      searchInput.value = '';
+      filterCurrentDirectory('');
+      searchInput.focus();
+    });
   }
 
-  async function openBrowser() {
+  function filterCurrentDirectory(query) {
+    const q = String(query || '').trim().toLowerCase();
+    searchClear.style.display = q ? 'grid' : 'none';
+    const rows = [...body.querySelectorAll('.folder-row')];
+    if (!rows.length) return;
+
+    let matched = 0;
+    let totalItems = 0;
+    const existingEmpty = body.querySelector('.folder-search-empty');
+    if (existingEmpty) existingEmpty.remove();
+
+    rows.forEach(row => {
+      if (row.classList.contains('folder-up')) {
+        row.style.display = '';
+        return;
+      }
+      totalItems++;
+      const text = row.textContent.toLowerCase();
+      const match = !q || text.includes(q);
+      row.style.display = match ? '' : 'none';
+      if (match) matched++;
+    });
+
+    if (q && matched === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'folder-search-empty';
+      empty.innerHTML = `<b>No matches found</b><span>No files or folders matching "<em>${escapeHtml(query)}</em>" in this directory.</span>`;
+      body.appendChild(empty);
+    }
+
+    if (countBadge) {
+      countBadge.textContent = q ? `${matched} of ${totalItems} items` : `${totalItems} items`;
+    }
+  }
+
+  async function openBrowser(path) {
     mount();
     if (typeof dialog.showModal === 'function') dialog.showModal(); else { dialog.setAttribute('open',''); dialog.classList.add('fallback-open'); }
-    await browse(currentPath || '');
+    await browse(path || currentPath || defaultPath);
   }
 
   function renderCrumbs(path) {
@@ -137,6 +205,10 @@
     currentPath = path || '';
     pathLabel.textContent = currentPath || 'Local library';
     renderCrumbs(currentPath);
+    if (searchInput) {
+      searchInput.value = '';
+      if (searchClear) searchClear.style.display = 'none';
+    }
     body.innerHTML = '<div class="folder-loading">Loading…</div>';
     try {
       const qs = currentPath ? `?directory=${encodeURIComponent(currentPath)}` : '';
@@ -146,6 +218,7 @@
     } catch (error) {
       currentTracks = [];
       body.innerHTML = `<div class="folder-empty"><b>Could not open this folder</b><span>${escapeHtml(error.message)}</span></div>`;
+      if (countBadge) countBadge.textContent = '0 items';
     } finally {
       busy = false;
       const play = dialog.querySelector('#folderPlayAll');
@@ -161,6 +234,7 @@
     const playlists = data.playlists?.items || [];
     if (!directories.length && !tracks.length && !playlists.length) {
       body.innerHTML = '<div class="folder-empty"><b>This folder is empty</b><span>No indexed audio files were found.</span></div>';
+      if (countBadge) countBadge.textContent = '0 items';
       return;
     }
 
@@ -199,6 +273,9 @@
     });
 
     body.innerHTML = html;
+    const totalCount = directories.length + tracks.length + playlists.length;
+    if (countBadge) countBadge.textContent = `${totalCount} items`;
+
     body.querySelectorAll('[data-folder]').forEach(row => row.addEventListener('click', () => browse(row.dataset.folder || '')));
     body.querySelectorAll('[data-uri]').forEach(row => row.addEventListener('click', () => playUris([row.dataset.uri], false)));
     body.querySelectorAll('.folder-track-play').forEach(btn => btn.addEventListener('click', event => {

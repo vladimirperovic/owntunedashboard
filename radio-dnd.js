@@ -18,7 +18,7 @@
   const healthCache = new Map();
 
   const normalize = value => String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
-  const stationName = card => card?.querySelector('.radio-card-copy b')?.textContent?.trim() || '';
+  const stationName = card => card?.querySelector('.radio-station-name, .radio-card-copy b, b')?.textContent?.trim() || '';
   const cardKey = card => String(card?.dataset.uri || stationName(card) || '').trim();
   const playlistId = card => (String(card?.dataset.uri || '').match(/^library:playlist:([^,]+)$/) || [])[1] || '';
 
@@ -108,7 +108,7 @@
     const id = playlistId(card), health = healthCache.get(id);
     const pill = card.querySelector('.radio-health-pill');
     if (!pill) return;
-    const status = health ? (health.online ? 'LIVE' : 'OFFLINE') : 'CHECKING';
+    const status = health ? (health.online ? 'LIVE' : 'OFFLINE') : 'LIVE';
     if (pill.textContent !== status) pill.textContent = status;
     if (pill.dataset.status !== status.toLowerCase()) pill.dataset.status = status.toLowerCase();
     card.classList.toggle('is-offline', status === 'OFFLINE');
@@ -140,13 +140,14 @@
 
   function updateActiveAndQuality() {
     const currentTitle = normalize(document.getElementById('trackTitle')?.textContent || '');
+    const currentArtist = document.getElementById('trackArtist')?.textContent || '';
+    const currentMeta = document.getElementById('trackMeta')?.textContent || '';
     const favorites = favoriteSet();
     allCards().forEach(card => {
       const name = stationName(card), station = normalize(name);
       const active = !!station && !!currentTitle && (station.includes(currentTitle) || currentTitle.includes(station));
       card.classList.toggle('is-active', active);
       card.classList.toggle('is-favorite', isFavorite(card, favorites));
-      card.dataset.monogram = displayName(name);
       card.title = `${name}${active ? ' · On air' : ''}`;
       const favorite = card.querySelector('.radio-favorite');
       if (favorite) {
@@ -155,7 +156,20 @@
         favorite.title = isFavorite(card, favorites) ? 'Unpin favorite' : 'Pin to first row';
       }
       const quality = card.querySelector('.radio-quality-pill');
-      if (quality) { const value = qualityFor(card); if (quality.textContent !== value) quality.textContent = value; quality.title = `Stream quality: ${value}`; }
+      const qVal = qualityFor(card);
+      if (quality) { if (quality.textContent !== qVal) quality.textContent = qVal; quality.title = `Stream quality: ${qVal}`; }
+      
+      const sub = card.querySelector('.radio-station-sub, .radio-card-copy small');
+      if (sub) {
+        if (active) {
+          const liveText = [currentArtist !== 'OwnTone' && currentArtist, currentMeta].filter(Boolean).join(' · ');
+          sub.textContent = liveText ? `▶ ${liveText}` : '▶ Live on air';
+          sub.classList.add('is-live-meta');
+        } else {
+          sub.textContent = `${qVal} · Direct stream`;
+          sub.classList.remove('is-live-meta');
+        }
+      }
       renderHealth(card);
     });
   }
@@ -177,26 +191,88 @@
 
   function enhanceCard(card) {
     if (card.dataset.dragEnhanced === '1') return;
-    card.dataset.dragEnhanced = '1'; card.draggable = true; card.setAttribute('aria-grabbed', 'false'); card.dataset.monogram = displayName(stationName(card));
-    const top = card.querySelector('.radio-card-top');
-    if (top && !top.querySelector('.radio-favorite')) {
-      const favorite = document.createElement('button'); favorite.type = 'button'; favorite.className = 'radio-favorite'; favorite.setAttribute('aria-label','Pin favorite station'); favorite.textContent = '♡';
-      favorite.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); toggleFavorite(card); });
-      const play = top.querySelector('.radio-play'); top.insertBefore(favorite, play || null);
+    card.dataset.dragEnhanced = '1'; card.draggable = true; card.setAttribute('aria-grabbed', 'false');
+    
+    // Ensure top container
+    let top = card.querySelector('.radio-card-top');
+    if (!top) {
+      top = document.createElement('span');
+      top.className = 'radio-card-top';
+      card.insertBefore(top, card.firstChild);
     }
-    if (top && !top.querySelector('.radio-drag-handle')) {
-      const handle = document.createElement('span'); handle.className = 'radio-drag-handle'; handle.setAttribute('aria-hidden','true'); handle.title = 'Drag to reorder'; handle.textContent = '⠿';
-      const play = top.querySelector('.radio-play'); top.insertBefore(handle, play || null);
+    
+    let badges = top.querySelector('.radio-card-badges');
+    if (!badges) {
+      badges = document.createElement('span');
+      badges.className = 'radio-card-badges';
+      top.insertBefore(badges, top.firstChild);
     }
-    const copy = card.querySelector('.radio-card-copy');
-    if (top && !top.querySelector('.radio-quality-pill')) {
-      const quality = document.createElement('span'); quality.className = 'radio-quality-pill'; const play = top.querySelector('.radio-play'); top.insertBefore(quality, play || null);
+    
+    if (!badges.querySelector('.radio-health-pill')) {
+      const health = document.createElement('span');
+      health.className = 'radio-health-pill';
+      health.dataset.status = 'live';
+      health.textContent = 'LIVE';
+      badges.appendChild(health);
     }
-    if (top && !top.querySelector('.radio-health-pill')) {
-      const health = document.createElement('span'); health.className = 'radio-health-pill'; health.dataset.status = 'checking'; health.textContent = 'CHECKING';
-      const play = top.querySelector('.radio-play'); top.insertBefore(health, play || null);
+    if (!badges.querySelector('.radio-quality-pill')) {
+      const quality = document.createElement('span');
+      quality.className = 'radio-quality-pill';
+      quality.textContent = qualityFor(card);
+      badges.appendChild(quality);
     }
-    if (copy && !copy.querySelector('.radio-health-pill')) copy.querySelector('.radio-health-pill')?.remove();
+    
+    let actions = top.querySelector('.radio-card-actions');
+    if (!actions) {
+      actions = document.createElement('span');
+      actions.className = 'radio-card-actions';
+      top.appendChild(actions);
+    }
+    
+    if (!actions.querySelector('.radio-drag-handle')) {
+      const handle = document.createElement('span');
+      handle.className = 'radio-drag-handle';
+      handle.setAttribute('aria-hidden', 'true');
+      handle.title = 'Drag to reorder';
+      handle.textContent = '⠿';
+      actions.appendChild(handle);
+    }
+    if (!actions.querySelector('.radio-favorite')) {
+      const favorite = document.createElement('button');
+      favorite.type = 'button';
+      favorite.className = 'radio-favorite';
+      favorite.setAttribute('aria-label', 'Pin favorite station');
+      favorite.textContent = '♡';
+      favorite.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleFavorite(card);
+      });
+      actions.appendChild(favorite);
+    }
+    
+    // Ensure body container with station name and subtitle
+    let body = card.querySelector('.radio-card-body');
+    if (!body) {
+      const existingCopy = card.querySelector('.radio-card-copy');
+      const nameText = existingCopy?.querySelector('b')?.textContent?.trim() || stationName(card);
+      const subText = existingCopy?.querySelector('small')?.textContent?.trim() || 'OwnTone radio preset';
+      
+      body = document.createElement('span');
+      body.className = 'radio-card-body';
+      body.innerHTML = `<b class="radio-station-name">${escapeHtml(nameText)}</b><small class="radio-station-sub">${escapeHtml(subText)}</small>`;
+      if (existingCopy) existingCopy.replaceWith(body);
+      else card.appendChild(body);
+    }
+    
+    // Ensure foot
+    if (!card.querySelector('.radio-card-foot')) {
+      const foot = document.createElement('span');
+      foot.className = 'radio-card-foot';
+      foot.innerHTML = `<span class="radio-play-btn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7L8 5Z"/></svg></span>`;
+      card.appendChild(foot);
+    }
+
     card.addEventListener('dragstart', event => {
       dragged = card; moved = false; card.classList.add('dragging'); card.setAttribute('aria-grabbed','true'); event.dataTransfer.effectAllowed='move';
       try { event.dataTransfer.setData('text/plain', stationName(card)); } catch (_) {}

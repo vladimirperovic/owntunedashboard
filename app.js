@@ -23,7 +23,7 @@
   const state = {
     mode:'music', online:false, demo:false,
     player:{state:'stop',volume:25,item_progress_ms:0,item_length_ms:0}, current:null, outputs:[], playlists:[], albums:[], library:null, config:null, radioPlaylists:[],
-    seekDragging:false, volumeDragging:false, toastTimer:null, searchTimer:null
+    seekDragging:false, volumeDragging:false, lastVolumeChangeTime:0, volumeDebounceTimer:null, toastTimer:null, searchTimer:null
   };
 
   const demo = {
@@ -52,7 +52,14 @@
   function isRadioPlaylist(p){const path=String(p.path||'').toLowerCase();const hint=String(cfg.radioPathHint||'/Radio/').toLowerCase();return path.includes(hint)||/(^|\s)(radio|naxi|s1|202|lola)(\s|$)/i.test(p.name||'');}
   function isRadioCurrent(item){return item&&(item.data_kind==='url'||/^https?:\/\//i.test(item.path||''));}
   function qualityText(item){if(!item)return '—';const type=String(item.type||'').toUpperCase();const bitrate=String(item.bitrate||'').trim();if(type==='FLAC'||type==='ALAC')return type;if(bitrate)return `${type||'AUDIO'} ${bitrate}${/^\d+$/.test(bitrate)?'k':''}`;return type||(isRadioCurrent(item)?'STREAM':'AUDIO');}
-  function selectedOutput(){return state.outputs.find(o=>o.selected)||state.outputs.find(o=>String(o.name).toLowerCase().includes(String(cfg.preferredOutput).toLowerCase()))||state.outputs[0]||null;}
+  function selectedOutput(){
+    const currentSelected = els.outputSelect?.value;
+    if (currentSelected) {
+      const found = state.outputs.find(o => String(o.id) === String(currentSelected));
+      if (found) return found;
+    }
+    return state.outputs.find(o=>o.selected)||state.outputs.find(o=>String(o.name).toLowerCase().includes(String(cfg.preferredOutput).toLowerCase()))||state.outputs[0]||null;
+  }
 
   async function loadInitial(){
     try{
@@ -79,7 +86,7 @@
     if(item){els.trackTitle.textContent=item.title||(radio?'Live Radio':'Unknown track');els.trackArtist.textContent=item.artist||(radio?item.album||'Internet Radio':'Unknown artist');const bits=[];if(!radio&&item.album)bits.push(item.album);if(item.year)bits.push(item.year);if(radio&&item.album&&item.artist)bits.push(item.album);bits.push(qualityText(item));els.trackMeta.textContent=bits.filter(Boolean).join(' · ');els.formatPill.textContent=qualityText(item);const art=artworkUrl(item.artwork_url);if(art){els.artwork.src=art;els.artwork.onload=()=>els.playerArt.classList.add('has-art');els.artwork.onerror=()=>els.playerArt.classList.remove('has-art');}else{els.artwork.removeAttribute('src');els.playerArt.classList.remove('has-art');}}
     else{els.trackTitle.textContent=radio?'Choose a station.':'Choose something to play.';els.trackArtist.textContent='OwnTone';els.trackMeta.textContent=radio?'Your saved radio streams':'Your local music library';els.formatPill.textContent=radio?'STREAM':'READY';els.playerArt.classList.remove('has-art');}
     const len=Number(p.item_length_ms||item?.length_ms||0),pos=Number(p.item_progress_ms||0);if(!state.seekDragging){const ratio=len>0?Math.min(1,Math.max(0,pos/len)):0;els.progressRange.value=Math.round(ratio*1000);els.progressRange.style.setProperty('--range-progress',`${ratio*100}%`);els.elapsedTime.textContent=fmtTime(pos);els.remainingTime.textContent=`−${fmtTime(Math.max(0,len-pos))}`;}els.progressRange.disabled=!len||radio;
-    if(!state.volumeDragging){const volume=Number(out?.volume??p.volume??0);els.volumeRange.value=volume;els.volumeRange.style.setProperty('--range-progress',`${volume}%`);els.volumeValue.textContent=`${volume}%`;}
+    if(!state.volumeDragging && (Date.now() - state.lastVolumeChangeTime > 3500)){const volume=Number(out?.volume??p.volume??0);els.volumeRange.value=volume;els.volumeRange.style.setProperty('--range-progress',`${volume}%`);els.volumeValue.textContent=`${volume}%`;}
     const old=els.outputSelect.value;els.outputSelect.innerHTML=state.outputs.length?state.outputs.map(o=>`<option value="${escapeHtml(o.id)}" ${o.selected?'selected':''}>${escapeHtml(o.name)} · ${escapeHtml(o.type)}</option>`).join(''):'<option value="">No output</option>';if(old&&state.outputs.some(o=>String(o.id)===String(old)))els.outputSelect.value=old;
     renderLiveText();
   }
@@ -100,14 +107,30 @@
     els.albumGrid.innerHTML=state.albums.length?state.albums.map(album=>{const art=artworkUrl(album.artwork_url,420);return `<button class="album-card" type="button" data-uri="${escapeHtml(album.uri)}" title="Play ${escapeHtml(album.name)}"><div class="album-art">${art?`<img src="${escapeHtml(art)}" alt="" loading="lazy" onerror="this.style.display='none'">`:'<div class="mini-record"></div>'}</div><div class="album-copy"><b>${escapeHtml(album.name)}</b><small>${escapeHtml(album.artist||'Unknown artist')}</small></div></button>`;}).join(''):'<p class="empty-state">No albums found.</p>';
     const normal=state.playlists.filter(p=>!isRadioPlaylist(p)&&!p.folder).slice(0,16);els.playlistGrid.innerHTML=normal.length?normal.map((p,i)=>`<button class="playlist-card" type="button" data-uri="${escapeHtml(p.uri)}"><span class="playlist-badge">${escapeHtml(String(i+1).padStart(2,'0'))}</span><span class="playlist-copy"><b>${escapeHtml(p.name)}</b><small>${escapeHtml(p.smart_playlist?'Smart playlist':'Playlist')}</small></span></button>`).join(''):'<p class="empty-state">No playlists found.</p>';
   }
-  function renderRadio(){const stations=state.radioPlaylists;els.radioGrid.innerHTML=stations.length?stations.map((p,i)=>`<button class="radio-card" type="button" data-uri="${escapeHtml(p.uri)}"><span class="radio-card-top"><span>STATION ${String(i+1).padStart(2,'0')}</span><span class="radio-play">${icons.smallPlay}</span></span><span class="radio-card-copy"><b>${escapeHtml(p.name)}</b><small>OwnTone radio preset</small></span></button>`).join(''):`<div class="empty-state">No radio playlists found. Put station M3U files under a path containing <b>${escapeHtml(cfg.radioPathHint)}</b> and refresh the OwnTone library.</div>`;}
+  function renderRadio(){const stations=state.radioPlaylists;els.radioGrid.innerHTML=stations.length?stations.map((p,i)=>`<button class="radio-card" type="button" data-uri="${escapeHtml(p.uri)}" title="${escapeHtml(p.name)}"><span class="radio-card-top"><span class="radio-card-badges"><span class="radio-health-pill" data-status="checking">LIVE</span><span class="radio-quality-pill">STREAM</span></span><span class="radio-card-actions"><span class="radio-drag-handle" aria-hidden="true" title="Drag to reorder">⠿</span><span class="radio-favorite" title="Pin favorite station">♡</span></span></span><span class="radio-card-body"><b class="radio-station-name">${escapeHtml(p.name)}</b><small class="radio-station-sub">OwnTone radio preset</small></span><span class="radio-card-foot"><span class="radio-play-btn">${icons.smallPlay}</span></span></button>`).join(''):`<div class="empty-state">No radio playlists found. Put station M3U files under a path containing <b>${escapeHtml(cfg.radioPathHint)}</b> and refresh the OwnTone library.</div>`;}
 
   async function playerCommand(command){if(state.demo){demoCommand(command);return;}try{await request(`/player/${command}`,{method:'PUT'});await refreshPlayback();}catch(err){toast(`Playback failed: ${err.message}`);}}
   function demoCommand(command){if(command==='toggle')state.player.state=state.player.state==='play'?'pause':'play';if(command==='play')state.player.state='play';if(command==='pause')state.player.state='pause';if(command==='stop')state.player.state='stop';if(command==='next')state.current={...demo.current,title:'Riders on the Storm',artist:'The Doors',album:'L.A. Woman'};if(command==='previous')state.current={...demo.current,title:'Teardrop',artist:'Massive Attack',album:'Mezzanine'};renderPlayer();}
   async function playUri(uri,{shuffle=false}={}){if(!uri)return;if(state.demo){const playlist=state.playlists.find(p=>p.uri===uri),album=state.albums.find(a=>a.uri===uri);if(playlist&&isRadioPlaylist(playlist)){state.mode='radio';state.current={title:playlist.name,artist:'Live Radio',album:'Direct stream',data_kind:'url',type:'aac',bitrate:'256'};}else if(album){state.mode='music';state.current={title:album.name,artist:album.artist,album:album.name,data_kind:'file',type:'flac',bitrate:'Lossless'};}else if(playlist){state.mode='music';state.current={title:playlist.name,artist:'Playlist',album:'OwnTone',data_kind:'file',type:'flac',bitrate:'Lossless'};}state.player.state='play';renderAll();toast('Preview playback');return;}try{const slider=Number(els.volumeRange.value||0);if(slider>0){const out=selectedOutput();if(out?.id!=null){const v=new URLSearchParams({volume:String(slider),output_id:String(out.id)});await request(`/player/volume?${v}`,{method:'PUT'});}}const qs=new URLSearchParams({uris:uri,clear:'true',playback:'start',shuffle:String(shuffle)});await request(`/queue/items/add?${qs}`,{method:'POST'});await refreshPlayback();}catch(err){toast(`Could not play: ${err.message}`);}}
   async function playPlaylistByName(name){const p=state.playlists.find(x=>String(x.name).toLowerCase()===String(name).toLowerCase());if(!p){toast(`${name} playlist not found`);return;}await playUri(p.uri,{shuffle:/random|morning|favorites/i.test(name)});}
   async function shuffleLibrary(){if(state.demo){state.current={title:'Shuffle all music',artist:'8,283 tracks',album:'Your library',data_kind:'file',type:'flac',bitrate:'Lossless'};state.player.state='play';renderPlayer();toast('Library shuffled');return;}try{const slider=Number(els.volumeRange.value||0);if(slider>0){const out=selectedOutput();if(out?.id!=null){const v=new URLSearchParams({volume:String(slider),output_id:String(out.id)});await request(`/player/volume?${v}`,{method:'PUT'});}}const qs=new URLSearchParams({expression:'media_kind is music AND data_kind is file',clear:'true',playback:'start',shuffle:'true',limit:'500'});await request(`/queue/items/add?${qs}`,{method:'POST'});await refreshPlayback();}catch(err){toast(`Shuffle failed: ${err.message}`);}}
-  async function setVolume(value){const out=selectedOutput();if(state.demo){if(out)out.volume=Number(value);state.player.volume=Number(value);renderPlayer();return;}try{const qs=new URLSearchParams({volume:String(Math.round(value))});if(out?.id!=null)qs.set('output_id',String(out.id));await request(`/player/volume?${qs}`,{method:'PUT'});}catch(err){toast(`Volume failed: ${err.message}`);}}
+  async function setVolume(value){
+    const v = Math.max(0, Math.min(100, Math.round(value)));
+    state.lastVolumeChangeTime = Date.now();
+    const out=selectedOutput();
+    if(out) out.volume = v;
+    state.player.volume = v;
+    if(state.demo){renderPlayer();return;}
+    try{
+      const qs=new URLSearchParams({volume:String(v)});
+      if(out?.id!=null)qs.set('output_id',String(out.id));
+      await request(`/player/volume?${qs}`,{method:'PUT'});
+    }catch(err){console.warn('Volume PUT failed:',err);}
+  }
+  function setVolumeThrottled(value){
+    clearTimeout(state.volumeDebounceTimer);
+    state.volumeDebounceTimer = setTimeout(()=>setVolume(value), 100);
+  }
   async function setOutput(id){if(!id)return;if(state.demo){state.outputs.forEach(o=>o.selected=String(o.id)===String(id));renderPlayer();return;}try{await request('/outputs/set',{method:'PUT',body:{outputs:[String(id)]}});await refreshPlayback();}catch(err){toast(`Output failed: ${err.message}`);}}
   async function seekTo(ratio){const len=Number(state.player?.item_length_ms||state.current?.length_ms||0);if(!len||state.mode==='radio')return;const position=Math.round(Math.max(0,Math.min(1,ratio))*len);if(state.demo){state.player.item_progress_ms=position;renderPlayer();return;}try{await request(`/player/seek?position_ms=${position}`,{method:'PUT'});state.player.item_progress_ms=position;renderPlayer();}catch(err){toast(`Seek failed: ${err.message}`);}}
   function toggleMode(){state.mode=state.mode==='music'?'radio':'music';renderMode();renderPlayer();}
@@ -117,7 +140,11 @@
 
   els.modeToggle.addEventListener('click',toggleMode);els.playButton.addEventListener('click',()=>playerCommand('toggle'));els.previousButton.addEventListener('click',()=>playerCommand('previous'));els.nextButton.addEventListener('click',()=>playerCommand('next'));els.refreshButton.addEventListener('click',refreshLibrary);els.shuffleLibraryButton.addEventListener('click',shuffleLibrary);
   els.quickGrid.addEventListener('click',e=>{const card=e.target.closest('[data-playlist]');if(card)playPlaylistByName(card.dataset.playlist);});els.albumGrid.addEventListener('click',e=>{const card=e.target.closest('[data-uri]');if(card)playUri(card.dataset.uri);});els.playlistGrid.addEventListener('click',e=>{const card=e.target.closest('[data-uri]');if(card)playUri(card.dataset.uri);});els.radioView.addEventListener('click',e=>{const card=e.target.closest('.radio-card[data-uri]');if(card){state.mode='radio';renderMode();playUri(card.dataset.uri);}});
-  els.volumeRange.addEventListener('pointerdown',()=>{state.volumeDragging=true;});els.volumeRange.addEventListener('input',()=>{const v=Number(els.volumeRange.value);els.volumeRange.style.setProperty('--range-progress',`${v}%`);els.volumeValue.textContent=`${v}%`;});els.volumeRange.addEventListener('change',()=>{state.volumeDragging=false;setVolume(Number(els.volumeRange.value));});els.volumeRange.addEventListener('pointerup',()=>{state.volumeDragging=false;setVolume(Number(els.volumeRange.value));});els.volumeRange.addEventListener('pointercancel',()=>{state.volumeDragging=false;});els.outputSelect.addEventListener('change',()=>setOutput(els.outputSelect.value));
+  els.volumeRange.addEventListener('pointerdown',()=>{state.volumeDragging=true;state.lastVolumeChangeTime=Date.now();});
+  els.volumeRange.addEventListener('input',()=>{const v=Number(els.volumeRange.value);state.lastVolumeChangeTime=Date.now();els.volumeRange.style.setProperty('--range-progress',`${v}%`);els.volumeValue.textContent=`${v}%`;setVolumeThrottled(v);});
+  els.volumeRange.addEventListener('change',()=>{state.volumeDragging=false;state.lastVolumeChangeTime=Date.now();clearTimeout(state.volumeDebounceTimer);setVolume(Number(els.volumeRange.value));});
+  els.volumeRange.addEventListener('pointerup',()=>{state.volumeDragging=false;state.lastVolumeChangeTime=Date.now();clearTimeout(state.volumeDebounceTimer);setVolume(Number(els.volumeRange.value));});
+  els.volumeRange.addEventListener('pointercancel',()=>{state.volumeDragging=false;});els.outputSelect.addEventListener('change',()=>setOutput(els.outputSelect.value));
   els.progressRange.addEventListener('pointerdown',()=>{state.seekDragging=true;});els.progressRange.addEventListener('input',()=>{const ratio=Number(els.progressRange.value)/1000;els.progressRange.style.setProperty('--range-progress',`${ratio*100}%`);const len=Number(state.player?.item_length_ms||state.current?.length_ms||0);els.elapsedTime.textContent=fmtTime(len*ratio);els.remainingTime.textContent=`−${fmtTime(len*(1-ratio))}`;});els.progressRange.addEventListener('change',async()=>{const ratio=Number(els.progressRange.value)/1000;await seekTo(ratio);state.seekDragging=false;});els.progressRange.addEventListener('pointerup',()=>{state.seekDragging=false;});
   els.searchButton.addEventListener('click',()=>{if(typeof els.searchDialog.showModal==='function')els.searchDialog.showModal();else els.searchDialog.setAttribute('open','');setTimeout(()=>els.searchInput.focus(),60);});els.searchInput.addEventListener('input',()=>{clearTimeout(state.searchTimer);state.searchTimer=setTimeout(()=>search(els.searchInput.value),220);});els.searchResults.addEventListener('click',e=>{const item=e.target.closest('[data-uri]');if(!item)return;playUri(item.dataset.uri);els.searchDialog.close?.();});els.searchForm.addEventListener('submit',e=>{if(e.submitter?.value!=='cancel')e.preventDefault();});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!state.demo)refreshPlayback();});
