@@ -107,7 +107,7 @@
     els.albumGrid.innerHTML=state.albums.length?state.albums.map(album=>{const art=artworkUrl(album.artwork_url,420);return `<button class="album-card" type="button" data-uri="${escapeHtml(album.uri)}" title="Play ${escapeHtml(album.name)}"><div class="album-art">${art?`<img src="${escapeHtml(art)}" alt="" loading="lazy" onerror="this.style.display='none'">`:'<div class="mini-record"></div>'}</div><div class="album-copy"><b>${escapeHtml(album.name)}</b><small>${escapeHtml(album.artist||'Unknown artist')}</small></div></button>`;}).join(''):'<p class="empty-state">No albums found.</p>';
     const normal=state.playlists.filter(p=>!isRadioPlaylist(p)&&!p.folder).slice(0,16);els.playlistGrid.innerHTML=normal.length?normal.map((p,i)=>`<button class="playlist-card" type="button" data-uri="${escapeHtml(p.uri)}"><span class="playlist-badge">${escapeHtml(String(i+1).padStart(2,'0'))}</span><span class="playlist-copy"><b>${escapeHtml(p.name)}</b><small>${escapeHtml(p.smart_playlist?'Smart playlist':'Playlist')}</small></span></button>`).join(''):'<p class="empty-state">No playlists found.</p>';
   }
-  function renderRadio(){const stations=state.radioPlaylists;els.radioGrid.innerHTML=stations.length?stations.map((p,i)=>`<button class="radio-card" type="button" data-uri="${escapeHtml(p.uri)}" title="${escapeHtml(p.name)}"><span class="radio-card-top"><span class="radio-card-badges"><span class="radio-health-pill" data-status="checking">LIVE</span><span class="radio-quality-pill">STREAM</span></span><span class="radio-card-actions"><span class="radio-drag-handle" aria-hidden="true" title="Drag to reorder">⠿</span><span class="radio-favorite" title="Pin favorite station">♡</span></span></span><span class="radio-card-body"><b class="radio-station-name">${escapeHtml(p.name)}</b><small class="radio-station-sub">OwnTone radio preset</small></span><span class="radio-card-foot"><span class="radio-play-btn">${icons.smallPlay}</span></span></button>`).join(''):`<div class="empty-state">No radio playlists found. Put station M3U files under a path containing <b>${escapeHtml(cfg.radioPathHint)}</b> and refresh the OwnTone library.</div>`;}
+  function renderRadio(){const stations=state.radioPlaylists;els.radioGrid.innerHTML=stations.length?stations.map((p,i)=>`<div class="radio-card" role="button" tabindex="0" data-uri="${escapeHtml(p.uri)}" title="${escapeHtml(p.name)}"><span class="radio-card-top"><span class="radio-card-badges"><span class="radio-health-pill" data-status="live">LIVE</span><span class="radio-quality-pill">STREAM</span></span><span class="radio-card-actions"><span class="radio-drag-handle" aria-hidden="true" title="Drag to reorder">⠿</span><button type="button" class="radio-favorite" title="Pin favorite station">♡</button></span></span><span class="radio-card-body"><b class="radio-station-name">${escapeHtml(p.name)}</b><small class="radio-station-sub">OwnTone radio preset</small></span><span class="radio-card-foot"><span class="radio-play-btn">${icons.smallPlay}</span></span></div>`).join(''):`<div class="empty-state">No radio playlists found. Put station M3U files under a path containing <b>${escapeHtml(cfg.radioPathHint)}</b> and refresh the OwnTone library.</div>`;}
 
   async function playerCommand(command){if(state.demo){demoCommand(command);return;}try{await request(`/player/${command}`,{method:'PUT'});await refreshPlayback();}catch(err){toast(`Playback failed: ${err.message}`);}}
   function demoCommand(command){if(command==='toggle')state.player.state=state.player.state==='play'?'pause':'play';if(command==='play')state.player.state='play';if(command==='pause')state.player.state='pause';if(command==='stop')state.player.state='stop';if(command==='next')state.current={...demo.current,title:'Riders on the Storm',artist:'The Doors',album:'L.A. Woman'};if(command==='previous')state.current={...demo.current,title:'Teardrop',artist:'Massive Attack',album:'Mezzanine'};renderPlayer();}
@@ -139,7 +139,27 @@
   function renderSearchResults(items){if(!items.length){els.searchResults.innerHTML='<p class="empty-state">Nothing found.</p>';return;}const labels={track:'♪',album:'LP',artist:'A',playlist:'≡'};els.searchResults.innerHTML=items.map(x=>`<button class="search-item" type="button" data-uri="${escapeHtml(x.uri)}"><span class="search-item-icon">${escapeHtml(labels[x.kind]||'♪')}</span><span class="search-item-copy"><b>${escapeHtml(x.name)}</b><small>${escapeHtml(x.sub||x.kind)}</small></span></button>`).join('');}
 
   els.modeToggle.addEventListener('click',toggleMode);els.playButton.addEventListener('click',()=>playerCommand('toggle'));els.previousButton.addEventListener('click',()=>playerCommand('previous'));els.nextButton.addEventListener('click',()=>playerCommand('next'));els.refreshButton.addEventListener('click',refreshLibrary);els.shuffleLibraryButton.addEventListener('click',shuffleLibrary);
-  els.quickGrid.addEventListener('click',e=>{const card=e.target.closest('[data-playlist]');if(card)playPlaylistByName(card.dataset.playlist);});els.albumGrid.addEventListener('click',e=>{const card=e.target.closest('[data-uri]');if(card)playUri(card.dataset.uri);});els.playlistGrid.addEventListener('click',e=>{const card=e.target.closest('[data-uri]');if(card)playUri(card.dataset.uri);});els.radioView.addEventListener('click',e=>{const card=e.target.closest('.radio-card[data-uri]');if(card){state.mode='radio';renderMode();playUri(card.dataset.uri);}});
+  els.quickGrid.addEventListener('click',e=>{const card=e.target.closest('[data-playlist]');if(card)playPlaylistByName(card.dataset.playlist);});els.albumGrid.addEventListener('click',e=>{const card=e.target.closest('[data-uri]');if(card)playUri(card.dataset.uri);});els.playlistGrid.addEventListener('click',e=>{const card=e.target.closest('[data-uri]');if(card)playUri(card.dataset.uri);});
+  document.addEventListener('click',e=>{
+    if(e.target.closest('.radio-favorite,.radio-drag-handle')) return;
+    const card=e.target.closest('.radio-card[data-uri]');
+    if(card && card.dataset.uri){
+      state.mode='radio';
+      renderMode();
+      playUri(card.dataset.uri);
+    }
+  });
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Enter'||e.key===' '){
+      const card=e.target.closest?.('.radio-card[data-uri]');
+      if(card && card.dataset.uri && !e.target.closest('.radio-favorite,.radio-drag-handle')){
+        e.preventDefault();
+        state.mode='radio';
+        renderMode();
+        playUri(card.dataset.uri);
+      }
+    }
+  });
   els.volumeRange.addEventListener('pointerdown',()=>{state.volumeDragging=true;state.lastVolumeChangeTime=Date.now();});
   els.volumeRange.addEventListener('input',()=>{const v=Number(els.volumeRange.value);state.lastVolumeChangeTime=Date.now();els.volumeRange.style.setProperty('--range-progress',`${v}%`);els.volumeValue.textContent=`${v}%`;setVolumeThrottled(v);});
   els.volumeRange.addEventListener('change',()=>{state.volumeDragging=false;state.lastVolumeChangeTime=Date.now();clearTimeout(state.volumeDebounceTimer);setVolume(Number(els.volumeRange.value));});

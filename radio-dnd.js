@@ -303,10 +303,12 @@
     el.addEventListener('pointerup',endPointer);el.addEventListener('pointercancel',endPointer);
     el.addEventListener('click', event => {
       if (event.target.closest('.radio-favorite,.radio-drag-handle')) return;
-      if (Date.now() < suppressClickUntil) { event.preventDefault(); event.stopImmediatePropagation(); return; }
-      const card = event.target.closest('.radio-card');
-      if (card?.classList.contains('is-offline')) { event.preventDefault(); event.stopImmediatePropagation(); card.classList.add('health-denied'); setTimeout(()=>card.classList.remove('health-denied'),500); checkHealth(card,true); }
-    }, true);
+      if (Date.now() < suppressClickUntil) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return;
+      }
+    });
   }
 
   function enhance() {
