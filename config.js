@@ -32,15 +32,21 @@ window.OWNTONE_DASHBOARD = {
     'Radio Porto Montenegro': 'MP3 320k',
   },
 
-  // Optional station artwork/logo map. Leave empty to use the generated station identity.
-  // Example: 'Radio Porto Montenegro': '/artwork/radio-porto.png'
-  radioArtwork: {},
+  // Local, fast station identities. Add exact station names here for custom artwork.
+  // Unknown stations keep the generated monogram identity.
+  radioArtwork: {
+    'Naxi Radio': 'station-logos/naxi.svg',
+    'Radio S1': 'station-logos/s1.svg',
+    'Radio Beograd 202': 'station-logos/radio-202.svg',
+    'Rock Radio': 'station-logos/rock-radio.svg',
+    'Radio Porto Montenegro': 'station-logos/porto-montenegro.svg',
+  },
 };
 
 // Feature modules stay isolated, while all cross-app visual rules are consolidated
 // into design-system.css to avoid cascades of competing last-mile overrides.
 (() => {
-  const BUILD = '20260819-14';
+  const BUILD = '20260819-15';
   const asset = path => `${path}?v=${BUILD}`;
 
   const addStyle = (href, dataKey) => {
@@ -70,6 +76,7 @@ window.OWNTONE_DASHBOARD = {
   addStyle('mute-control.css', 'owntone-mute-control');
   addStyle('playback-tools.css', 'owntone-playback-tools');
   addStyle('design-system.css', 'owntone-design-system');
+  addStyle('premium-experience.css', 'owntone-premium-experience');
 
   addScript('playback-tools.js', 'owntone-playback-tools-js');
   addScript('night-safety-history.js', 'owntone-night-safety-history-js');
@@ -79,4 +86,5 @@ window.OWNTONE_DASHBOARD = {
   addScript('radio-visualizer.js', 'owntone-radio-visualizer-js');
   addScript('mute-control.js', 'owntone-mute-control-js');
   addScript('design-enhancements.js', 'owntone-design-enhancements-js');
+  addScript('premium-experience.js', 'owntone-premium-experience-js');
 })();
