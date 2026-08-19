@@ -226,7 +226,6 @@ body.radio-mode .radio-intro p{max-width:610px;color:rgba(255,255,255,.46)!impor
   .audio-dock{height:auto!important;min-height:58px}
   .quick-card{min-height:78px!important}
   .radio-card.is-active .radio-card-top>span:first-child:after{content:" • LIVE"}
-  .radio-drag-handle{opacity:.78}
   .mobile-nav{box-shadow:0 -12px 32px rgba(25,18,13,.10)}
 }
 

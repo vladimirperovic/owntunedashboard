@@ -52,18 +52,6 @@
   transform: translateY(-1px) scale(0.99) !important;
 }
 
-.radio-card.dragging, .radio-card.touch-dragging {
-  opacity: 0.35 !important;
-  transform: scale(0.96) !important;
-  box-shadow: none !important;
-}
-
-.radio-card.drop-target {
-  transform: translateY(-4px) scale(1.02) !important;
-  border-color: rgba(242, 92, 67, 0.6) !important;
-  box-shadow: 0 0 0 1px rgba(242, 92, 67, 0.4), 0 20px 40px rgba(0, 0, 0, 0.3) !important;
-}
-
 /* Active Station State */
 .radio-card.is-active {
   border-color: rgba(242, 92, 67, 0.55) !important;
