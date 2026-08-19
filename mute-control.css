@@ -49,3 +49,9 @@ body.radio-mode .mute-button.is-muted{
   .mute-button svg{width:18px;height:18px}
   .volume-output-row{gap:10px!important}
 }
+
+/* Volume slider tooltip (follows the thumb while dragging). */
+.volume-wrap{position:relative}
+.volume-tooltip{position:absolute;bottom:calc(100% + 9px);left:0;transform:translateX(-50%);padding:4px 10px;border-radius:9px;background:#0b0a09;color:#fff;font-size:13px;font-weight:850;letter-spacing:.02em;opacity:0;pointer-events:none;transition:opacity .12s ease;box-shadow:0 6px 16px rgba(0,0,0,.28);z-index:50}
+.volume-tooltip:after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#0b0a09}
+.volume-tooltip.show{opacity:1}

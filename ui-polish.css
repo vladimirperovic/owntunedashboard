@@ -151,11 +151,8 @@ body.radio-mode .radio-intro p{max-width:610px;color:rgba(255,255,255,.46)!impor
 
 /* Radio cards: extra subtle detail without making them busy */
 .radio-card{overflow:hidden}
-.radio-card:after{
-  opacity:.72;
-  transition:opacity .2s ease,transform .28s var(--ease)!important;
-}
-.radio-card:hover:after{opacity:1;transform:translate(-4px,-3px) scale(1.03)}
+
+
 .radio-card:before{transition:opacity .22s ease,transform .28s var(--ease)!important}
 .radio-card:hover:before{transform:translateY(-2px);opacity:1!important}
 .radio-card-top>span:first-child{font-variant-numeric:tabular-nums;font-weight:850!important}
@@ -201,5 +198,5 @@ body.radio-mode .radio-intro p{max-width:610px;color:rgba(255,255,255,.46)!impor
 }
 
 @media(prefers-reduced-motion:reduce){
-  .player-art img,.album-art img,.radio-card:before,.radio-card:after{transition:none!important}
+  .player-art img,.album-art img,.radio-card:before,
 }

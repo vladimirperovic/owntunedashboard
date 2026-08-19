@@ -131,7 +131,21 @@
     if (volumeWrap) volumeWrap.insertBefore(button, volumeWrap.firstChild);
     else volumeRow.insertBefore(button, volumeRow.firstChild);
 
-    document.getElementById('volumeRange')?.addEventListener('input', render);
+    const range = document.getElementById('volumeRange');
+    if (range && volumeWrap && !volumeWrap.querySelector('.volume-tooltip')) {
+      const tip = document.createElement('output');
+      tip.className = 'volume-tooltip';
+      tip.setAttribute('aria-hidden', 'true');
+      volumeWrap.appendChild(tip);
+      range.addEventListener('input', () => {
+        const v = Number(range.value) || 0;
+        tip.textContent = `${v}%`;
+        tip.style.left = `calc((100% - 13px) * ${v} / 100 + 6.5px)`;
+        tip.classList.add('show');
+      });
+      range.addEventListener('change', () => setTimeout(() => tip.classList.remove('show'), 450));
+    }
+    range?.addEventListener('input', render);
     document.getElementById('outputSelect')?.addEventListener('change', () => setTimeout(render, 50));
     render();
   }

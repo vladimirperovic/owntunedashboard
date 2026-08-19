@@ -123,6 +123,16 @@ def clean_schedule(raw: dict, existing_id: str | None = None) -> dict:
     except (TypeError, ValueError):
         raise ValueError("volume must be 0-100")
 
+    try:
+        ramp_minutes = max(0, min(1440, int(raw.get("ramp_minutes", 0))))
+    except (TypeError, ValueError):
+        raise ValueError("ramp_minutes must be 0-1440")
+
+    try:
+        ramp_volume = max(0, min(100, int(raw.get("ramp_volume", 0))))
+    except (TypeError, ValueError):
+        raise ValueError("ramp_volume must be 0-100")
+
     name = str(raw.get("name") or "").strip() or f"{source_name} · {time_value}"
     return {
         "id": schedule_id,
@@ -138,6 +148,8 @@ def clean_schedule(raw: dict, existing_id: str | None = None) -> dict:
         "volume": volume,
         "shuffle": bool(raw.get("shuffle", kind == "playlist")),
         "stop_time": stop_time,
+        "ramp_minutes": ramp_minutes,
+        "ramp_volume": ramp_volume,
     }
 
 
@@ -157,6 +169,29 @@ def owntone_request(path: str, method: str = "GET", body=None, timeout: int = 8)
             return json.loads(raw.decode("utf-8"))
         except json.JSONDecodeError:
             return raw.decode("utf-8", errors="replace")
+
+
+def schedule_volume_bump(item: dict, runtime: dict) -> None:
+    ramp_minutes = int(item.get("ramp_minutes") or 0)
+    ramp_volume = int(item.get("ramp_volume") or 0)
+    if ramp_minutes <= 0 or ramp_volume <= 0:
+        return
+    run_key = str((runtime.get("runs") or {}).get(str(item.get("id")), ""))
+    if not run_key:
+        return
+    bumps = runtime.setdefault("bumps", {})
+    if bumps.get(str(item.get("id"))) == run_key:
+        return
+    try:
+        ran_at = datetime.strptime(run_key, "%Y-%m-%dT%H:%M").astimezone()
+    except ValueError:
+        return
+    if datetime.now().astimezone() < ran_at + timedelta(minutes=ramp_minutes):
+        return
+    output_id = str(item.get("output_id") or "")
+    volume_query = urlencode({"volume": ramp_volume, "output_id": output_id})
+    owntone_request(f"/player/volume?{volume_query}", "PUT")
+    bumps[str(item.get("id"))] = run_key
 
 
 def execute_schedule(item: dict) -> dict:
@@ -406,6 +441,16 @@ def scheduler_loop():
                             "schedule": schedule_id,
                             "message": str(exc),
                         }
+                    dirty = True
+
+                try:
+                    schedule_volume_bump(item, runtime)
+                except Exception as exc:
+                    runtime["last_error"] = {
+                        "at": datetime.now().astimezone().isoformat(),
+                        "schedule": schedule_id,
+                        "message": f"ramp: {exc}",
+                    }
                     dirty = True
 
                 stop_time = item.get("stop_time") or ""

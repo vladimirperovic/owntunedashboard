@@ -85,6 +85,7 @@
               <label class="schedule-field"><span>What to play</span><select id="scheduleSource" required></select></label>
               <label class="schedule-field"><span>Output</span><select id="scheduleOutput" required></select></label>
               <div class="schedule-field"><span>Volume <b id="scheduleVolumeValue">10%</b></span><input id="scheduleVolume" type="range" min="0" max="100" value="10"></div>
+              <div class="schedule-field"><span>Raise to <em>optional</em></span><div class="schedule-two"><label class="schedule-field"><span>after <b>min</b></span><input id="scheduleRampMinutes" type="number" min="0" max="1440" step="5" value="0"></label><label class="schedule-field"><span>to <b>%</b></span><input id="scheduleRampVolume" type="number" min="0" max="100" step="1" value="0"></label></div></div>
               <div class="schedule-toggles">
                 <label><input id="scheduleShuffle" type="checkbox" checked><span>Shuffle</span></label>
                 <label><input id="scheduleEnabled" type="checkbox" checked><span>Enabled</span></label>
@@ -160,6 +161,8 @@
     populateOutputs();
     dialog.querySelector('#scheduleVolume').value = 10;
     dialog.querySelector('#scheduleVolumeValue').textContent = '10%';
+    dialog.querySelector('#scheduleRampMinutes').value = 0;
+    dialog.querySelector('#scheduleRampVolume').value = 0;
     dialog.querySelector('#scheduleShuffle').checked = true;
     dialog.querySelector('#scheduleEnabled').checked = true;
     dialog.querySelector('#scheduleDelete').hidden = true;
@@ -180,6 +183,8 @@
     populateOutputs(item.output_id);
     dialog.querySelector('#scheduleVolume').value = item.volume ?? 55;
     dialog.querySelector('#scheduleVolumeValue').textContent = `${item.volume ?? 55}%`;
+    dialog.querySelector('#scheduleRampMinutes').value = item.ramp_minutes ?? 0;
+    dialog.querySelector('#scheduleRampVolume').value = item.ramp_volume ?? 0;
     dialog.querySelector('#scheduleShuffle').checked = !!item.shuffle;
     dialog.querySelector('#scheduleEnabled').checked = item.enabled !== false;
     dialog.querySelector('#scheduleDelete').hidden = false;
@@ -203,6 +208,8 @@
       output_id: output.value,
       output_name: (outputOption?.textContent || '').split(' · ')[0],
       volume: Number(dialog.querySelector('#scheduleVolume').value),
+      ramp_minutes: Math.max(0, Number(dialog.querySelector('#scheduleRampMinutes').value) || 0),
+      ramp_volume: Math.max(0, Number(dialog.querySelector('#scheduleRampVolume').value) || 0),
       shuffle: dialog.querySelector('#scheduleShuffle').checked,
       enabled: dialog.querySelector('#scheduleEnabled').checked,
     };
@@ -259,14 +266,14 @@
     const summary = dialog.querySelector('#scheduleSummary');
     if (next) {
       const date = new Date(next.next_run);
-      summary.innerHTML = `<span>NEXT</span><b>${date.toLocaleDateString(undefined,{weekday:'short'})} ${date.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'})}</b><small>${escapeHtml(next.source_name)} · ${escapeHtml(next.output_name)} · ${next.volume}%</small>`;
+      summary.innerHTML = `<span>NEXT</span><b>${date.toLocaleDateString(undefined,{weekday:'short'})} ${date.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'})}</b><small>${escapeHtml(next.source_name)} · ${escapeHtml(next.output_name)} · ${next.volume}%${next.ramp_minutes && next.ramp_volume?` → ${next.ramp_volume}% after ${next.ramp_minutes} min`:''}</small>`;
     } else summary.innerHTML = '<span>NEXT</span><b>—</b><small>No enabled schedules</small>';
 
     list.innerHTML = schedules.length ? schedules.map(item => `
       <article class="schedule-card ${item.enabled?'':'disabled'}" data-id="${escapeHtml(item.id)}">
         <button type="button" class="schedule-card-main" data-edit="${escapeHtml(item.id)}">
           <span class="schedule-time">${escapeHtml(item.time)}</span>
-          <span class="schedule-card-copy"><b>${escapeHtml(item.name)}</b><small>${escapeHtml(dayLabel(item.days || []))} · ${escapeHtml(item.source_name)}</small><em>${escapeHtml(item.output_name)} · ${item.volume}%${item.stop_time?` · stop ${escapeHtml(item.stop_time)}`:''}</em></span>
+          <span class="schedule-card-copy"><b>${escapeHtml(item.name)}</b><small>${escapeHtml(dayLabel(item.days || []))} · ${escapeHtml(item.source_name)}</small><em>${escapeHtml(item.output_name)} · ${item.volume}%${item.ramp_minutes && item.ramp_volume?` → ${item.ramp_volume}% after ${item.ramp_minutes} min`:''}${item.stop_time?` · stop ${escapeHtml(item.stop_time)}`:''}</em></span>
         </button>
         <div class="schedule-card-actions"><button type="button" class="schedule-run" data-run="${escapeHtml(item.id)}">Play now</button><label class="schedule-switch"><input type="checkbox" data-toggle="${escapeHtml(item.id)}" ${item.enabled?'checked':''}><span></span></label></div>
       </article>`).join('') : '<div class="schedule-empty"><b>No schedules yet</b><span>Create your first rule on the right.</span></div>';

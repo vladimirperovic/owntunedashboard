@@ -186,13 +186,14 @@
       const play = top.querySelector('.radio-play'); top.insertBefore(handle, play || null);
     }
     const copy = card.querySelector('.radio-card-copy');
-    if (copy && !copy.querySelector('.radio-quality-pill')) {
-      const quality = document.createElement('span'); quality.className = 'radio-quality-pill'; const oldSmall = copy.querySelector('small'); copy.insertBefore(quality, oldSmall || null);
+    if (top && !top.querySelector('.radio-quality-pill')) {
+      const quality = document.createElement('span'); quality.className = 'radio-quality-pill'; const play = top.querySelector('.radio-play'); top.insertBefore(quality, play || null);
     }
-    if (copy && !copy.querySelector('.radio-health-pill')) {
+    if (top && !top.querySelector('.radio-health-pill')) {
       const health = document.createElement('span'); health.className = 'radio-health-pill'; health.dataset.status = 'checking'; health.textContent = 'CHECKING';
-      const oldSmall = copy.querySelector('small'); copy.insertBefore(health, oldSmall || null);
+      const play = top.querySelector('.radio-play'); top.insertBefore(health, play || null);
     }
+    if (copy && !copy.querySelector('.radio-health-pill')) copy.querySelector('.radio-health-pill')?.remove();
     card.addEventListener('dragstart', event => {
       dragged = card; moved = false; card.classList.add('dragging'); card.setAttribute('aria-grabbed','true'); event.dataTransfer.effectAllowed='move';
       try { event.dataTransfer.setData('text/plain', stationName(card)); } catch (_) {}

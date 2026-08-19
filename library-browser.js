@@ -16,6 +16,8 @@
     play:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7L8 5Z"/></svg>',
     back:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',
     shuffle:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h2.5c4 0 5 10 9 10H20M17 14l3 3-3 3M4 17h2.5c1.5 0 2.6-1.4 3.6-3M15.5 7H20M17 4l3 3-3 3"/></svg>',
+    next:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l9 7-9 7V5Z"/><path d="M18 5v14"/></svg>',
+    add:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
   };
 
   function apiUrl(path) { return `${apiBase}${path.startsWith('/') ? path : '/' + path}`; }
@@ -101,7 +103,7 @@
 
   async function openBrowser() {
     mount();
-    if (typeof dialog.showModal === 'function') dialog.showModal(); else dialog.setAttribute('open','');
+    if (typeof dialog.showModal === 'function') dialog.showModal(); else { dialog.setAttribute('open',''); dialog.classList.add('fallback-open'); }
     await browse(currentPath || '');
   }
 
@@ -178,12 +180,14 @@
     });
 
     tracks.forEach((track, index) => {
-      html += `<button class="folder-row track" type="button" data-uri="${escapeHtml(track.uri || '')}">
+      html += `<div class="folder-row track" data-uri="${escapeHtml(track.uri || '')}">
         <span class="folder-track-number">${String(index + 1).padStart(2,'0')}</span>
         <span class="folder-row-copy"><b>${escapeHtml(track.title || basename(track.path))}</b><small>${escapeHtml([track.artist, track.album].filter(Boolean).join(' · ') || basename(track.path))}</small></span>
         <span class="folder-track-meta"><em>${escapeHtml(quality(track))}</em><span>${duration(track.length_ms)}</span></span>
-        <span class="folder-track-play">${icon.play}</span>
-      </button>`;
+        <button class="folder-track-next" type="button" title="Play next" aria-label="Play next">${icon.next}</button>
+        <button class="folder-track-add" type="button" title="Add to queue" aria-label="Add to queue">${icon.add}</button>
+        <button class="folder-track-play" type="button" title="Play now" aria-label="Play now">${icon.play}</button>
+      </div>`;
     });
 
     playlists.forEach(item => {
@@ -197,13 +201,71 @@
     body.innerHTML = html;
     body.querySelectorAll('[data-folder]').forEach(row => row.addEventListener('click', () => browse(row.dataset.folder || '')));
     body.querySelectorAll('[data-uri]').forEach(row => row.addEventListener('click', () => playUris([row.dataset.uri], false)));
+    body.querySelectorAll('.folder-track-play').forEach(btn => btn.addEventListener('click', event => {
+      event.stopPropagation();
+      playUris([btn.closest('[data-uri]').dataset.uri], false);
+    }));
+    body.querySelectorAll('.folder-track-next').forEach(btn => btn.addEventListener('click', event => {
+      event.stopPropagation();
+      playNext(btn.closest('[data-uri]').dataset.uri);
+    }));
+    body.querySelectorAll('.folder-track-add').forEach(btn => btn.addEventListener('click', event => {
+      event.stopPropagation();
+      addToQueue(btn.closest('[data-uri]').dataset.uri);
+    }));
+  }
+
+  function flash(button) {
+    if (!button) return;
+    button.classList.add('is-done');
+    setTimeout(() => button.classList.remove('is-done'), 700);
+  }
+
+  async function addToQueue(uri) {
+    if (!uri) return;
+    try {
+      await request(`/queue/items/add?uris=${encodeURIComponent(uri)}&clear=false&playback=stop`, {method:'POST'});
+      const dot = document.getElementById('queueCountDot');
+      if (dot) { dot.textContent = String((Number(dot.textContent) || 0) + 1); dot.classList.add('show'); }
+      const tab = document.getElementById('queueTabCount');
+      if (tab) tab.textContent = String((Number(tab.textContent) || 0) + 1);
+      flash(document.activeElement);
+    } catch (error) {
+      body.insertAdjacentHTML('afterbegin', `<div class="folder-error">Queue add failed: ${escapeHtml(error.message)}</div>`);
+    }
+  }
+
+  async function playNext(uri) {
+    if (!uri) return;
+    try {
+      const player = await request('/player').catch(() => null);
+      const running = player?.state === 'play' || player?.state === 'pause';
+      if (!running) {
+        await request(`/queue/items/add?uris=${encodeURIComponent(uri)}&clear=false&playback=start`, {method:'POST'});
+      } else {
+        const added = await request(`/queue/items/add?uris=${encodeURIComponent(uri)}&clear=false&playback=stop`, {method:'POST'});
+        const q = await request('/queue?start=0&end=500');
+        const queue = q?.items || [];
+        const now = await request('/queue?id=now_playing').catch(() => null);
+        const current = now?.items?.[0];
+        const item = queue.find(i => String(i.uri) === String(uri)) || queue[queue.length - 1];
+        if (item) {
+          const target = current?.position != null ? Number(current.position) + 1 : 0;
+          await request(`/queue/items/${encodeURIComponent(item.id)}?new_position=${target}`, {method:'PUT'});
+        }
+      }
+      flash(document.activeElement);
+    } catch (error) {
+      body.insertAdjacentHTML('afterbegin', `<div class="folder-error">Play next failed: ${escapeHtml(error.message)}</div>`);
+    }
   }
 
   async function playUris(uris, shuffle) {
     const valid = uris.filter(Boolean);
     if (!valid.length) return;
     try {
-      if (cfg.manualVolume != null) {
+      const running = await request('/player').catch(() => null);
+      if (cfg.manualVolume != null && running?.state !== 'play' && running?.state !== 'pause') {
         const outs = await request('/outputs').catch(() => null);
         const out = (outs?.outputs || []).find(o => o.selected);
         if (out?.id != null) {
