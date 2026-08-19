@@ -29,6 +29,7 @@ body.radio-mode{color-scheme:dark}
   font-weight:750;
 }
 body.radio-mode #albumsSection .library-folders-button{color:#fff;background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.09)}
+@media(min-width:901px){#albumsSection .library-folders-button{display:none!important}}
 
 /* Respect reduced-motion even for late-loaded polish rules with higher specificity. */
 @media(prefers-reduced-motion:reduce){
