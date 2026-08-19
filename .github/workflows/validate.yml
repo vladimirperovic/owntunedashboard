@@ -9,56 +9,59 @@ permissions:
   contents: read
 
 jobs:
-  static:
+  js:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-
       - name: Check JavaScript syntax
         shell: bash
         run: |
           set -euo pipefail
           while IFS= read -r -d '' file; do
+            echo "checking $file"
             node --check "$file"
           done < <(find . -maxdepth 2 -name '*.js' -print0)
 
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - name: Check companion Python
         run: python3 -m py_compile scheduler/scheduler_server.py
 
+  assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - name: Validate HTML parsing and configured assets
         shell: python
         run: |
           from html.parser import HTMLParser
           from pathlib import Path
           import re
-
-          class Parser(HTMLParser):
-              pass
-
+          class Parser(HTMLParser): pass
           Parser().feed(Path('index.html').read_text(encoding='utf-8'))
           config = Path('config.js').read_text(encoding='utf-8')
           assets = re.findall(r"add(?:Style|Script)\('([^']+)'", config)
           missing = [asset for asset in assets if not Path(asset).is_file()]
-          if missing:
-              raise SystemExit(f'Missing configured assets: {missing}')
+          if missing: raise SystemExit(f'Missing configured assets: {missing}')
           logos = re.findall(r"'[^']+':\s*'(station-logos/[^']+)'", config)
           missing_logos = [asset for asset in logos if not Path(asset).is_file()]
-          if missing_logos:
-              raise SystemExit(f'Missing station logos: {missing_logos}')
-          print(f'HTML parsed; {len(assets)} configured assets and {len(logos)} station identities exist')
+          if missing_logos: raise SystemExit(f'Missing station logos: {missing_logos}')
+          print(f'HTML parsed; {len(assets)} assets; {len(logos)} logos')
 
+  guards:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - name: Guard playback ownership and design architecture
         shell: bash
         run: |
           set -euo pipefail
-          if grep -q 'OWNTONE_PLAY_URI(uri)' radio-dnd.js; then
-            echo 'radio-dnd.js must not trigger playback directly; app.js owns that path'
-            exit 1
-          fi
+          ! grep -q 'OWNTONE_PLAY_URI(uri)' radio-dnd.js
           grep -q 'design-system.css' config.js
           grep -q 'design-enhancements.js' config.js
           grep -q 'premium-experience.css' config.js
@@ -68,24 +71,19 @@ jobs:
           ! grep -q "addStyle('final-fixes.css'" config.js
 
   browser:
-    needs: static
+    needs: [js, python, assets, guards]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-
       - name: Install browser test dependencies
         run: npm install
-
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-
       - name: Desktop and mobile UI regression
         run: npx playwright test
-
       - name: Upload UI screenshots and traces
         if: always()
         uses: actions/upload-artifact@v4
