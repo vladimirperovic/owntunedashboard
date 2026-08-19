@@ -31,12 +31,16 @@ window.OWNTONE_DASHBOARD = {
   radioQuality: {
     'Radio Porto Montenegro': 'MP3 320k',
   },
+
+  // Optional station artwork/logo map. Leave empty to use the generated station identity.
+  // Example: 'Radio Porto Montenegro': '/artwork/radio-porto.png'
+  radioArtwork: {},
 };
 
-// Lightweight UI extensions are deliberately isolated from app.js so playback logic
-// remains small and future OwnTone API changes are easier to maintain.
+// Feature modules stay isolated, while all cross-app visual rules are consolidated
+// into design-system.css to avoid cascades of competing last-mile overrides.
 (() => {
-  const BUILD = '20260819-11';
+  const BUILD = '20260819-13';
   const asset = path => `${path}?v=${BUILD}`;
 
   const addStyle = (href, dataKey) => {
@@ -52,6 +56,8 @@ window.OWNTONE_DASHBOARD = {
     if (document.querySelector(`script[data-${dataKey}]`)) return;
     const script = document.createElement('script');
     script.src = asset(src);
+    // Dynamically created scripts are async by default; preserve insertion order on Safari/mobile.
+    script.async = false;
     script.defer = true;
     script.setAttribute(`data-${dataKey}`, '1');
     document.head.appendChild(script);
@@ -61,10 +67,9 @@ window.OWNTONE_DASHBOARD = {
   addStyle('radio-features.css', 'owntone-radio-features');
   addStyle('library-browser.css', 'owntone-library-browser');
   addStyle('scheduler-ui.css', 'owntone-scheduler-ui');
-  addStyle('ui-polish.css', 'owntone-ui-polish');
-  addStyle('final-fixes.css', 'owntone-final-fixes');
   addStyle('mute-control.css', 'owntone-mute-control');
   addStyle('playback-tools.css', 'owntone-playback-tools');
+  addStyle('design-system.css', 'owntone-design-system');
 
   addScript('playback-tools.js', 'owntone-playback-tools-js');
   addScript('night-safety-history.js', 'owntone-night-safety-history-js');
@@ -73,4 +78,5 @@ window.OWNTONE_DASHBOARD = {
   addScript('scheduler-ui.js', 'owntone-scheduler-ui-js');
   addScript('radio-visualizer.js', 'owntone-radio-visualizer-js');
   addScript('mute-control.js', 'owntone-mute-control-js');
+  addScript('design-enhancements.js', 'owntone-design-enhancements-js');
 })();
