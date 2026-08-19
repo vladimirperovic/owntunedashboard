@@ -1,0 +1,90 @@
+/* Minimal accessibility + interaction polish from the 10-step UI/UX audit. */
+:root{color-scheme:light}
+body.radio-mode{color-scheme:dark}
+
+/* Keyboard focus for non-button interactive cards. */
+.radio-card{cursor:pointer}
+.radio-card:focus-visible,
+[role="button"]:focus-visible{
+  outline:2px solid var(--coral)!important;
+  outline-offset:3px!important;
+  box-shadow:0 0 0 5px rgba(239,91,67,.18)!important;
+}
+
+/* Give connection state a truthful visual signal instead of an always-green dot. */
+.status-mini.is-offline{background:#b1a8a1;box-shadow:0 0 0 4px rgba(177,168,161,.12)}
+.status-mini.is-preview{background:#d49b54;box-shadow:0 0 0 4px rgba(212,155,84,.14)}
+.status-mini.is-online{background:#48b47b;box-shadow:0 0 0 4px rgba(72,180,123,.12)}
+
+/* Keep the richer folder browser without turning the mobile bottom nav into six items. */
+#albumsSection .library-folders-button{
+  flex:0 0 auto;
+  margin-left:12px;
+  padding:8px 11px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  background:rgba(255,255,255,.42);
+  color:var(--ink);
+  font-size:11px;
+  font-weight:750;
+}
+body.radio-mode #albumsSection .library-folders-button{color:#fff;background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.09)}
+
+/* Respect reduced-motion even for late-loaded polish rules with higher specificity. */
+@media(prefers-reduced-motion:reduce){
+  .play-button.is-starting,
+  .format-pill.is-buffering,
+  .radio-card-spinner,
+  .radio-card.is-starting,
+  .radio-card.is-active,
+  .radio-visualizer-canvas{
+    animation:none!important;
+    transition:none!important;
+  }
+}
+
+/* Higher-contrast users should not have to rely on translucent borders. */
+@media(prefers-contrast:more){
+  .album-card,.playlist-card,.quick-card,.audio-dock,.player-card,.search-panel{border-color:rgba(20,16,12,.26)!important}
+  body.radio-mode .player-card,
+  body.radio-mode .audio-dock,
+  body.radio-mode .radio-card{border-color:rgba(255,255,255,.24)!important}
+  .track-meta,.playlist-copy small,.album-copy small,.search-item-copy small{opacity:1!important}
+}
+
+@media(max-width:620px){
+  /* UI/UX Pro Max baseline: primary touch controls should be roughly 44x44px. */
+  .icon-button,
+  .mode-toggle,
+  .micro-action,
+  .transport-button,
+  .dock-heart,
+  .mute-button,
+  .radio-favorite,
+  .playback-drawer-close,
+  .folder-close{
+    min-width:44px!important;
+    min-height:44px!important;
+  }
+  .icon-button,.mode-toggle{width:44px!important;height:44px!important}
+  .micro-action,.transport-button{width:44px!important;height:44px!important}
+  .transport-row{grid-template-columns:44px auto 44px!important;gap:8px!important}
+  .dock-heart{width:44px!important;height:44px!important}
+
+  /* 16px form text prevents Safari's focus zoom and improves legibility. */
+  .search-input,
+  .folder-search-input,
+  .schedule-field input,
+  .schedule-field select,
+  .output-select{font-size:16px!important}
+
+  .mobile-nav button small{font-size:10px!important;line-height:1.1}
+  .brand-subtitle{font-size:12px!important}
+  .track-copy .track-meta{line-height:1.42!important}
+  .album-copy small,.playlist-copy small,.search-item-copy small{font-size:10.5px!important}
+
+  #albumsSection{align-items:center!important;gap:8px!important}
+  #albumsSection>div:first-child{min-width:0}
+  #albumsSection .library-count{margin-left:auto}
+  #albumsSection .library-folders-button{margin-left:0;padding:9px 11px;font-size:11px}
+}
