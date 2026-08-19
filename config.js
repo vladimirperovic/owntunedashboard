@@ -36,7 +36,7 @@ window.OWNTONE_DASHBOARD = {
 // Lightweight UI extensions are deliberately isolated from app.js so playback logic
 // remains small and future OwnTone API changes are easier to maintain.
 (() => {
-  const BUILD = '20260819-11';
+  const BUILD = '20260819-12';
   const asset = path => `${path}?v=${BUILD}`;
 
   const addStyle = (href, dataKey) => {
@@ -52,6 +52,9 @@ window.OWNTONE_DASHBOARD = {
     if (document.querySelector(`script[data-${dataKey}]`)) return;
     const script = document.createElement('script');
     script.src = asset(src);
+    // Dynamic scripts are async by default. Force insertion order so small enhancement
+    // modules do not race one another on a cold Safari/mobile load.
+    script.async = false;
     script.defer = true;
     script.setAttribute(`data-${dataKey}`, '1');
     document.head.appendChild(script);
@@ -65,6 +68,7 @@ window.OWNTONE_DASHBOARD = {
   addStyle('final-fixes.css', 'owntone-final-fixes');
   addStyle('mute-control.css', 'owntone-mute-control');
   addStyle('playback-tools.css', 'owntone-playback-tools');
+  addStyle('ux-audit.css', 'owntone-ux-audit');
 
   addScript('playback-tools.js', 'owntone-playback-tools-js');
   addScript('night-safety-history.js', 'owntone-night-safety-history-js');
@@ -73,4 +77,5 @@ window.OWNTONE_DASHBOARD = {
   addScript('scheduler-ui.js', 'owntone-scheduler-ui-js');
   addScript('radio-visualizer.js', 'owntone-radio-visualizer-js');
   addScript('mute-control.js', 'owntone-mute-control-js');
+  addScript('ux-audit.js', 'owntone-ux-audit-js');
 })();
