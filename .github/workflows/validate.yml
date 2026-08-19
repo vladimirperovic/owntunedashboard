@@ -14,6 +14,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
       - name: Check JavaScript syntax
         shell: bash
         run: |
@@ -41,9 +45,13 @@ jobs:
           missing = [asset for asset in assets if not Path(asset).is_file()]
           if missing:
               raise SystemExit(f'Missing configured assets: {missing}')
-          print(f'HTML parsed; {len(assets)} configured assets exist')
+          logos = re.findall(r"'[^']+':\s*'(station-logos/[^']+)'", config)
+          missing_logos = [asset for asset in logos if not Path(asset).is_file()]
+          if missing_logos:
+              raise SystemExit(f'Missing station logos: {missing_logos}')
+          print(f'HTML parsed; {len(assets)} configured assets and {len(logos)} station identities exist')
 
-      - name: Guard radio playback ownership
+      - name: Guard playback ownership and design architecture
         shell: bash
         run: |
           set -euo pipefail
@@ -53,5 +61,38 @@ jobs:
           fi
           grep -q 'design-system.css' config.js
           grep -q 'design-enhancements.js' config.js
+          grep -q 'premium-experience.css' config.js
+          grep -q 'premium-experience.js' config.js
+          grep -q "BUILD = '20260819-15'" config.js
           ! grep -q "addStyle('ui-polish.css'" config.js
           ! grep -q "addStyle('final-fixes.css'" config.js
+
+  browser:
+    needs: static
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install browser test dependencies
+        run: npm install
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Desktop and mobile UI regression
+        run: npx playwright test
+
+      - name: Upload UI screenshots and traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-regression-artifacts
+          path: |
+            test-results/**/*.png
+            test-results/**/*.zip
+          if-no-files-found: ignore
+          retention-days: 7
