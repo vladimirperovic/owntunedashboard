@@ -51,7 +51,6 @@
 
     document.querySelectorAll('.mobile-nav button').forEach(button => {
       const label = button.querySelector('small')?.textContent?.trim() || '';
-      const span = button.querySelector('span');
       let key='', icon='';
       if (/home/i.test(label)) { key='home'; icon='home'; }
       else if (/search/i.test(label)) { key='search'; icon='search'; }
@@ -60,11 +59,15 @@
       else if (/radio|music/i.test(label)) { key='radio'; icon='radio'; button.id='mobileModeButton'; }
       if (!key) return;
       button.dataset.nav = key;
-      if (span) { span.classList.add('mobile-nav-icon'); span.innerHTML = svg[icon]; }
-      button.dataset.dsDecorated = '1';
+      if (button.dataset.dsDecorated !== '1') {
+        const span = button.querySelector('span');
+        if (span) { span.classList.add('mobile-nav-icon'); span.innerHTML = svg[icon]; }
+        button.dataset.dsDecorated = '1';
+      }
     });
 
     document.querySelectorAll('.quick-card').forEach(card => {
+      if (card.dataset.dsDecorated === '1') return;
       const slot = card.querySelector('.quick-icon');
       if (!slot) return;
       let icon='note';
@@ -72,29 +75,33 @@
       if (/favorites/i.test(playlist)) icon='heart';
       else if (/random/i.test(playlist)) icon='shuffle';
       else if (/morning/i.test(playlist)) icon='sun';
-      else if (card.id === 'shuffleLibraryButton') icon='note';
       slot.innerHTML = svg[icon];
+      card.dataset.dsDecorated = '1';
     });
 
     document.querySelectorAll('.micro-action').forEach(button => {
+      if (button.dataset.dsDecorated === '1') return;
       const label = button.getAttribute('aria-label') || '';
       if (/random/i.test(label)) button.innerHTML = svg.shuffle;
       else if (/favorite/i.test(label)) button.innerHTML = svg.heart;
+      button.dataset.dsDecorated = '1';
     });
     const dockHeart = document.querySelector('.dock-heart');
-    if (dockHeart) dockHeart.innerHTML = svg.heart;
+    if (dockHeart && dockHeart.dataset.dsDecorated !== '1') { dockHeart.innerHTML = svg.heart; dockHeart.dataset.dsDecorated = '1'; }
     const close = document.querySelector('.search-title-row button[aria-label="Close"]');
-    if (close) close.innerHTML = svg.close;
+    if (close && close.dataset.dsDecorated !== '1') { close.innerHTML = svg.close; close.dataset.dsDecorated = '1'; }
     enhanceSearchIcons();
   }
 
   function enhanceSearchIcons() {
     document.querySelectorAll('.search-item-icon').forEach(slot => {
+      if (slot.dataset.dsDecorated === '1') return;
       const key = String(slot.textContent || '').trim();
       if (key === 'LP') slot.innerHTML = svg.disc;
       else if (key === 'A') slot.innerHTML = svg.user;
       else if (key === '≡') slot.innerHTML = svg.list;
       else slot.innerHTML = svg.note;
+      slot.dataset.dsDecorated = '1';
     });
   }
 
@@ -193,7 +200,8 @@
     if (!station) {
       try { station = sessionStorage.getItem('owntone-last-radio-station') || ''; } catch (_) {}
     }
-    label.textContent = station || 'Live radio';
+    const next = station || 'Live radio';
+    if (label.textContent !== next) label.textContent = next;
   }
 
   function mountMiniPlayer() {
@@ -229,10 +237,13 @@
     const playing = String(mainPlay?.getAttribute('aria-label') || '').toLowerCase().includes('pause');
     const img = mini.querySelector('.mobile-mini-art img');
     const fallback = mini.querySelector('.mini-fallback');
-    mini.querySelector('.mobile-mini-copy b').textContent = title;
-    mini.querySelector('.mobile-mini-copy small').textContent = artist || meta || 'OwnTone';
+    const miniTitle = mini.querySelector('.mobile-mini-copy b');
+    const miniSub = mini.querySelector('.mobile-mini-copy small');
+    if (miniTitle.textContent !== title) miniTitle.textContent = title;
+    const sub = artist || meta || 'OwnTone';
+    if (miniSub.textContent !== sub) miniSub.textContent = sub;
     if (source) {
-      img.src = source;
+      if (img.getAttribute('src') !== source) img.src = source;
       img.hidden = false;
       fallback.hidden = true;
     } else {
@@ -241,7 +252,11 @@
       fallback.hidden = false;
     }
     const play = mini.querySelector('.mobile-mini-play');
-    play.innerHTML = playing ? svg.pause : svg.play;
+    const wantedState = playing ? 'pause' : 'play';
+    if (play.dataset.state !== wantedState) {
+      play.innerHTML = playing ? svg.pause : svg.play;
+      play.dataset.state = wantedState;
+    }
     play.classList.toggle('is-pause', playing);
     play.setAttribute('aria-label', playing ? 'Pause' : 'Play');
     const generic = /^(choose something to play\.?|choose a station\.?|your music, beautifully simple\.?)$/i.test(title);
@@ -255,8 +270,12 @@
     const radio = document.body.classList.contains('radio-mode');
     const icon = button.querySelector('.mobile-nav-icon');
     const label = button.querySelector('small');
-    if (icon) icon.innerHTML = radio ? svg.note : svg.radio;
-    if (label) label.textContent = radio ? 'Music' : 'Radio';
+    const mode = radio ? 'music' : 'radio';
+    if (button.dataset.modeIcon !== mode) {
+      if (icon) icon.innerHTML = radio ? svg.note : svg.radio;
+      if (label) label.textContent = radio ? 'Music' : 'Radio';
+      button.dataset.modeIcon = mode;
+    }
     button.setAttribute('aria-label', radio ? 'Open music library' : 'Open radio');
   }
 
