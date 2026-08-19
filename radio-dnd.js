@@ -33,9 +33,7 @@
       const fav = isFavorite(card, favorites);
       card.classList.toggle('is-favorite', fav);
       const target = fav ? fg : g;
-      if (card.parentElement !== target) {
-        target.appendChild(card);
-      }
+      if (card.parentElement !== target) target.appendChild(card);
     });
 
     const favSection = fg.closest('.radio-section');
@@ -92,12 +90,13 @@
     const id = playlistId(card), health = healthCache.get(id);
     const pill = card.querySelector('.radio-health-pill');
     if (!pill) return;
-    const status = health ? (health.online ? 'LIVE' : 'OFFLINE') : 'LIVE';
+    const status = health ? (health.online ? 'LIVE' : 'OFFLINE') : 'CHECKING';
     if (pill.textContent !== status) pill.textContent = status;
     if (pill.dataset.status !== status.toLowerCase()) pill.dataset.status = status.toLowerCase();
     card.classList.toggle('is-offline', status === 'OFFLINE');
     card.classList.toggle('is-health-live', status === 'LIVE');
     if (health?.checked_at) pill.title = `${status} · checked ${new Date(health.checked_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+    else pill.title = status === 'CHECKING' ? 'Checking stream availability' : status;
   }
 
   async function checkHealth(card, force=false) {
@@ -105,7 +104,11 @@
     const existing = healthCache.get(id);
     if (!force && existing && Date.now() - Number(existing._checked || 0) < 75000) { renderHealth(card); return; }
     const healthPill = card.querySelector('.radio-health-pill');
-    if (healthPill && healthPill.dataset.status !== 'checking') healthPill.dataset.status = 'checking';
+    if (healthPill) {
+      healthPill.textContent = 'CHECKING';
+      healthPill.dataset.status = 'checking';
+      healthPill.title = 'Checking stream availability';
+    }
     try {
       const response = await fetch(`${companionBase}/radio-health?playlist_id=${encodeURIComponent(id)}${force ? '&force=1' : ''}`, {cache:'no-store'});
       if (!response.ok) throw new Error(String(response.status));
@@ -130,19 +133,23 @@
     allCards().forEach(card => {
       const name = stationName(card), station = normalize(name);
       const active = !!station && !!currentTitle && (station.includes(currentTitle) || currentTitle.includes(station));
+      const fav = isFavorite(card, favorites);
       card.classList.toggle('is-active', active);
-      card.classList.toggle('is-favorite', isFavorite(card, favorites));
+      card.classList.toggle('is-favorite', fav);
       card.title = `${name}${active ? ' · On air' : ''}`;
+      card.setAttribute('aria-label', `${active ? 'Playing' : 'Play'} ${name || 'radio station'}`);
       const favorite = card.querySelector('.radio-favorite');
       if (favorite) {
-        const mark = isFavorite(card, favorites) ? '♥' : '♡';
+        const mark = fav ? '♥' : '♡';
         if (favorite.textContent !== mark) favorite.textContent = mark;
-        favorite.title = isFavorite(card, favorites) ? 'Unpin favorite' : 'Pin to favorite streams';
+        favorite.title = fav ? 'Unpin favorite' : 'Pin to favorite streams';
+        favorite.setAttribute('aria-label', fav ? `Unpin ${name || 'station'} from favorites` : `Pin ${name || 'station'} to favorites`);
+        favorite.setAttribute('aria-pressed', String(fav));
       }
       const quality = card.querySelector('.radio-quality-pill');
       const qVal = qualityFor(card);
       if (quality) { if (quality.textContent !== qVal) quality.textContent = qVal; quality.title = `Stream quality: ${qVal}`; }
-      
+
       const sub = card.querySelector('.radio-station-sub, .radio-card-copy small');
       if (card.classList.contains('is-starting')) {
         if (active) {
@@ -154,6 +161,7 @@
             sub.textContent = 'Connecting to stream…';
             sub.classList.add('is-live-meta');
           }
+          renderHealth(card);
           return;
         }
       }
@@ -174,8 +182,7 @@
   function enhanceCard(card) {
     if (card.dataset.enhancedCard === '1') return;
     card.dataset.enhancedCard = '1';
-    
-    // Ensure favorite button has handler
+
     const favorite = card.querySelector('.radio-favorite');
     if (favorite && !favorite.dataset.favBound) {
       favorite.dataset.favBound = '1';
@@ -186,15 +193,9 @@
       });
     }
 
-    // Direct click handler on card
-    card.addEventListener('click', event => {
-      if (event.target.closest('.radio-favorite')) return;
-      const uri = card.dataset.uri;
-      if (uri && typeof window.OWNTONE_PLAY_URI === 'function') {
-        window.OWNTONE_PLAY_URI(uri);
-      }
-    });
-
+    // Playback itself is handled once by app.js delegated click/keyboard handlers.
+    // Keeping it in one place prevents duplicate queue/play requests from a single tap.
+    renderHealth(card);
     setTimeout(() => checkHealth(card), Math.random() * 650);
   }
 
@@ -206,8 +207,9 @@
 
   window.OWNTONE_ENHANCE_RADIO = enhance;
 
-  document.addEventListener('DOMContentLoaded', enhance);
-  window.addEventListener('load', enhance);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enhance, {once:true});
+  else enhance();
+  window.addEventListener('load', enhance, {once:true});
   setInterval(updateActiveAndQuality, 3000);
   setInterval(checkAllHealth, 90000);
 })();
