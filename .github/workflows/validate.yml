@@ -1,0 +1,57 @@
+name: Validate dashboard
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            node --check "$file"
+          done < <(find . -maxdepth 2 -name '*.js' -print0)
+
+      - name: Check companion Python
+        run: python3 -m py_compile scheduler/scheduler_server.py
+
+      - name: Validate HTML parsing and configured assets
+        shell: python
+        run: |
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import re
+
+          class Parser(HTMLParser):
+              pass
+
+          Parser().feed(Path('index.html').read_text(encoding='utf-8'))
+          config = Path('config.js').read_text(encoding='utf-8')
+          assets = re.findall(r"add(?:Style|Script)\('([^']+)'", config)
+          missing = [asset for asset in assets if not Path(asset).is_file()]
+          if missing:
+              raise SystemExit(f'Missing configured assets: {missing}')
+          print(f'HTML parsed; {len(assets)} configured assets exist')
+
+      - name: Guard radio playback ownership
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -q 'OWNTONE_PLAY_URI(uri)' radio-dnd.js; then
+            echo 'radio-dnd.js must not trigger playback directly; app.js owns that path'
+            exit 1
+          fi
+          grep -q 'design-system.css' config.js
+          grep -q 'design-enhancements.js' config.js
+          ! grep -q "addStyle('ui-polish.css'" config.js
+          ! grep -q "addStyle('final-fixes.css'" config.js
