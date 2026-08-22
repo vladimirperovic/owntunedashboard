@@ -63,18 +63,18 @@
 
   function mount() {
     if (button) return;
-    const top = document.querySelector('.top-actions');
-    if (!top) return;
+    // sleep belongs with listening comfort: mute · volume · sleep — inside the audio dock
+    const dock = document.querySelector('.audio-dock .volume-output-row');
+    if (!dock) return;
 
     button = document.createElement('button');
     button.id = 'sleepButton';
-    button.className = 'icon-button subtle sleep-button';
+    button.className = 'sleep-button';
     button.type = 'button';
     button.title = 'Sleep timer';
     button.setAttribute('aria-label', 'Sleep timer');
-    button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>';
-    const schedulerButton = document.getElementById('schedulerButton');
-    top.insertBefore(button, schedulerButton || top.firstChild);
+    button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/><path d="M17 4v3M15.5 5.5h3"/></svg>';
+    dock.appendChild(button);
 
     popover = document.createElement('div');
     popover.id = 'sleepPopover';
@@ -90,8 +90,13 @@
     popover.querySelectorAll('[data-min]').forEach(b => b.addEventListener('click', () => set(Number(b.dataset.min))));
     button.addEventListener('click', () => {
       const show = popover.hidden;
+      if (show) {
+        const rect = button.getBoundingClientRect();
+        popover.style.left = `${Math.max(10, Math.min(window.innerWidth - 230, rect.right - 220))}px`;
+        popover.style.top = `${rect.bottom + 10}px`;
+        refresh();
+      }
       popover.hidden = !show;
-      if (show) refresh();
     });
     document.addEventListener('click', e => {
       if (!popover.hidden && !e.target.closest('#sleepPopover,#sleepButton')) close();
