@@ -39,9 +39,9 @@ one small Python service.
 - 🧩 **Companion service** — pure Python stdlib: schedules, history, stats,
   radio health, playlist & station file management
 
-| Radio mode (dark) | Music mode (light) |
-|---|---|
-| ![](docs/screenshots/radio-dark.png) | ![](docs/screenshots/music-light.png) |
+| Radio mode (dark) | Music mode (light) | Mobile |
+|---|---|---|
+| ![](docs/screenshots/radio-dark.png) | ![](docs/screenshots/music-light.png) | ![](docs/screenshots/mobile-radio.png) |
 
 ## Quick start
 
