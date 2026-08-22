@@ -118,17 +118,32 @@
   .time-row{min-height:16px!important;margin-top:6px!important}
 }
 
-/* Artwork fills the full left column height — no dead space below (desktop) */
+/* Artwork column: blurred ambient fill + contained square art — no dead space, no cropping */
 @media(min-width:901px){
-  .player-art-wrap{align-items:stretch!important}
+  .player-art-wrap{align-items:stretch!important;position:relative!important;overflow:hidden!important}
   .player-card{min-height:0!important}
+  .player-art-wrap::before{
+    content:""!important;
+    position:absolute!important;
+    inset:-14px!important;
+    background-image:var(--art-url,none)!important;
+    background-size:cover!important;
+    background-position:center!important;
+    filter:blur(30px) saturate(1.35) brightness(.78)!important;
+    transform:scale(1.18)!important;
+    z-index:0!important;
+  }
   .player-art,
   .player-art-wrap .player-art{
+    position:relative!important;
+    z-index:1!important;
     height:100%!important;
     min-height:0!important;
     aspect-ratio:auto!important;
-    flex:1 1 auto!important;
     width:100%!important;
+    background:rgba(12,10,9,.28)!important;
     border-radius:20px!important;
+    overflow:hidden!important;
   }
+  .player-art img{object-fit:contain!important;padding:16px!important;background:transparent!important}
 }

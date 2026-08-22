@@ -102,11 +102,12 @@
     els.artwork.dataset.artworkToken=token;
     els.playerArt.classList.remove('has-art');
     els.artwork.removeAttribute('src');
-    if(!candidates.length)return;
+    if(!candidates.length){els.playerArt.style.removeProperty('--art-url');return;}
     let index=0;
     const loadNext=()=>{
       if(els.artwork.dataset.artworkToken!==token)return;
       const url=candidates[index];
+      els.playerArt.style.setProperty('--art-url',`url("${url.replace(/"/g,'%22')}")`);
       els.artwork.onload=()=>{if(els.artwork.dataset.artworkToken!==token)return;if(els.artwork.naturalWidth>0)els.playerArt.classList.add('has-art');else{index+=1;if(index<candidates.length)loadNext();}};
       els.artwork.onerror=()=>{if(els.artwork.dataset.artworkToken!==token)return;index+=1;if(index<candidates.length)loadNext();};
       els.artwork.src=url;
