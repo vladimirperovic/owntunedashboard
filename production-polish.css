@@ -163,3 +163,21 @@
 
 /* Dark radio: a bit more transparent */
 body.radio-mode .player-card{background:rgba(23,21,19,0.84)!important}
+
+/* Dark radio: subtle color wash (much less than before) */
+@media(min-width:901px){
+  body.radio-mode .player-card::before{
+    content:""!important;
+    position:absolute!important;
+    inset:-16px!important;
+    z-index:0!important;
+    background-image:var(--art-url,none)!important;
+    background-size:cover!important;
+    background-position:center!important;
+    filter:blur(38px) saturate(1.25)!important;
+    opacity:0.18!important;
+    transform:scale(1.2)!important;
+  }
+  body.radio-mode .player-card{position:relative!important;overflow:hidden!important}
+  body.radio-mode .player-content, body.radio-mode .player-art-wrap{position:relative!important;z-index:1!important}
+}

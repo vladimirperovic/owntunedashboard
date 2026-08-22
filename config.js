@@ -49,7 +49,7 @@ window.OWNTONE_DASHBOARD = {
 // Feature modules stay isolated, while all cross-app visual rules are consolidated
 // into design-system.css to avoid cascades of competing last-mile overrides.
 (() => {
-  const BUILD = '20260821-18';
+  const BUILD = '20260821-19';
   const asset = path => `${path}?v=${BUILD}`;
 
   const addStyle = (href, dataKey) => {
