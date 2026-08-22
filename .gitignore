@@ -1,0 +1,10 @@
+test-results/
+playwright-report/
+
+# Local deploy targets (real hosts/IDs) — never commit
+deploy/deploy.local.conf
+
+# Generated deployment identity (not source)
+version.json
+node_modules/
+deploy/DEPLOY.local.md

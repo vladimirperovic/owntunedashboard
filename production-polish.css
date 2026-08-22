@@ -1,0 +1,110 @@
+/* Production polish: radio footer layout, real station artwork only, recent rail containment. */
+
+/* Never show generated two-letter station monograms in production. */
+.radio-station-identity:not(.has-image){display:none!important}
+
+/* If a real/local station image exists, keep it separate from the play action. */
+.radio-station-identity.has-image{
+  left:15px!important;
+  right:auto!important;
+  bottom:14px!important;
+  width:44px!important;
+  height:44px!important;
+  border-radius:13px!important;
+  z-index:2!important;
+}
+.radio-card-foot{
+  min-height:48px!important;
+  margin-top:12px!important;
+  justify-content:flex-end!important;
+}
+.radio-card-foot .radio-play-btn,
+.radio-card-foot .radio-play{
+  margin-left:auto!important;
+  position:relative!important;
+  z-index:3!important;
+}
+
+/* Context trigger added as the last span used to steal the Recent card copy selector. */
+.premium-recent-card{
+  position:relative!important;
+  overflow:hidden!important;
+  padding-right:48px!important;
+}
+.premium-recent-card>span:nth-child(2){
+  min-width:0!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:3px!important;
+}
+.premium-recent-card>span:nth-child(2)>b,
+.premium-recent-card>span:nth-child(2)>small{
+  display:block!important;
+  max-width:100%!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+.premium-recent-card>.context-menu-trigger{
+  display:grid!important;
+  place-items:center!important;
+  flex-direction:initial!important;
+  gap:0!important;
+  min-width:38px!important;
+  width:38px!important;
+  height:38px!important;
+  right:7px!important;
+  top:50%!important;
+  bottom:auto!important;
+  transform:translateY(-50%)!important;
+}
+
+/* Give context actions a reliable touch target without changing the card tap target. */
+.context-menu-trigger{
+  touch-action:manipulation!important;
+  -webkit-tap-highlight-color:transparent!important;
+}
+.context-menu-trigger svg{pointer-events:none!important}
+
+/* Keep elapsed/remaining time fully inside the Now Playing card.
+   The player is a fixed-height flex layout; long radio metadata can otherwise push
+   the time row below the clipped card edge. */
+.player-content{
+  justify-content:flex-start!important;
+  min-height:0!important;
+}
+.progress-block{
+  flex:0 0 auto!important;
+  margin-top:auto!important;
+  padding-top:10px!important;
+  padding-bottom:2px!important;
+}
+.time-row{
+  min-height:15px!important;
+  margin-top:7px!important;
+  padding:0 1px 1px!important;
+  line-height:1.25!important;
+  font-variant-numeric:tabular-nums!important;
+}
+.time-row>span{
+  display:block!important;
+  line-height:1.25!important;
+}
+
+@media(min-width:621px){
+  .player-card{height:auto!important;min-height:310px!important}
+  .player-art-wrap{display:flex!important;align-items:flex-start!important}
+  .player-art{height:auto!important;min-height:0!important;aspect-ratio:1!important;flex:0 0 auto!important}
+  .player-content{padding-bottom:22px!important}
+}
+
+@media(max-width:620px){
+  .radio-card{min-height:158px!important}
+  .radio-station-identity.has-image{left:13px!important;bottom:13px!important;width:42px!important;height:42px!important}
+  .radio-card-foot{min-height:46px!important}
+  .radio-play-btn,.radio-play{width:36px!important;height:36px!important}
+  .premium-recent-card{padding-right:50px!important}
+  .premium-recent-card>.context-menu-trigger{right:6px!important;width:40px!important;height:40px!important;min-width:40px!important}
+  .progress-block{padding-top:8px!important;padding-bottom:4px!important}
+  .time-row{min-height:16px!important;margin-top:6px!important}
+}

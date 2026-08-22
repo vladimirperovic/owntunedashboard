@@ -1,0 +1,5 @@
+# Copy to deploy/deploy.local.conf and fill in real values.
+# deploy/deploy.local.conf is gitignored — never commit real hosts.
+PROXMOX_TARGET="user@proxmox-host"
+LXC_ID="112"
+TARGET_DIR="/opt/owntunedashboard"
