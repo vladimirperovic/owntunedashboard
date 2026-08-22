@@ -69,7 +69,7 @@ jobs:
           grep -q 'safari-touch-fix.js' config.js
           grep -q 'live-playback-polish.css' config.js
           grep -q 'live-playback-polish.js' config.js
-          grep -q "BUILD = '20260819-20'" config.js
+          grep -qE "BUILD = '[0-9]{8}-[0-9]+'" config.js
           ! grep -q "addStyle('ui-polish.css'" config.js
           ! grep -q "addStyle('final-fixes.css'" config.js
 
