@@ -154,3 +154,9 @@
   .player-art::before{display:none!important}
   .player-art img{object-fit:cover!important;padding:0!important;width:100%!important;height:100%!important;border-radius:inherit!important}
 }
+
+/* Radio: no vertical division — unified card like Music mode */
+@media(min-width:901px){
+  .player-card{gap:0!important;column-gap:0!important}
+  .player-content,.player-art-wrap{border:0!important;background:transparent!important;box-shadow:none!important}
+}
