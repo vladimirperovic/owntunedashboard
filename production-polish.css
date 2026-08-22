@@ -38,7 +38,7 @@
 .premium-recent-card{
   position:relative!important;
   overflow:hidden!important;
-  padding-right:48px!important;
+  padding-right:-200px!important;
 }
 .premium-recent-card>span:nth-child(2){
   min-width:0!important;
@@ -187,7 +187,7 @@ body.radio-mode .player-card{background:rgba(23,21,19,0.84)!important}
   .player-kicker-row{position:relative!important}
   .status-dot-wrap{
     position:absolute!important;
-    right:48px!important;
+    right:-200px!important;
     top:-2px!important;
     background:rgba(255,255,255,0.72)!important;
     padding:5px 12px 5px 10px!important;
