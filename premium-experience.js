@@ -157,18 +157,13 @@
   }
 
   function mountTrackInfoButton() {
-    if ($('trackInfoButton')) return;
-    const row = document.querySelector('.player-kicker-row');
-    if (!row) return;
-    const button = document.createElement('button');
-    button.id = 'trackInfoButton';
-    button.className = 'premium-icon-button track-info-button';
-    button.type = 'button';
-    button.title = 'Track details';
-    button.setAttribute('aria-label', 'Open track details');
-    button.innerHTML = icons.info;
-    row.appendChild(button);
-    button.addEventListener('click', openTrackSheet);
+    // Info chip now lives inside #trackChips (rendered by app.js); use delegation so it survives re-renders
+    const chips = document.getElementById('trackChips');
+    if (!chips || chips.dataset.infoBound === '1') return;
+    chips.dataset.infoBound = '1';
+    chips.addEventListener('click', event => {
+      if (event.target.closest('#trackInfoButton, .track-chip--info')) openTrackSheet();
+    });
   }
 
   function ensureSheet() {

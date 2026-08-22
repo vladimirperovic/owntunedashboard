@@ -187,7 +187,7 @@ body.radio-mode .player-card{background:rgba(23,21,19,0.84)!important}
   .player-kicker-row{position:relative!important}
   .status-dot-wrap{
     position:absolute!important;
-    right:-200px!important;
+    right:-244px!important;
     top:-2px!important;
     background:rgba(255,255,255,0.72)!important;
     padding:5px 12px 5px 10px!important;
@@ -196,10 +196,11 @@ body.radio-mode .player-card{background:rgba(23,21,19,0.84)!important}
     box-shadow:0 2px 10px rgba(0,0,0,.08)!important;
     font-size:10px!important;
   }
-  #trackInfoButton{
-    position:absolute!important;
-    right:-244px!important;
-    top:-2px!important;
-  }
   body.radio-mode .status-dot-wrap{background:rgba(0,0,0,0.38)!important;color:rgba(255,255,255,.88)!important}
 }
+.track-chip--info{
+  display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  width:30px!important;height:26px!important;padding:0!important;
+  border-radius:999px!important;cursor:pointer!important;
+}
+.track-chip--info svg{width:14px!important;height:14px!important;fill:none!important}
