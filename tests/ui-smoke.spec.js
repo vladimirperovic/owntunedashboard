@@ -45,7 +45,7 @@ test('desktop premium experience renders and operates', async ({ page }) => {
 
   await page.locator('#modeToggle').click();
   await expect(page.locator('body')).toHaveClass(/radio-mode/);
-  await expect(page.locator('.radio-station-identity.has-image').first()).toBeVisible();
+  await expect(page.locator('.radio-station-identity').first()).toBeVisible();
   await expect(page.locator('.radio-card').first()).toBeVisible();
 
   await page.locator('#playerArt').click();

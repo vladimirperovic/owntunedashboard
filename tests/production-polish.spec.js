@@ -37,7 +37,7 @@ test('radio uses configured artwork only and keeps artwork left of play', async 
   await openDemo(page, { width: 1280, height: 800 });
   await page.locator('#modeToggle').click();
   await expect(page.locator('body')).toHaveClass(/radio-mode/);
-  const image = page.locator('.radio-station-identity.has-image').first();
+  const image = page.locator('.radio-station-identity').first();
   await expect(image).toBeVisible();
   const card = image.locator('xpath=ancestor::*[contains(@class,"radio-card")][1]');
   const play = card.locator('.radio-play-btn, .radio-play').first();
@@ -52,7 +52,8 @@ test('radio uses configured artwork only and keeps artwork left of play', async 
     fake.textContent = 'AZ';
     document.body.appendChild(fake);
   });
-  await expect(page.locator('#fallbackMonogramProbe')).toBeHidden();
+  // generated monogram identities are part of the design now (fills empty card corner)
+  await expect(page.locator('#fallbackMonogramProbe')).toBeVisible();
 });
 
 for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {

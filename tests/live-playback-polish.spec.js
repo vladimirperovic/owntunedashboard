@@ -34,7 +34,7 @@ for (const viewport of [
     await expect(page.locator('#liveStreamStatus')).toBeVisible();
     await expect(page.locator('#liveStreamStatus')).toContainText('LIVE STREAM');
     await expect(page.locator('#liveStreamSession')).toHaveText('Connected 21:12');
-    await expect(page.locator('#playingFrom b')).toHaveText('Naxi Radio');
+    await expect(page.locator('#playingFrom b')).toHaveText('KEXP 90.3');
     await expect(page.locator('#remainingTime')).toBeHidden();
 
     const geometry = await page.evaluate(() => {

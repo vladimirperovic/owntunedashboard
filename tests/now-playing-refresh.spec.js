@@ -54,7 +54,9 @@ test('now playing changes automatically with fresh data and a fade', async ({ pa
   await page.goto('/');
   await expect(page.locator('#trackTitle')).toContainText("I'm Gonna Love You");
   const artwork = await page.locator('#playerArt').boundingBox();
-  expect(Math.abs(artwork.width - artwork.height)).toBeLessThanOrEqual(1);
+  // artwork fills the full left column height (cover crop) — no dead space below
+  const card = await page.locator('.player-card').boundingBox();
+  expect(artwork.height).toBeGreaterThan(card.height - 40);
 
   current = 2;
   await page.evaluate(() => window.__emitOwnToneEvent({notify:['player']}));
