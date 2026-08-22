@@ -98,6 +98,16 @@
 
   async function checkHealth(card, force=false) {
     const id = playlistId(card); if (!id) return;
+    // demo mode has no companion — present stations as live instead of OFFLINE noise
+    if (window.OWNTONE_APP?.state?.demo && !force) {
+      if (!healthCache.get(id)) {
+        healthCache.set(id, {online:true, status:'LIVE', quality:'STREAM', _checked:Date.now()});
+        renderHealth(card);
+        const q = card.querySelector('.radio-quality-pill');
+        if (q) { const v = qualityFor(card); if (q.textContent !== v) q.textContent = v; }
+      }
+      return;
+    }
     const existing = healthCache.get(id);
     if (!force && existing && Date.now() - Number(existing._checked || 0) < 75000) { renderHealth(card); return; }
     const healthPill = card.querySelector('.radio-health-pill');
