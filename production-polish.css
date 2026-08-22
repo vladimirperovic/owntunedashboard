@@ -160,3 +160,6 @@
   .player-card{gap:0!important;column-gap:0!important}
   .player-content,.player-art-wrap{border:0!important;background:transparent!important;box-shadow:none!important}
 }
+
+/* Dark radio: a bit more transparent */
+body.radio-mode .player-card{background:rgba(23,21,19,0.84)!important}
