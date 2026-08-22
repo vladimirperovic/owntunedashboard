@@ -36,10 +36,12 @@
       {id:'p1',name:'Favorites',path:'/media/music/Playlists/Favorites.smartpl',uri:'library:playlist:1'},
       {id:'p2',name:'Random 500',path:'/media/music/Playlists/Random 500.smartpl',uri:'library:playlist:2'},
       {id:'p3',name:'Morning',path:'/media/music/Playlists/Morning.m3u',uri:'library:playlist:3'},
-      {id:'r1',name:'Naxi Radio',path:'/media/music/Radio/Naxi Radio.m3u',uri:'library:playlist:11'},
-      {id:'r2',name:'Radio S1',path:'/media/music/Radio/Radio S1.m3u',uri:'library:playlist:12'},
-      {id:'r3',name:'Radio Beograd 202',path:'/media/music/Radio/Radio 202.m3u',uri:'library:playlist:13'},
-      {id:'r4',name:'Rock Radio',path:'/media/music/Radio/Rock Radio.m3u',uri:'library:playlist:14'}
+      {id:'r1',name:'KEXP 90.3',path:'/media/music/Radio/KEXP 90.3.m3u',uri:'library:playlist:11'},
+      {id:'r2',name:'BBC Radio 1',path:'/media/music/Radio/BBC Radio 1.m3u',uri:'library:playlist:12'},
+      {id:'r3',name:'FIP',path:'/media/music/Radio/FIP.m3u',uri:'library:playlist:13'},
+      {id:'r4',name:'Jazz FM',path:'/media/music/Radio/Jazz FM.m3u',uri:'library:playlist:14'},
+      {id:'r5',name:'Radio Paradise',path:'/media/music/Radio/Radio Paradise.m3u',uri:'library:playlist:15'},
+      {id:'r6',name:'Triple J',path:'/media/music/Radio/Triple J.m3u',uri:'library:playlist:16'}
     ],
     albums:[['Dummy','Portishead'],['Mezzanine','Massive Attack'],['Kind of Blue','Miles Davis'],['Grace','Jeff Buckley'],['The Dark Side of the Moon','Pink Floyd'],['Blue Lines','Massive Attack'],['Moon Safari','Air'],['Back to Black','Amy Winehouse'],['In Rainbows','Radiohead'],['Rumours','Fleetwood Mac'],['Discovery','Daft Punk'],['Songs of Leonard Cohen','Leonard Cohen']].map((x,i)=>({id:`a${i}`,name:x[0],artist:x[1],uri:`library:album:${i}`}))
   };
