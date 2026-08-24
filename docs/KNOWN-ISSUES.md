@@ -1,68 +1,75 @@
 # Known issues — OwnTone Dashboard
 
-Review 2026-08-21. Items marked FIXED are deployed; others are tracked.
+Reviewed 2026-08-24. Everything below is either open or explains a decision.
+Items fixed in the cleanup pass are listed at the bottom for reference.
 
-## Playback source / view-mode logic
+## Open
 
-1. **`state.mode` never returns to `music` through playback paths** — FIXED 2026-08-21
-   - Only `toggleMode()` (manual) and the demo branch set `mode='music'`.
-     Album/playlist/search/history/folder playback while stuck in radio view kept
-     the radio presentation (LIVE NOW kicker, ON AIR panel showing the song as a
-     station, disabled seek, hero station label).
-   - Fix: `playUri()` syncs mode from URI kind (radio playlist vs everything
-     else); `OWNTONE_PLAY_URI` no longer forces radio; history drawer and folder
-     browser call `OWNTONE_SYNC_PLAYBACK_MODE` after starting playback.
+1. **`/scheduler/` is unauthenticated on the LAN** (port 3690 via nginx).
+   Anyone on the network can create or delete schedules and start playback, and
+   scheduler playback intentionally bypasses the night cap. The service itself
+   binds to `127.0.0.1:3691`; nginx is what exposes it. Deliberate for a home
+   network — add `auth_basic` or an `allow`/`deny` block to the site config
+   before exposing it any further.
 
-2. **`renderLiveText` showed any current item as a "station" while browsing
-   radio view** — FIXED 2026-08-21
-   - Panel now keys off `isRadioCurrent(item)` (actual stream) instead of view mode.
+2. **No CSRF protection on the companion service.** `_body()` parses JSON
+   without checking `Content-Type`, so a POST from any page the browser happens
+   to be on is a "simple request" and skips the CORS preflight. Practical
+   effect: a website could start radio in the house. `PUT` and `DELETE` are
+   protected by preflight. The fix is small — require
+   `Content-Type: application/json` and check `Origin` — and belongs with the
+   authentication work above.
 
-3. **Progress/seek gated on view mode instead of content** — FIXED 2026-08-21
-   - `progressRange.disabled` and `seekTo()` now use `directRadio` /
-     `isRadioCurrent(item)` so a local file is seekable even in radio view.
+3. **Stream health probes follow redirects.** `stream_alive()` and
+   `probe_radio()` fetch URLs read from playlist files, and `urlopen` follows
+   3xx, so a station URL can point the server at an internal address. Bounded by
+   `URL_RE` (http/https only) and by the station having to exist in OwnTone.
 
-4. **Stale `currentSource` (sessionStorage `owntone-playing-source`) showed
-   "Playing from a radio station" over local files** — FIXED 2026-08-21
-   - `inferSource()` ignores a cached radio kind when the playing item is not
-     live; live detection runs before the cache return.
-   - Remaining nit: paths that bypass `writeSource` (history drawer, folder
-     browser) can still leave a stale non-radio label (e.g. "Search"). Cosmetic.
+4. **`probe_radio` reads only 768 bytes with `Connection: close`.** Some servers
+   hold the connection until the 5 s timeout, which inflates the reported
+   latency. Cosmetic.
 
-5. **`live-playback-polish` else-branch respected `radio-mode` for the kicker**
-   — FIXED 2026-08-21 (earlier)
-   - Kicker is now always `NOW PLAYING` when the current item is not a stream.
+5. **`outputName` label fight.** `app.js renderPlayer` writes the selected
+   output name; `context-multiroom syncGroupLabel` (1.8 s interval) writes
+   "N outputs" for the same multi-room case. Cosmetic flicker.
 
-## Smaller tracked issues (not yet fixed)
+6. **Kicker flicker.** `renderMode` sets the kicker from the view mode; the
+   live-polish interval corrects it within 500 ms when a file is playing. One
+   frame after a mode toggle.
 
-6. **Double night-cap fetch wrappers** — `playback-tools.js` and
-   `context-multiroom.js` both wrap `window.fetch` for `playback=start`; during
-   night hours two redundant volume PUTs fire per playback start. Chain order
-   depends on script load order. Harmless but fragile; merge into one wrapper.
+7. **Ten independent timers**, from 500 ms to 120 s, with no shared schedule.
+   Only `app.js`, `live-playback-polish.js` and `screensaver.js` check
+   `document.hidden`, so the rest keep running — and a few keep fetching — while
+   the tab is in the background.
 
-7. **`outputName` label fight** — `app.js renderPlayer` writes the single
-   selected output name; `context-multiroom syncGroupLabel` (1.8 s interval)
-   writes "N outputs" for the same multi-room case. Cosmetic flicker.
+## Fixed in the 2026-08-24 cleanup
 
-8. **Radio cards are born "LIVE"** — `renderRadio` template hardcodes
-   `data-status="live">LIVE<` before `radio-dnd` replaces it with CHECKING.
-   Brief false LIVE flash on load.
+Kept here so the history is legible; see the commits for detail.
 
-9. **`/scheduler/` API is unauthenticated on the LAN** (port 3690 via nginx).
-   Anyone on the LAN can create/delete schedules and start playback; scheduler
-   playback intentionally bypasses the night cap. Add auth if ever exposed
-   beyond the home LAN.
-
-10. **`manifest.webmanifest` theme_color (#f0e8de) differs from the HTML
-    meta theme-color (#f2ece4)**. Cosmetic.
-
-11. **`probe_radio` reads only 768 bytes with `Connection: close`** — some
-    servers hold the connection until the 5 s timeout, inflating reported
-    latency. Cosmetic.
-
-12. **Queue swipe-to-delete lacks `setPointerCapture`** — FIXED 2026-08-21
-    — swipe now captures the pointer so moving off the row no longer
-    aborts the gesture.
-
-13. **Kicker flicker** — `renderMode` sets the kicker from view mode; the
-    live-polish interval corrects it within 500 ms when a file is playing.
-    One-frame flicker possible after mode toggles.
+- `renderQueue` read `current` from `loadQueue`'s scope. Under `'use strict'`
+  that threw, and the catch turned it into "Queue unavailable — current is not
+  defined". The "Queue is empty" branch was unreachable.
+- Favourite stations duplicated on every Refresh, because `renderRadio` rebuilt
+  only `#radioGrid` while `#radioFavoritesGrid` kept the previous render's nodes.
+- Night safety existed four times over, and the two `window.fetch` patches did
+  not cover the history drawer, which built its requests on a pre-patch copy of
+  `fetch`. One of the copies raised the volume instead of capping it. There is
+  one rule and one playback entry point now.
+- The sidebar's "Recently played" played "Random 500".
+- The output `<select>` was rebuilt on every 3 s poll, which closes a native
+  picker under the user's finger on iOS.
+- Demo mode rescheduled a no-op poll every 3 s for the lifetime of the tab.
+- The HomeKit switch state lived in memory: wrong after a restart, and never
+  updated by a scheduled run. It is read from OwnTone's live state now.
+- The scheduler loop wrote a fifteen-second-old copy of the runtime state back,
+  dropping activity entries and the sleep output id.
+- Schedules were built on a fixed UTC offset, so they shifted by an hour across
+  a DST change.
+- `do_GET` had no error handling; one malformed `schedules.json` closed the
+  connection with no response.
+- `deploy.sh` printed "Packaging HEAD" while tarring the working tree, and ran
+  `rm -rf` on a path taken unchecked from a config file.
+- On a phone the sleep button rendered 296×290, and the topbar pushed `<body>`
+  to 433px inside a 390px viewport.
+- 752 `!important` declarations, replaced by cascade layers.
+- Station names, time zone and library paths were hardcoded in shared code.
