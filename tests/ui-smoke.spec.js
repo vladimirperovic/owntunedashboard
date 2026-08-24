@@ -138,3 +138,22 @@ test('mobile radio view fits the viewport and sizes its dock controls', async ({
     expect(box.x + box.width).toBeLessThanOrEqual(391);
   }
 });
+
+test('an album cover that fails to load falls back to the record placeholder', async ({ page }) => {
+  await openDemo(page, { width: 1440, height: 1000 });
+
+  // Demo albums carry no artwork_url, so point one card at a URL that 404s and
+  // check the card recovers instead of leaving an empty dark box.
+  await page.evaluate(() => {
+    const art = document.querySelector('.album-card .album-art');
+    art.querySelector('.mini-record')?.remove();
+    const img = document.createElement('img');
+    img.alt = '';
+    img.src = '/definitely-not-a-cover.png';
+    art.prepend(img);
+  });
+
+  const placeholder = page.locator('.album-card .album-art .mini-record').first();
+  await expect(placeholder).toBeVisible();
+  await expect(page.locator('.album-card .album-art img').first()).toHaveCount(0);
+});

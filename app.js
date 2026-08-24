@@ -808,20 +808,49 @@
   function renderLiveText() {
     const el = document.getElementById('radioLiveText');
     if (!el) return;
-    const item = state.current,
-      live = isRadioCurrent(item);
-    if (live && item) {
-      const station = item.title || 'Live Radio';
-      const text = [item.artist, item.album].filter(Boolean).join(' · ');
-      const art = artworkUrl(item.artwork_url);
-      if (art) {
-        el.innerHTML = `<div class="radio-live-card"><img class="radio-live-art" src="${escapeHtml(art)}" alt="" onerror="this.remove()"><div><span class="radio-live-station">${escapeHtml(station)}</span><span class="radio-live-text">${escapeHtml(text) || 'Tuning in…'}</span></div></div>`;
-      } else
-        el.innerHTML = `<div class="radio-live-card"><div class="radio-live-mark">LIVE</div><div><span class="radio-live-station">${escapeHtml(station)}</span><span class="radio-live-text">${escapeHtml(text) || 'Tuning in…'}</span></div></div>`;
-    } else {
+    const item = state.current;
+
+    if (!isRadioCurrent(item)) {
       el.innerHTML =
         '<div class="radio-live-empty">No station on air — play a radio stream to see its live text.</div>';
+      return;
     }
+
+    const station = item.title || 'Live Radio';
+    const text = [item.artist, item.album].filter(Boolean).join(' · ') || 'Tuning in…';
+    const art = artworkUrl(item.artwork_url);
+    const mark = art
+      ? `<img class="radio-live-art" src="${escapeHtml(art)}" alt="">`
+      : '<div class="radio-live-mark">LIVE</div>';
+
+    el.innerHTML = `
+      <div class="radio-live-card">
+        ${mark}
+        <div>
+          <span class="radio-live-station">${escapeHtml(station)}</span>
+          <span class="radio-live-text">${escapeHtml(text)}</span>
+        </div>
+      </div>`;
+
+    // Station artwork that 404s drops out rather than leaving a broken image.
+    el.querySelector('.radio-live-art')?.addEventListener('error', event => event.target.remove(), {
+      once: true,
+    });
+  }
+
+  const RECORD_PLACEHOLDER = '<div class="mini-record"></div>';
+
+  function albumCardHtml(album) {
+    const art = artworkUrl(album.artwork_url, 420);
+    const cover = art ? `<img src="${escapeHtml(art)}" alt="" loading="lazy">` : RECORD_PLACEHOLDER;
+    return `
+      <button class="album-card" type="button" data-uri="${escapeHtml(album.uri)}" title="Play ${escapeHtml(album.name)}">
+        <div class="album-art">${cover}</div>
+        <div class="album-copy">
+          <b>${escapeHtml(album.name)}</b>
+          <small>${escapeHtml(album.artist || 'Unknown artist')}</small>
+        </div>
+      </button>`;
   }
 
   function renderLibrary() {
@@ -837,12 +866,7 @@
       return true;
     });
     els.albumGrid.innerHTML = albums.length
-      ? albums
-          .map(album => {
-            const art = artworkUrl(album.artwork_url, 420);
-            return `<button class="album-card" type="button" data-uri="${escapeHtml(album.uri)}" title="Play ${escapeHtml(album.name)}"><div class="album-art">${art ? `<img src="${escapeHtml(art)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '<div class="mini-record"></div>'}</div><div class="album-copy"><b>${escapeHtml(album.name)}</b><small>${escapeHtml(album.artist || 'Unknown artist')}</small></div></button>`;
-          })
-          .join('')
+      ? albums.map(albumCardHtml).join('')
       : '<p class="empty-state">No albums found.</p>';
     const normal = state.playlists.filter(p => !isRadioPlaylist(p) && !p.folder).slice(0, 16);
     els.playlistGrid.innerHTML = normal.length
@@ -1212,6 +1236,22 @@
     e.preventDefault();
     action(button);
   });
+  // A cover that 404s used to be hidden with an inline onerror, which left the
+  // bare .album-art box showing. Swap in the record placeholder instead — and
+  // one less inline handler standing between the app and a CSP.
+  els.albumGrid.addEventListener(
+    'error',
+    e => {
+      const image = e.target;
+      if (image.tagName !== 'IMG') return;
+      const wrap = image.closest('.album-art');
+      if (!wrap) return;
+      const placeholder = document.createElement('div');
+      placeholder.className = 'mini-record';
+      image.replaceWith(placeholder);
+    },
+    true
+  );
   els.albumGrid.addEventListener('click', e => {
     const card = e.target.closest('[data-uri]');
     if (card) playUri(card.dataset.uri);

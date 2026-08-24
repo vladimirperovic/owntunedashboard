@@ -93,8 +93,9 @@ bridge (e.g. [homebridge](https://homebridge.io) +
 - state → `GET  http://<host>:3690/scheduler/stations/<slug>/status`
 - list stations → `GET http://<host>:3690/scheduler/stations`
 
-Name a switch per station (plus short aliases like "Porto" or "Naxi") and say
-_"Hey Siri, turn on Porto"_. A `POST /scheduler/stations/random/play` endpoint
+Name a switch per station (plus a short alias you would actually say) and ask
+Siri to turn it on. Switch state is read from OwnTone's live player, so it stays
+correct after a service restart and after a scheduled run. A `POST /scheduler/stations/random/play` endpoint
 is included for a "Shuffle Radio" switch.
 
 ## macOS menu bar
@@ -103,14 +104,58 @@ is included for a "Shuffle Radio" switch.
 [SwiftBar](https://swiftbar.swiftbar.app) plugin: current track in the menu
 bar with play/pause, next/previous and volume presets.
 
-## Tests
+## Radio station detection
 
-Playwright UI tests run against the built-in demo mode:
+A playlist counts as a station when its file path contains `radioPathHint`
+(`/Radio/` by default). `radioNameHints` in [`config.js`](config.js) adds
+whole-word name fallbacks for libraries where stations are not all in one
+folder — keep that list short, since anything in it can misread an album
+playlist as a station. The companion service reads the same two settings from
+`OWNTONE_RADIO_PATH_HINT` and `OWNTONE_RADIO_NAME_HINTS`; keep them in step.
+
+## Development
 
 ```sh
 npm install
-npx playwright test
+npx playwright install chromium
 ```
+
+| Command                                                    | What it checks                           |
+| ---------------------------------------------------------- | ---------------------------------------- |
+| `npm run lint`                                             | ESLint over every script                 |
+| `npm run format` / `npm run format:check`                  | Prettier                                 |
+| `npx playwright test`                                      | Desktop and mobile UI, against demo mode |
+| `python3 -m unittest discover -s scheduler -p 'test_*.py'` | Companion service logic                  |
+| `ruff check scheduler/`                                    | Python lint                              |
+
+CI runs all of them on every push and pull request.
+
+### How the front end is put together
+
+No build step — plain `<script>` files loaded in order by
+[`config.js`](config.js), which is also where the `?v=BUILD` cache buster
+lives.
+
+- [`shared.js`](shared.js) is the common layer: config, the request helpers for
+  both back ends, `escapeHtml`, the toast, the event bus, the icon set, the
+  night-safe rule, and `startPlayback()` — the single entry point every
+  playback path goes through.
+- [`app.js`](app.js) owns the player, the library and the radio grid, and
+  announces `owntone:ready` and `owntone:library-updated`. Feature modules wait
+  for those events rather than polling.
+- Feature modules mount themselves into the shell and talk to `app.js` through
+  `window.OWNTONE_APP`.
+
+CSS uses cascade layers, declared at the top of
+[`styles.css`](styles.css):
+
+```css
+@layer base, components, system, features, polish;
+```
+
+A later layer wins over an earlier one regardless of selector specificity, so
+overriding a base rule does not need `!important` — there are none in the
+stylesheets.
 
 ## Disclaimer
 
