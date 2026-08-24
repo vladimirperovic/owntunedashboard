@@ -48,11 +48,11 @@ one small Python service.
 Requirements: a host running OwnTone, nginx and Python 3.
 
 ```sh
-git clone https://github.com/vladimirperovic/owntunedashboard.git /opt/owntunedashboard
+git clone https://github.com/vladimirperovic/owntunedashboard.git /opt/owntone-dashboard
 
 # 1. nginx site (serves the dashboard on :3690, proxies /api and /scheduler)
-sudo cp deploy/nginx.conf /etc/nginx/sites-available/owntunedashboard
-sudo ln -sf ../sites-available/owntunedashboard /etc/nginx/sites-enabled/
+sudo cp deploy/nginx.conf /etc/nginx/sites-available/owntone-dashboard
+sudo ln -sf ../sites-available/owntone-dashboard /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 
 # 2. companion service (schedules, history, stats, radio health)

@@ -1,5 +1,5 @@
 {
-  "name": "owntune-dashboard",
+  "name": "owntone-dashboard",
   "private": true,
   "scripts": {
     "test:ui": "playwright test"

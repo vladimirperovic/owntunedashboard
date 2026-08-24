@@ -15,7 +15,7 @@ source "$CONF"
 
 : "${PROXMOX_TARGET:?Set PROXMOX_TARGET in $CONF (e.g. user@proxmox-host)}"
 : "${LXC_ID:?Set LXC_ID in $CONF}"
-TARGET_DIR="${TARGET_DIR:-/opt/owntunedashboard}"
+TARGET_DIR="${TARGET_DIR:-/opt/owntone-dashboard}"
 
 BRANCH="$(git branch --show-current)"
 COMMIT="$(git rev-parse --short HEAD)"
@@ -51,11 +51,12 @@ systemctl daemon-reload
 systemctl enable owntone-dashboard-scheduler.service >/dev/null 2>&1 || true
 systemctl restart owntone-dashboard-scheduler.service
 
-if ! cmp -s "$TARGET/deploy/nginx.conf" /etc/nginx/sites-available/owntunedashboard; then
-  cp /etc/nginx/sites-available/owntunedashboard /etc/nginx/sites-available/owntunedashboard.bak
-  cp "$TARGET/deploy/nginx.conf" /etc/nginx/sites-available/owntunedashboard
+NGINX_SITE="/etc/nginx/sites-available/owntone-dashboard"
+if ! cmp -s "$TARGET/deploy/nginx.conf" "$NGINX_SITE"; then
+  [ -f "$NGINX_SITE" ] && cp "$NGINX_SITE" "$NGINX_SITE.bak"
+  cp "$TARGET/deploy/nginx.conf" "$NGINX_SITE"
   if ! nginx -t; then
-    cp /etc/nginx/sites-available/owntunedashboard.bak /etc/nginx/sites-available/owntunedashboard
+    [ -f "$NGINX_SITE.bak" ] && cp "$NGINX_SITE.bak" "$NGINX_SITE"
     echo "nginx -t failed; restored previous site config" >&2
     exit 1
   fi

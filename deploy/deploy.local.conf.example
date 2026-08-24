@@ -2,4 +2,4 @@
 # deploy/deploy.local.conf is gitignored — never commit real hosts.
 PROXMOX_TARGET="user@proxmox-host"
 LXC_ID="112"
-TARGET_DIR="/opt/owntunedashboard"
+TARGET_DIR="/opt/owntone-dashboard"

@@ -4,10 +4,10 @@ Target host is the existing Plex/OwnTone LXC (`<your-owntone-lxc>`). Do not crea
 
 ## 1. Update dashboard code
 
-The dashboard checkout is expected at `/opt/owntunedashboard`.
+The dashboard checkout is expected at `/opt/owntone-dashboard`.
 
 ```bash
-cd /opt/owntunedashboard
+cd /opt/owntone-dashboard
 git fetch origin
 git checkout main
 git pull --ff-only origin main
@@ -33,10 +33,10 @@ Do not redeploy an older cached copy. The current UI is cache-busted from `confi
 
 ## 2. Companion scheduler service
 
-The companion remains Python standard-library only. It runs on `127.0.0.1:3691` and provides schedules, persistent Now Playing history and server-side radio health probes. Data is stored under `/var/lib/owntune-dashboard/`.
+The companion remains Python standard-library only. It runs on `127.0.0.1:3691` and provides schedules, persistent Now Playing history and server-side radio health probes. Data is stored under `/var/lib/owntone-dashboard/`.
 
 ```bash
-install -m 0644 /opt/owntunedashboard/deploy/owntone-dashboard-scheduler.service \
+install -m 0644 /opt/owntone-dashboard/deploy/owntone-dashboard-scheduler.service \
   /etc/systemd/system/owntone-dashboard-scheduler.service
 systemctl daemon-reload
 systemctl enable owntone-dashboard-scheduler.service

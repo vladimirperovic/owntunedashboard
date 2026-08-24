@@ -1,4 +1,4 @@
-# Known issues — owntunedashboard
+# Known issues — OwnTone Dashboard
 
 Review 2026-08-21. Items marked FIXED are deployed; others are tracked.
 

@@ -7,7 +7,7 @@ Wants=network-online.target
 Type=simple
 User=www-data
 Group=www-data
-WorkingDirectory=/opt/owntunedashboard
+WorkingDirectory=/opt/owntone-dashboard
 StateDirectory=owntone-dashboard
 Environment=PYTHONUNBUFFERED=1
 Environment=TZ=Europe/Belgrade
@@ -20,7 +20,7 @@ Environment=OWNTONE_PLAYLISTS_DIR=/media/music/Playlists
 Environment=OWNTONE_NIGHT_START=0
 Environment=OWNTONE_NIGHT_END=8
 Environment=OWNTONE_NIGHT_MAX=8
-ExecStart=/usr/bin/python3 /opt/owntunedashboard/scheduler/scheduler_server.py
+ExecStart=/usr/bin/python3 /opt/owntone-dashboard/scheduler/scheduler_server.py
 Restart=on-failure
 RestartSec=3
 
