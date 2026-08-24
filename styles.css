@@ -759,6 +759,7 @@
     object-fit: cover;
   }
   .mini-record {
+    position: relative;
     width: 58%;
     aspect-ratio: 1;
     border-radius: 50%;

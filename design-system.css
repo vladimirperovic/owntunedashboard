@@ -531,6 +531,38 @@
   .album-art {
     position: relative;
   }
+  /* Albums with no cover fall back to .mini-record. A near-black disc on a
+     black square dominated the light music view, so the placeholder now takes
+     the paper tones and stays quiet; radio mode keeps the dark treatment. */
+  .album-card .album-art:not(:has(img)) {
+    background: linear-gradient(160deg, var(--paper2), var(--sand));
+  }
+  .mini-record {
+    background: repeating-radial-gradient(
+      circle,
+      rgba(20, 16, 12, 0.14) 0 5px,
+      rgba(20, 16, 12, 0.05) 6px 8px
+    );
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  }
+  .mini-record::after {
+    content: '';
+    position: absolute;
+    inset: 42%;
+    border-radius: 50%;
+    background: rgba(239, 91, 67, 0.45);
+  }
+  body.radio-mode .album-card .album-art:not(:has(img)) {
+    background: linear-gradient(160deg, #211b18, #16130f);
+  }
+  body.radio-mode .mini-record {
+    background: repeating-radial-gradient(
+      circle,
+      rgba(255, 255, 255, 0.1) 0 5px,
+      rgba(255, 255, 255, 0.03) 6px 8px
+    );
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  }
   .album-art img {
     transition:
       transform 0.38s var(--ds-ease),
