@@ -10,12 +10,17 @@ async function openDemo(page, viewport) {
   await expect(page.locator('.album-info-button').first()).toBeAttached();
 }
 
+// documentElement.scrollWidth alone missed a real overflow: the topbar buttons
+// pushed <body> to 433px inside a 390px viewport while <html> stayed at 390, so
+// the page could be dragged sideways into a blank strip. Check both.
 async function assertNoHorizontalOverflow(page) {
   const dimensions = await page.evaluate(() => ({
     width: innerWidth,
-    scrollWidth: document.documentElement.scrollWidth,
+    documentScrollWidth: document.documentElement.scrollWidth,
+    bodyScrollWidth: document.body.scrollWidth,
   }));
-  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.width + 1);
+  expect(dimensions.documentScrollWidth).toBeLessThanOrEqual(dimensions.width + 1);
+  expect(dimensions.bodyScrollWidth).toBeLessThanOrEqual(dimensions.width + 1);
 }
 
 test('desktop premium experience renders and operates', async ({ page }) => {
@@ -103,4 +108,33 @@ test('mobile premium experience fits and keeps controls reachable', async ({ pag
 
   await assertNoHorizontalOverflow(page);
   await page.screenshot({ path: 'test-results/mobile-premium.png', fullPage: true });
+});
+
+test('mobile radio view fits the viewport and sizes its dock controls', async ({ page }) => {
+  await openDemo(page, { width: 390, height: 844 });
+  await page.locator('#modeToggle').click();
+  await expect(page.locator('body')).toHaveClass(/radio-mode/);
+  // Feature modules mount their dock buttons after the first render.
+  await page.waitForTimeout(1200);
+
+  await assertNoHorizontalOverflow(page);
+
+  // .volume-output-row stacks below 620px, so any unstyled child stretches to
+  // the full row width — the sleep button used to render 296x290.
+  for (const selector of ['#sleepButton', '#muteButton', '.dock-heart']) {
+    const control = page.locator(selector);
+    if ((await control.count()) === 0) continue;
+    const box = await control.first().boundingBox();
+    expect(box.width, `${selector} width`).toBeLessThanOrEqual(64);
+    expect(box.height, `${selector} height`).toBeLessThanOrEqual(64);
+  }
+
+  // Every radio card must stay inside the grid.
+  const cards = await page.locator('.radio-card').all();
+  expect(cards.length).toBeGreaterThan(0);
+  for (const card of cards) {
+    const box = await card.boundingBox();
+    expect(box.x).toBeGreaterThanOrEqual(-1);
+    expect(box.x + box.width).toBeLessThanOrEqual(391);
+  }
 });

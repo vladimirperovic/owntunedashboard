@@ -1,37 +1,39 @@
-/* Radio favorites + health state layer. */
-.radio-card.is-offline {
-  filter: saturate(0.42) brightness(0.76);
-  opacity: 0.72 !important;
-}
-.radio-card.is-offline:hover {
-  filter: saturate(0.62) brightness(0.88);
-  opacity: 0.9 !important;
-}
-.radio-card.is-offline .radio-play-btn,
-.radio-card.is-offline .radio-play {
-  opacity: 0.42 !important;
-}
-.radio-card.health-denied {
-  animation: radioDenied 0.42s ease !important;
-}
-@keyframes radioDenied {
-  20% {
-    transform: translateX(-4px);
+@layer components {
+  /* Radio favorites + health state layer. */
+  .radio-card.is-offline {
+    filter: saturate(0.42) brightness(0.76);
+    opacity: 0.72;
   }
-  40% {
-    transform: translateX(4px);
+  .radio-card.is-offline:hover {
+    filter: saturate(0.62) brightness(0.88);
+    opacity: 0.9;
   }
-  60% {
-    transform: translateX(-3px);
+  .radio-card.is-offline .radio-play-btn,
+  .radio-card.is-offline .radio-play {
+    opacity: 0.42;
   }
-  80% {
-    transform: translateX(3px);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .radio-health-pill[data-status='checking']:before,
   .radio-card.health-denied {
-    animation: none !important;
+    animation: radioDenied 0.42s ease;
+  }
+  @keyframes radioDenied {
+    20% {
+      transform: translateX(-4px);
+    }
+    40% {
+      transform: translateX(4px);
+    }
+    60% {
+      transform: translateX(-3px);
+    }
+    80% {
+      transform: translateX(3px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .radio-health-pill[data-status='checking']:before,
+    .radio-card.health-denied {
+      animation: none;
+    }
   }
 }
