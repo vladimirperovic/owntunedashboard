@@ -1,7 +1,10 @@
 (() => {
   'use strict';
 
-  const cfg = Object.assign({apiBase:'/api', defaultFolderPath:'/media/music/Music'}, window.OWNTONE_DASHBOARD || {});
+  const cfg = Object.assign(
+    { apiBase: '/api', defaultFolderPath: '/media/music/Music' },
+    window.OWNTONE_DASHBOARD || {}
+  );
   const apiBase = String(cfg.apiBase || '/api').replace(/\/$/, '');
   const defaultPath = String(cfg.defaultFolderPath || '/media/music/Music');
   let dialog;
@@ -16,24 +19,32 @@
   let busy = false;
 
   const icon = {
-    folder:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.8h6l1.8 2h9.2v9.7a1.7 1.7 0 0 1-1.7 1.7H5.2a1.7 1.7 0 0 1-1.7-1.7V6.8Z"/><path d="M3.5 9h17"/></svg>',
-    play:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7L8 5Z"/></svg>',
-    back:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',
-    shuffle:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h2.5c4 0 5 10 9 10H20M17 14l3 3-3 3M4 17h2.5c1.5 0 2.6-1.4 3.6-3M15.5 7H20M17 4l3 3-3 3"/></svg>',
-    next:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l9 7-9 7V5Z"/><path d="M18 5v14"/></svg>',
-    add:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
-    search:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+    folder:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.8h6l1.8 2h9.2v9.7a1.7 1.7 0 0 1-1.7 1.7H5.2a1.7 1.7 0 0 1-1.7-1.7V6.8Z"/><path d="M3.5 9h17"/></svg>',
+    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7L8 5Z"/></svg>',
+    back: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',
+    shuffle:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h2.5c4 0 5 10 9 10H20M17 14l3 3-3 3M4 17h2.5c1.5 0 2.6-1.4 3.6-3M15.5 7H20M17 4l3 3-3 3"/></svg>',
+    next: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l9 7-9 7V5Z"/><path d="M18 5v14"/></svg>',
+    add: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+    search:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
   };
 
-  function apiUrl(path) { return `${apiBase}${path.startsWith('/') ? path : '/' + path}`; }
-  async function request(path, options={}) {
+  function apiUrl(path) {
+    return `${apiBase}${path.startsWith('/') ? path : '/' + path}`;
+  }
+  async function request(path, options = {}) {
     const response = await fetch(apiUrl(path), options);
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
     const text = await response.text();
     return text ? JSON.parse(text) : null;
   }
   function escapeHtml(value) {
-    return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    return String(value ?? '').replace(
+      /[&<>"']/g,
+      ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]
+    );
   }
   function basename(path) {
     const clean = String(path || '').replace(/\/+$/, '');
@@ -41,7 +52,7 @@
   }
   function duration(ms) {
     const total = Math.max(0, Math.round((Number(ms) || 0) / 1000));
-    return `${Math.floor(total/60)}:${String(total%60).padStart(2,'0')}`;
+    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
   }
   function quality(track) {
     const type = String(track.type || '').toUpperCase();
@@ -54,7 +65,9 @@
   function mount() {
     if (document.getElementById('folderBrowserDialog')) return;
 
-    const albumLink = [...document.querySelectorAll('.side-link')].find(x => /albums/i.test(x.textContent || ''));
+    const albumLink = [...document.querySelectorAll('.side-link')].find(x =>
+      /albums/i.test(x.textContent || '')
+    );
     if (albumLink) {
       const button = document.createElement('button');
       button.className = 'side-link';
@@ -113,7 +126,9 @@
     countBadge = dialog.querySelector('#folderCountBadge');
 
     dialog.querySelector('#folderClose').addEventListener('click', () => dialog.close());
-    dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+    dialog.addEventListener('click', event => {
+      if (event.target === dialog) dialog.close();
+    });
     dialog.querySelector('#folderPlayAll').addEventListener('click', () => playTracks(currentTracks, false));
     dialog.querySelector('#folderShuffle').addEventListener('click', () => playTracks(currentTracks, true));
 
@@ -135,7 +150,9 @@
   }
 
   function filterCurrentDirectory(query) {
-    const q = String(query || '').trim().toLowerCase();
+    const q = String(query || '')
+      .trim()
+      .toLowerCase();
     searchClear.style.display = q ? 'grid' : 'none';
     const rows = [...body.querySelectorAll('.folder-row')];
     if (!rows.length) return;
@@ -171,7 +188,11 @@
 
   async function openBrowser(path) {
     mount();
-    if (typeof dialog.showModal === 'function') dialog.showModal(); else { dialog.setAttribute('open',''); dialog.classList.add('fallback-open'); }
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+    else {
+      dialog.setAttribute('open', '');
+      dialog.classList.add('fallback-open');
+    }
     await browse(path || currentPath || defaultPath);
   }
 
@@ -183,7 +204,9 @@
     root.addEventListener('click', () => browse(''));
     crumbs.appendChild(root);
 
-    const pieces = String(path || '').split('/').filter(Boolean);
+    const pieces = String(path || '')
+      .split('/')
+      .filter(Boolean);
     let built = '';
     pieces.forEach(piece => {
       built += `/${piece}`;
@@ -233,14 +256,15 @@
     const tracks = data.tracks?.items || [];
     const playlists = data.playlists?.items || [];
     if (!directories.length && !tracks.length && !playlists.length) {
-      body.innerHTML = '<div class="folder-empty"><b>This folder is empty</b><span>No indexed audio files were found.</span></div>';
+      body.innerHTML =
+        '<div class="folder-empty"><b>This folder is empty</b><span>No indexed audio files were found.</span></div>';
       if (countBadge) countBadge.textContent = '0 items';
       return;
     }
 
     let html = '';
     if (currentPath) {
-      const parent = currentPath.replace(/\/+$/, '').split('/').slice(0,-1).join('/') || '';
+      const parent = currentPath.replace(/\/+$/, '').split('/').slice(0, -1).join('/') || '';
       html += `<button class="folder-row folder-up" type="button" data-folder="${escapeHtml(parent)}"><span class="folder-row-icon">${icon.back}</span><span class="folder-row-copy"><b>Back</b><small>Parent folder</small></span></button>`;
     }
 
@@ -255,7 +279,7 @@
 
     tracks.forEach((track, index) => {
       html += `<div class="folder-row track" data-uri="${escapeHtml(track.uri || '')}">
-        <span class="folder-track-number">${String(index + 1).padStart(2,'0')}</span>
+        <span class="folder-track-number">${String(index + 1).padStart(2, '0')}</span>
         <span class="folder-row-copy"><b>${escapeHtml(track.title || basename(track.path))}</b><small>${escapeHtml([track.artist, track.album].filter(Boolean).join(' · ') || basename(track.path))}</small></span>
         <span class="folder-track-meta"><em>${escapeHtml(quality(track))}</em><span>${duration(track.length_ms)}</span></span>
         <button class="folder-track-next" type="button" title="Play next" aria-label="Play next">${icon.next}<span>Play next</span></button>
@@ -276,20 +300,30 @@
     const totalCount = directories.length + tracks.length + playlists.length;
     if (countBadge) countBadge.textContent = `${totalCount} items`;
 
-    body.querySelectorAll('[data-folder]').forEach(row => row.addEventListener('click', () => browse(row.dataset.folder || '')));
-    body.querySelectorAll('[data-uri]').forEach(row => row.addEventListener('click', () => playUris([row.dataset.uri], false)));
-    body.querySelectorAll('.folder-track-play').forEach(btn => btn.addEventListener('click', event => {
-      event.stopPropagation();
-      playUris([btn.closest('[data-uri]').dataset.uri], false);
-    }));
-    body.querySelectorAll('.folder-track-next').forEach(btn => btn.addEventListener('click', event => {
-      event.stopPropagation();
-      playNext(btn.closest('[data-uri]').dataset.uri);
-    }));
-    body.querySelectorAll('.folder-track-add').forEach(btn => btn.addEventListener('click', event => {
-      event.stopPropagation();
-      addToQueue(btn.closest('[data-uri]').dataset.uri);
-    }));
+    body
+      .querySelectorAll('[data-folder]')
+      .forEach(row => row.addEventListener('click', () => browse(row.dataset.folder || '')));
+    body
+      .querySelectorAll('[data-uri]')
+      .forEach(row => row.addEventListener('click', () => playUris([row.dataset.uri], false)));
+    body.querySelectorAll('.folder-track-play').forEach(btn =>
+      btn.addEventListener('click', event => {
+        event.stopPropagation();
+        playUris([btn.closest('[data-uri]').dataset.uri], false);
+      })
+    );
+    body.querySelectorAll('.folder-track-next').forEach(btn =>
+      btn.addEventListener('click', event => {
+        event.stopPropagation();
+        playNext(btn.closest('[data-uri]').dataset.uri);
+      })
+    );
+    body.querySelectorAll('.folder-track-add').forEach(btn =>
+      btn.addEventListener('click', event => {
+        event.stopPropagation();
+        addToQueue(btn.closest('[data-uri]').dataset.uri);
+      })
+    );
   }
 
   function flash(button) {
@@ -301,14 +335,22 @@
   async function addToQueue(uri) {
     if (!uri) return;
     try {
-      await request(`/queue/items/add?uris=${encodeURIComponent(uri)}&clear=false&playback=stop`, {method:'POST'});
+      await request(`/queue/items/add?uris=${encodeURIComponent(uri)}&clear=false&playback=stop`, {
+        method: 'POST',
+      });
       const dot = document.getElementById('queueCountDot');
-      if (dot) { dot.textContent = String((Number(dot.textContent) || 0) + 1); dot.classList.add('show'); }
+      if (dot) {
+        dot.textContent = String((Number(dot.textContent) || 0) + 1);
+        dot.classList.add('show');
+      }
       const tab = document.getElementById('queueTabCount');
       if (tab) tab.textContent = String((Number(tab.textContent) || 0) + 1);
       flash(document.activeElement);
     } catch (error) {
-      body.insertAdjacentHTML('afterbegin', `<div class="folder-error">Queue add failed: ${escapeHtml(error.message)}</div>`);
+      body.insertAdjacentHTML(
+        'afterbegin',
+        `<div class="folder-error">Queue add failed: ${escapeHtml(error.message)}</div>`
+      );
     }
   }
 
@@ -318,9 +360,14 @@
       const player = await request('/player').catch(() => null);
       const running = player?.state === 'play' || player?.state === 'pause';
       if (!running) {
-        await request(`/queue/items/add?uris=${encodeURIComponent(uri)}&clear=false&playback=start`, {method:'POST'});
+        await request(`/queue/items/add?uris=${encodeURIComponent(uri)}&clear=false&playback=start`, {
+          method: 'POST',
+        });
       } else {
-        const added = await request(`/queue/items/add?uris=${encodeURIComponent(uri)}&clear=false&playback=stop`, {method:'POST'});
+        const added = await request(
+          `/queue/items/add?uris=${encodeURIComponent(uri)}&clear=false&playback=stop`,
+          { method: 'POST' }
+        );
         const q = await request('/queue?start=0&end=500');
         const queue = q?.items || [];
         const now = await request('/queue?id=now_playing').catch(() => null);
@@ -328,12 +375,17 @@
         const item = queue.find(i => String(i.uri) === String(uri)) || queue[queue.length - 1];
         if (item) {
           const target = current?.position != null ? Number(current.position) + 1 : 0;
-          await request(`/queue/items/${encodeURIComponent(item.id)}?new_position=${target}`, {method:'PUT'});
+          await request(`/queue/items/${encodeURIComponent(item.id)}?new_position=${target}`, {
+            method: 'PUT',
+          });
         }
       }
       flash(document.activeElement);
     } catch (error) {
-      body.insertAdjacentHTML('afterbegin', `<div class="folder-error">Play next failed: ${escapeHtml(error.message)}</div>`);
+      body.insertAdjacentHTML(
+        'afterbegin',
+        `<div class="folder-error">Play next failed: ${escapeHtml(error.message)}</div>`
+      );
     }
   }
 
@@ -346,16 +398,24 @@
         const outs = await request('/outputs').catch(() => null);
         const out = (outs?.outputs || []).find(o => o.selected);
         if (out?.id != null) {
-          const v = new URLSearchParams({volume:String(cfg.manualVolume), output_id:String(out.id)});
-          await request(`/player/volume?${v}`, {method:'PUT'});
+          const v = new URLSearchParams({ volume: String(cfg.manualVolume), output_id: String(out.id) });
+          await request(`/player/volume?${v}`, { method: 'PUT' });
         }
       }
-      const qs = new URLSearchParams({uris:valid.join(','), clear:'true', playback:'start', shuffle:String(!!shuffle)});
-      await request(`/queue/items/add?${qs}`, {method:'POST'});
+      const qs = new URLSearchParams({
+        uris: valid.join(','),
+        clear: 'true',
+        playback: 'start',
+        shuffle: String(!!shuffle),
+      });
+      await request(`/queue/items/add?${qs}`, { method: 'POST' });
       window.OWNTONE_SYNC_PLAYBACK_MODE?.(valid[0]);
       dialog?.close();
     } catch (error) {
-      body.insertAdjacentHTML('afterbegin', `<div class="folder-error">Playback failed: ${escapeHtml(error.message)}</div>`);
+      body.insertAdjacentHTML(
+        'afterbegin',
+        `<div class="folder-error">Playback failed: ${escapeHtml(error.message)}</div>`
+      );
     }
   }
 

@@ -8,8 +8,10 @@
   let busy = false;
 
   const icons = {
-    sound: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="M16.5 9.5a4 4 0 0 1 0 5"/><path d="M19 7a7.5 7.5 0 0 1 0 10"/></svg>',
-    muted: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="m17 9 5 5M22 9l-5 5"/></svg>'
+    sound:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="M16.5 9.5a4 4 0 0 1 0 5"/><path d="M19 7a7.5 7.5 0 0 1 0 10"/></svg>',
+    muted:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="m17 9 5 5M22 9l-5 5"/></svg>',
   };
 
   function apiUrl(path) {
@@ -142,7 +144,7 @@
         const width = range.offsetWidth;
         const thumb = 13;
         tip.textContent = `${v}%`;
-        tip.style.left = `${range.offsetLeft + thumb / 2 + (width - thumb) * v / 100}px`;
+        tip.style.left = `${range.offsetLeft + thumb / 2 + ((width - thumb) * v) / 100}px`;
         tip.classList.add('show');
       };
       range.addEventListener('input', positionTip);
@@ -158,7 +160,14 @@
   // Handy when the dashboard is open on a Mac: M toggles mute unless the user is typing.
   document.addEventListener('keydown', event => {
     const tag = String(event.target?.tagName || '').toLowerCase();
-    if (event.key?.toLowerCase() !== 'm' || event.metaKey || event.ctrlKey || event.altKey || /input|textarea|select/.test(tag)) return;
+    if (
+      event.key?.toLowerCase() !== 'm' ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.altKey ||
+      /input|textarea|select/.test(tag)
+    )
+      return;
     event.preventDefault();
     toggleMute();
   });

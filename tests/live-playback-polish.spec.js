@@ -23,7 +23,9 @@ for (const viewport of [
   { width: 390, height: 844 },
   { width: 375, height: 812 },
 ]) {
-  test(`live stream uses semantic status instead of fake song progress at ${viewport.width}px`, async ({ page }) => {
+  test(`live stream uses semantic status instead of fake song progress at ${viewport.width}px`, async ({
+    page,
+  }) => {
     await openDemo(page, viewport);
     await enterLiveStreamWhileBrowsingMusic(page);
 

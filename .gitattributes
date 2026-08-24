@@ -1,0 +1,5 @@
+# The deploy target is Linux; keep one line ending everywhere so Prettier,
+# diffs and shell scripts behave the same on every machine.
+* text=auto eol=lf
+*.png binary
+*.svg text eol=lf

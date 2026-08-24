@@ -10,11 +10,15 @@ async function openDemo(page, viewport) {
 test('mobile touch opens context menu without activating parent card', async ({ page }) => {
   await openDemo(page, { width: 390, height: 844 });
   const trigger = page.locator('.album-card[data-uri]').first().locator(':scope > .context-menu-trigger');
-  await trigger.evaluate(el => el.dispatchEvent(new PointerEvent('pointerup', {
-    bubbles: true,
-    cancelable: true,
-    pointerType: 'touch',
-  })));
+  await trigger.evaluate(el =>
+    el.dispatchEvent(
+      new PointerEvent('pointerup', {
+        bubbles: true,
+        cancelable: true,
+        pointerType: 'touch',
+      })
+    )
+  );
   await expect(page.locator('#contextActionMenu')).toBeVisible();
   await expect(page.locator('[data-context-action="play-next"]')).toBeVisible();
   await expect(page.locator('[data-context-action="play-last"]')).toBeVisible();
@@ -29,7 +33,10 @@ test('recent cards contain text after context trigger is appended', async ({ pag
     scrollWidth: el.scrollWidth,
   }));
   expect(fits.scrollWidth).toBeLessThanOrEqual(fits.clientWidth + 1);
-  const dimensions = await page.evaluate(() => ({ width: innerWidth, scrollWidth: document.documentElement.scrollWidth }));
+  const dimensions = await page.evaluate(() => ({
+    width: innerWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.width + 1);
 });
 
@@ -41,7 +48,11 @@ test('radio uses configured artwork only and keeps artwork left of play', async 
   await expect(image).toBeVisible();
   const card = image.locator('xpath=ancestor::*[contains(@class,"radio-card")][1]');
   const play = card.locator('.radio-play-btn, .radio-play').first();
-  const [imageBox, cardBox, playBox] = await Promise.all([image.boundingBox(), card.boundingBox(), play.boundingBox()]);
+  const [imageBox, cardBox, playBox] = await Promise.all([
+    image.boundingBox(),
+    card.boundingBox(),
+    play.boundingBox(),
+  ]);
   expect(imageBox.x).toBeLessThan(cardBox.x + cardBox.width / 2);
   expect(playBox.x).toBeGreaterThan(cardBox.x + cardBox.width / 2);
 
@@ -56,7 +67,10 @@ test('radio uses configured artwork only and keeps artwork left of play', async 
   await expect(page.locator('#fallbackMonogramProbe')).toBeVisible();
 });
 
-for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+for (const viewport of [
+  { width: 1440, height: 1000 },
+  { width: 390, height: 844 },
+]) {
   test(`elapsed and remaining time stay inside player at ${viewport.width}px`, async ({ page }) => {
     await openDemo(page, viewport);
     await expect(page.locator('#elapsedTime')).toBeVisible();

@@ -3,7 +3,8 @@
 
   const cfg = Object.assign({ schedulerBase: '/scheduler' }, window.OWNTONE_DASHBOARD || {});
   const base = String(cfg.schedulerBase || '/scheduler').replace(/\/$/, '');
-  const trashIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>';
+  const trashIcon =
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>';
   let dialog;
   let listEl;
   let msgEl;
@@ -23,24 +24,39 @@
     const response = await fetch(`${base}${path}`, options);
     if (!response.ok) {
       let detail = `${response.status} ${response.statusText}`;
-      try { detail = (await response.json()).error || detail; } catch (_) {}
+      try {
+        detail = (await response.json()).error || detail;
+      } catch (_) {}
       throw new Error(detail);
     }
     return response.json();
   }
 
-  function escapeHtml(v) { return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function escapeHtml(v) {
+    return String(v ?? '').replace(
+      /[&<>"']/g,
+      c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
+    );
+  }
 
   async function refreshList() {
     try {
       const data = await api('/stations', { cache: 'no-store' });
       const items = data?.items || [];
-      listEl.innerHTML = items.length ? items.map(s => `
+      listEl.innerHTML = items.length
+        ? items
+            .map(
+              s => `
         <div class="station-row">
           <span><b>${escapeHtml(s.name)}</b><small>${escapeHtml(s.url || s.file)}</small></span>
           <button class="station-del" type="button" data-slug="${escapeHtml(s.slug)}" title="Delete ${escapeHtml(s.name)}" aria-label="Delete ${escapeHtml(s.name)}">${trashIcon}</button>
-        </div>`).join('') : '<div class="station-row"><span><b>No station files yet</b><small>Add one below — it lands in the Radio folder.</small></span></div>';
-      listEl.querySelectorAll('[data-slug]').forEach(btn => btn.addEventListener('click', () => removeStation(btn.dataset.slug)));
+        </div>`
+            )
+            .join('')
+        : '<div class="station-row"><span><b>No station files yet</b><small>Add one below — it lands in the Radio folder.</small></span></div>';
+      listEl
+        .querySelectorAll('[data-slug]')
+        .forEach(btn => btn.addEventListener('click', () => removeStation(btn.dataset.slug)));
     } catch (error) {
       listEl.innerHTML = `<div class="station-row"><span><b>Unavailable</b><small>${escapeHtml(error.message)}</small></span></div>`;
     }
@@ -103,14 +119,20 @@
     msgEl = dialog.querySelector('#stationMsg');
     nameInput = dialog.querySelector('#stationName');
     urlInput = dialog.querySelector('#stationUrl');
-    dialog.querySelector('#stationForm').addEventListener('submit', e => { e.preventDefault(); addStation(); });
-    dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
+    dialog.querySelector('#stationForm').addEventListener('submit', e => {
+      e.preventDefault();
+      addStation();
+    });
+    dialog.addEventListener('click', e => {
+      if (e.target === dialog) dialog.close();
+    });
     return dialog;
   }
 
   function openManager() {
     ensureDialog();
-    if (typeof dialog.showModal === 'function') dialog.showModal(); else dialog.setAttribute('open', '');
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+    else dialog.setAttribute('open', '');
     refreshList();
   }
 

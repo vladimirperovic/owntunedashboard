@@ -10,7 +10,9 @@
   let clockTimer;
   let visible = false;
 
-  function app() { return window.OWNTONE_APP || null; }
+  function app() {
+    return window.OWNTONE_APP || null;
+  }
 
   function playing() {
     const state = app()?.state;
@@ -23,21 +25,23 @@
     const isRadio = item.data_kind === 'url' || /^https?:\/\//i.test(String(item.path || ''));
     return {
       title: item.title || 'OwnTone',
-      sub: isRadio ? [item.artist, item.album].filter(Boolean).join(' · ') || 'Live radio'
-                   : [item.artist, item.album].filter(Boolean).join(' · ') || 'OwnTone',
+      sub: isRadio
+        ? [item.artist, item.album].filter(Boolean).join(' · ') || 'Live radio'
+        : [item.artist, item.album].filter(Boolean).join(' · ') || 'OwnTone',
       art: document.getElementById('artwork')?.getAttribute('src') || '',
     };
   }
 
   function tickClock() {
-    if (clockEl) clockEl.textContent = new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    if (clockEl)
+      clockEl.textContent = new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
   }
 
   function show() {
     if (!playing() || document.hidden) return;
     const info = nowInfo();
     const art = overlay.querySelector('.screensaver-art');
-    if (info.art && /^data:|^blob:|^\//.test(info.art) || /^(https?:)?\/\//.test(info.art)) {
+    if ((info.art && /^data:|^blob:|^\//.test(info.art)) || /^(https?:)?\/\//.test(info.art)) {
       art.style.backgroundImage = `url("${info.art.replace(/"/g, '%22')}")`;
     } else {
       art.style.backgroundImage = '';
@@ -85,8 +89,12 @@
     subEl = overlay.querySelector('#screensaverSub');
 
     ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(evt =>
-      window.addEventListener(evt, resetIdle, { passive: true }));
-    document.addEventListener('visibilitychange', () => { if (document.hidden) hide(); else resetIdle(); });
+      window.addEventListener(evt, resetIdle, { passive: true })
+    );
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) hide();
+      else resetIdle();
+    });
     resetIdle();
     setInterval(resetIdle, 15000);
   }

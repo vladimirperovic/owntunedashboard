@@ -2,9 +2,16 @@
   "name": "owntone-dashboard",
   "private": true,
   "scripts": {
-    "test:ui": "playwright test"
+    "test:ui": "playwright test",
+    "test:scheduler": "python3 -m unittest discover -s scheduler -p 'test_*.py'",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
-    "@playwright/test": "1.62.1"
+    "@playwright/test": "1.62.1",
+    "eslint": "9.39.5",
+    "globals": "16.5.0",
+    "prettier": "3.6.2"
   }
 }

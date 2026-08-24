@@ -3,8 +3,13 @@
 
   const cfg = Object.assign({ schedulerBase: '/scheduler' }, window.OWNTONE_DASHBOARD || {});
   const base = String(cfg.schedulerBase || '/scheduler').replace(/\/$/, '');
-  const escapeHtml = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const trashIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>';
+  const escapeHtml = v =>
+    String(v ?? '').replace(
+      /[&<>"']/g,
+      c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
+    );
+  const trashIcon =
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>';
   let dialog;
   let listEl;
   let editorEl;
@@ -15,7 +20,9 @@
     const response = await fetch(`${base}${path}`, options);
     if (!response.ok) {
       let detail = `${response.status} ${response.statusText}`;
-      try { detail = (await response.json()).error || detail; } catch (_) {}
+      try {
+        detail = (await response.json()).error || detail;
+      } catch (_) {}
       throw new Error(detail);
     }
     return response.json();
@@ -34,11 +41,19 @@
     try {
       const data = await api('/playlists', { cache: 'no-store' });
       const items = data?.items || [];
-      listEl.innerHTML = items.length ? items.map(p => `
+      listEl.innerHTML = items.length
+        ? items
+            .map(
+              p => `
         <button type="button" class="station-row playlist-pick ${p.slug === currentSlug ? 'active' : ''}" data-slug="${escapeHtml(p.slug)}">
           <span><b>${escapeHtml(p.name)}</b><small>${p.track_count} tracks · ${escapeHtml(p.file)}</small></span>
-        </button>`).join('') : '<div class="station-row"><span><b>No playlists yet</b><small>Create one below.</small></span></div>';
-      listEl.querySelectorAll('[data-slug]').forEach(btn => btn.addEventListener('click', () => openEditor(btn.dataset.slug)));
+        </button>`
+            )
+            .join('')
+        : '<div class="station-row"><span><b>No playlists yet</b><small>Create one below.</small></span></div>';
+      listEl
+        .querySelectorAll('[data-slug]')
+        .forEach(btn => btn.addEventListener('click', () => openEditor(btn.dataset.slug)));
     } catch (error) {
       listEl.innerHTML = `<div class="station-row"><span><b>Unavailable</b><small>${escapeHtml(error.message)}</small></span></div>`;
     }
@@ -46,7 +61,10 @@
 
   async function openEditor(slug) {
     currentSlug = slug || '';
-    if (!slug) { editorEl.hidden = true; return; }
+    if (!slug) {
+      editorEl.hidden = true;
+      return;
+    }
     try {
       const data = await api('/playlists', { cache: 'no-store' });
       const item = (data?.items || []).find(p => p.slug === slug);
@@ -92,13 +110,19 @@
   }
 
   function wireEditor() {
-    editorEl.querySelectorAll('[data-up]').forEach(b => b.addEventListener('click', () => moveLine(Number(b.dataset.up), -1)));
-    editorEl.querySelectorAll('[data-down]').forEach(b => b.addEventListener('click', () => moveLine(Number(b.dataset.down), 1)));
-    editorEl.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
-      const lines = collectLines();
-      lines.splice(Number(b.dataset.del), 1);
-      rerenderFromLines(lines);
-    }));
+    editorEl
+      .querySelectorAll('[data-up]')
+      .forEach(b => b.addEventListener('click', () => moveLine(Number(b.dataset.up), -1)));
+    editorEl
+      .querySelectorAll('[data-down]')
+      .forEach(b => b.addEventListener('click', () => moveLine(Number(b.dataset.down), 1)));
+    editorEl.querySelectorAll('[data-del]').forEach(b =>
+      b.addEventListener('click', () => {
+        const lines = collectLines();
+        lines.splice(Number(b.dataset.del), 1);
+        rerenderFromLines(lines);
+      })
+    );
     editorEl.querySelector('#plineAddForm').addEventListener('submit', e => {
       e.preventDefault();
       const input = e.target.querySelector('input');
@@ -206,15 +230,21 @@
       input.value = '';
     });
     dialog.querySelector('#newPlaylistName').addEventListener('keydown', e => {
-      if (e.key === 'Enter') { e.preventDefault(); dialog.querySelector('#newPlaylistCreate').click(); }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        dialog.querySelector('#newPlaylistCreate').click();
+      }
     });
-    dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
+    dialog.addEventListener('click', e => {
+      if (e.target === dialog) dialog.close();
+    });
     return dialog;
   }
 
   function open() {
     ensureDialog();
-    if (typeof dialog.showModal === 'function') dialog.showModal(); else dialog.setAttribute('open', '');
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+    else dialog.setAttribute('open', '');
     renderList();
   }
 

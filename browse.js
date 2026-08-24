@@ -3,7 +3,11 @@
 
   const cfg = Object.assign({ apiBase: '/api' }, window.OWNTONE_DASHBOARD || {});
   const base = String(cfg.apiBase || '/api').replace(/\/$/, '');
-  const escapeHtml = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const escapeHtml = v =>
+    String(v ?? '').replace(
+      /[&<>"']/g,
+      c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
+    );
   let mounted = false;
 
   async function api(path) {
@@ -19,11 +23,17 @@
   }
 
   const quote = value => String(value || '').replace(/"/g, '\\"');
-  const exprFor = (field, value) => `media_kind is music AND data_kind is file AND ${field} is "${quote(value)}"`;
+  const exprFor = (field, value) =>
+    `media_kind is music AND data_kind is file AND ${field} is "${quote(value)}"`;
 
   function cleanName(value) {
     // OwnTone tags sometimes contain invalid UTF-8 rendered as ### runs
-    return String(value || '').replace(/#{2,}/g, '').replace(/#{1,}$/,'').trim() || value;
+    return (
+      String(value || '')
+        .replace(/#{2,}/g, '')
+        .replace(/#{1,}$/, '')
+        .trim() || value
+    );
   }
 
   function chipRow(title, items, field, emptyText, limit = 0) {
@@ -44,7 +54,9 @@
           btn.type = 'button';
           btn.textContent = cleanName(item);
           btn.title = `Play ${cleanName(item)}`;
-          btn.addEventListener('click', () => playExpression(exprFor(field, item), `${title}: ${cleanName(item)}`));
+          btn.addEventListener('click', () =>
+            playExpression(exprFor(field, item), `${title}: ${cleanName(item)}`)
+          );
           row.appendChild(btn);
         });
         if (limit && items.length > limit && !expanded) {
@@ -52,7 +64,10 @@
           more.type = 'button';
           more.className = 'chip-more';
           more.textContent = `Show all ${items.length}`;
-          more.addEventListener('click', () => { expanded = true; render(); });
+          more.addEventListener('click', () => {
+            expanded = true;
+            render();
+          });
           row.appendChild(more);
         }
       };
@@ -68,15 +83,25 @@
     try {
       const genres = await api('/library/genres').catch(() => null);
       const artists = await api('/library/artists?limit=200').catch(() => null);
-      const genreNames = (genres?.items || []).map(g => g.name).filter(Boolean).slice(0, 40).sort((a, b) => a.localeCompare(b));
-      const artistNames = (artists?.items || []).map(a => a.name).filter(n => n && n !== 'Unknown artist').slice(0, 120).sort((a, b) => a.localeCompare(b));
+      const genreNames = (genres?.items || [])
+        .map(g => g.name)
+        .filter(Boolean)
+        .slice(0, 40)
+        .sort((a, b) => a.localeCompare(b));
+      const artistNames = (artists?.items || [])
+        .map(a => a.name)
+        .filter(n => n && n !== 'Unknown artist')
+        .slice(0, 120)
+        .sort((a, b) => a.localeCompare(b));
       const wrap = document.createElement('div');
       wrap.id = 'browseSection';
       wrap.appendChild(chipRow('Genres', genreNames, 'genre', 'No genres in the library yet.', 24));
       wrap.appendChild(chipRow('Artists', artistNames, 'artist', 'No artists in the library yet.', 30));
       target.insertAdjacentElement('afterend', wrap);
       mounted = true;
-    } catch (_) { /* library unavailable — stay hidden */ }
+    } catch (_) {
+      /* library unavailable — stay hidden */
+    }
   }
 
   function mount() {
@@ -85,7 +110,10 @@
     let tries = 0;
     const timer = setInterval(() => {
       tries += 1;
-      if (mounted) { clearInterval(timer); return; }
+      if (mounted) {
+        clearInterval(timer);
+        return;
+      }
       if (document.getElementById('playlistsSection') && window.OWNTONE_APP?.state?.online) {
         clearInterval(timer);
         load();

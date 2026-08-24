@@ -39,7 +39,7 @@
     canvas.height = Math.round(height * dpr);
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
-    ctx = canvas.getContext('2d', {alpha:true});
+    ctx = canvas.getContext('2d', { alpha: true });
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     draw(performance.now(), true);
   }
@@ -55,18 +55,19 @@
 
     const glow = ctx.createLinearGradient(0, 0, width, 0);
     glow.addColorStop(0, 'rgba(240,90,67,.08)');
-    glow.addColorStop(.18, 'rgba(240,90,67,.88)');
-    glow.addColorStop(.74, 'rgba(255,126,97,.98)');
+    glow.addColorStop(0.18, 'rgba(240,90,67,.88)');
+    glow.addColorStop(0.74, 'rgba(255,126,97,.98)');
     glow.addColorStop(1, 'rgba(240,90,67,.08)');
 
     // soft depth line
     ctx.beginPath();
     for (let x = pad; x <= width - pad; x += 2) {
       const p = x / width;
-      const envelope = Math.pow(Math.sin(Math.PI * p), .55);
-      const y = mid
-        + Math.sin((p * 9.5 + t * .62 + seed * 4.1) * Math.PI) * amp * .20 * envelope
-        + Math.sin((p * 23.0 - t * .39 + seed * 7.3) * Math.PI) * amp * .09 * envelope;
+      const envelope = Math.pow(Math.sin(Math.PI * p), 0.55);
+      const y =
+        mid +
+        Math.sin((p * 9.5 + t * 0.62 + seed * 4.1) * Math.PI) * amp * 0.2 * envelope +
+        Math.sin((p * 23.0 - t * 0.39 + seed * 7.3) * Math.PI) * amp * 0.09 * envelope;
       x === pad ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     }
     ctx.strokeStyle = 'rgba(240,90,67,.22)';
@@ -80,12 +81,12 @@
     ctx.beginPath();
     for (let x = pad; x <= width - pad; x += 1.5) {
       const p = x / width;
-      const envelope = Math.pow(Math.sin(Math.PI * p), .42);
-      const carrier = Math.sin((p * 16.5 + t * .95 + seed * 2.8) * Math.PI);
-      const detail = Math.sin((p * 37.0 - t * .57 + seed * 5.9) * Math.PI);
-      const slow = Math.sin((p * 5.0 + t * .21) * Math.PI);
-      const energy = .48 + .28 * Math.sin(t * .83 + seed * 6.28);
-      const y = mid + (carrier * .62 + detail * .28 + slow * .10) * amp * energy * envelope;
+      const envelope = Math.pow(Math.sin(Math.PI * p), 0.42);
+      const carrier = Math.sin((p * 16.5 + t * 0.95 + seed * 2.8) * Math.PI);
+      const detail = Math.sin((p * 37.0 - t * 0.57 + seed * 5.9) * Math.PI);
+      const slow = Math.sin((p * 5.0 + t * 0.21) * Math.PI);
+      const energy = 0.48 + 0.28 * Math.sin(t * 0.83 + seed * 6.28);
+      const y = mid + (carrier * 0.62 + detail * 0.28 + slow * 0.1) * amp * energy * envelope;
       x === pad ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     }
     ctx.shadowBlur = 9;
@@ -97,10 +98,10 @@
     // tiny travelling highlights make it feel less like a stock equalizer
     ctx.shadowBlur = 0;
     for (let i = 0; i < 4; i += 1) {
-      const p = (t * (.055 + i * .006) + seed * .77 + i * .23) % 1;
+      const p = (t * (0.055 + i * 0.006) + seed * 0.77 + i * 0.23) % 1;
       const x = 8 + p * (width - 16);
-      const envelope = Math.pow(Math.sin(Math.PI * p), .6);
-      const y = mid + Math.sin((p * 16.5 + t * .95 + seed * 2.8) * Math.PI) * amp * .34 * envelope;
+      const envelope = Math.pow(Math.sin(Math.PI * p), 0.6);
+      const y = mid + Math.sin((p * 16.5 + t * 0.95 + seed * 2.8) * Math.PI) * amp * 0.34 * envelope;
       ctx.beginPath();
       ctx.arc(x, y, i === 0 ? 1.9 : 1.25, 0, Math.PI * 2);
       ctx.fillStyle = i === 0 ? 'rgba(255,241,235,.92)' : 'rgba(255,140,112,.72)';
@@ -131,12 +132,16 @@
     new MutationObserver(() => {
       updateSeed();
       if (prefersReduced) draw(performance.now(), true);
-    }).observe(document.querySelector('.track-copy') || document.body, {subtree:true, childList:true, characterData:true});
+    }).observe(document.querySelector('.track-copy') || document.body, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+    });
 
     if (!prefersReduced) raf = requestAnimationFrame(animate);
   }
 
   document.addEventListener('DOMContentLoaded', mount);
   if (document.readyState !== 'loading') mount();
-  window.addEventListener('pagehide', () => cancelAnimationFrame(raf), {once:true});
+  window.addEventListener('pagehide', () => cancelAnimationFrame(raf), { once: true });
 })();

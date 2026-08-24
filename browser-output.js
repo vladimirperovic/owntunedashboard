@@ -31,9 +31,11 @@
   }
 
   function emit() {
-    window.dispatchEvent(new CustomEvent('owntone-browser-output-change', {
-      detail: getState(),
-    }));
+    window.dispatchEvent(
+      new CustomEvent('owntone-browser-output-change', {
+        detail: getState(),
+      })
+    );
   }
 
   function getState() {

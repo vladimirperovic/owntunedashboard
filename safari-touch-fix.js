@@ -20,28 +20,42 @@
     event.preventDefault();
     event.stopPropagation();
     if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
-    trigger.dispatchEvent(new MouseEvent('click', {
-      view: window,
-      bubbles: false,
-      cancelable: true,
-    }));
+    trigger.dispatchEvent(
+      new MouseEvent('click', {
+        view: window,
+        bubbles: false,
+        cancelable: true,
+      })
+    );
   }
 
-  document.addEventListener('pointerup', event => {
-    if (event.pointerType === 'touch' || event.pointerType === 'pen') activateTouchTrigger(event);
-  }, true);
+  document.addEventListener(
+    'pointerup',
+    event => {
+      if (event.pointerType === 'touch' || event.pointerType === 'pen') activateTouchTrigger(event);
+    },
+    true
+  );
 
-  document.addEventListener('touchend', event => {
-    // Fallback for Safari versions/devices where Pointer Events are incomplete.
-    if (Date.now() - syntheticTouchAt < 180) return;
-    activateTouchTrigger(event);
-  }, {capture:true, passive:false});
+  document.addEventListener(
+    'touchend',
+    event => {
+      // Fallback for Safari versions/devices where Pointer Events are incomplete.
+      if (Date.now() - syntheticTouchAt < 180) return;
+      activateTouchTrigger(event);
+    },
+    { capture: true, passive: false }
+  );
 
-  document.addEventListener('click', event => {
-    if (!event.isTrusted || Date.now() - syntheticTouchAt > 700) return;
-    if (!triggerFromEvent(event)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
-  }, true);
+  document.addEventListener(
+    'click',
+    event => {
+      if (!event.isTrusted || Date.now() - syntheticTouchAt > 700) return;
+      if (!triggerFromEvent(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+    },
+    true
+  );
 })();

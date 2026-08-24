@@ -11,11 +11,17 @@
   const supported = typeof window.Notification !== 'undefined';
 
   function enabled() {
-    try { return localStorage.getItem(KEY) === '1'; } catch (_) { return false; }
+    try {
+      return localStorage.getItem(KEY) === '1';
+    } catch (_) {
+      return false;
+    }
   }
 
   function setEnabled(value) {
-    try { localStorage.setItem(KEY, value ? '1' : '0'); } catch (_) {}
+    try {
+      localStorage.setItem(KEY, value ? '1' : '0');
+    } catch (_) {}
     render();
   }
 
@@ -29,11 +35,22 @@
   }
 
   async function toggle() {
-    if (!supported) { toast('Notifications are not supported in this browser'); return; }
-    if (enabled()) { setEnabled(false); toast('Notifications off'); return; }
+    if (!supported) {
+      toast('Notifications are not supported in this browser');
+      return;
+    }
+    if (enabled()) {
+      setEnabled(false);
+      toast('Notifications off');
+      return;
+    }
     let permission = Notification.permission;
     if (permission === 'default') permission = await Notification.requestPermission();
-    if (permission !== 'granted') { toast('Notification permission denied'); setEnabled(false); return; }
+    if (permission !== 'granted') {
+      toast('Notification permission denied');
+      setEnabled(false);
+      return;
+    }
     setEnabled(true);
     toast('Notifications on');
   }
@@ -41,14 +58,22 @@
   function notify(text) {
     if (!enabled() || !supported || Notification.permission !== 'granted') return;
     if (document.hasFocus()) return; // tab is visible — the UI already shows activity
-    try { new Notification('OwnTone Dashboard', { body: text, tag: 'owntone-activity', silent: false }); } catch (_) {}
+    try {
+      new Notification('OwnTone Dashboard', { body: text, tag: 'owntone-activity', silent: false });
+    } catch (_) {}
   }
 
   function lastSeen() {
-    try { return localStorage.getItem(SEEN_KEY) || ''; } catch (_) { return ''; }
+    try {
+      return localStorage.getItem(SEEN_KEY) || '';
+    } catch (_) {
+      return '';
+    }
   }
   function markSeen(iso) {
-    try { localStorage.setItem(SEEN_KEY, iso || new Date().toISOString()); } catch (_) {}
+    try {
+      localStorage.setItem(SEEN_KEY, iso || new Date().toISOString());
+    } catch (_) {}
   }
 
   function toast(message) {
@@ -69,9 +94,12 @@
       const items = data?.items || [];
       const seen = lastSeen();
       const fresh = items.filter(it => !seen || String(it.at) > seen);
-      fresh.slice(0, 3).reverse().forEach(ev => {
-        if (/^(schedule|sleep|error|station|playlist)/.test(ev.kind)) notify(ev.text);
-      });
+      fresh
+        .slice(0, 3)
+        .reverse()
+        .forEach(ev => {
+          if (/^(schedule|sleep|error|station|playlist)/.test(ev.kind)) notify(ev.text);
+        });
       markSeen(items[0]?.at || new Date().toISOString());
     } catch (_) {}
   }
@@ -84,7 +112,8 @@
     button.id = 'notifyButton';
     button.className = 'icon-button subtle notify-button';
     button.type = 'button';
-    button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>';
+    button.innerHTML =
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>';
     const schedulerButton = document.getElementById('schedulerButton');
     top.insertBefore(button, schedulerButton || top.firstChild);
     button.addEventListener('click', toggle);

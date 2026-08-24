@@ -27,7 +27,9 @@
         </div>
       </div>`;
     document.body.appendChild(dialog);
-    dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
+    dialog.addEventListener('click', e => {
+      if (e.target === dialog) dialog.close();
+    });
     return dialog;
   }
 
@@ -58,14 +60,35 @@
 
     switch (event.key) {
       case ' ':
-        event.preventDefault(); app()?.playerCommand?.('toggle'); break;
-      case 'ArrowRight': event.preventDefault(); seekBy(10000); break;
-      case 'ArrowLeft': event.preventDefault(); seekBy(-10000); break;
-      case 'ArrowUp': event.preventDefault(); volumeBy(5); break;
-      case 'ArrowDown': event.preventDefault(); volumeBy(-5); break;
-      case 'n': case 'N': app()?.playerCommand?.('next'); break;
-      case 'p': case 'P': app()?.playerCommand?.('previous'); break;
-      case 'r': case 'R':
+        event.preventDefault();
+        app()?.playerCommand?.('toggle');
+        break;
+      case 'ArrowRight':
+        event.preventDefault();
+        seekBy(10000);
+        break;
+      case 'ArrowLeft':
+        event.preventDefault();
+        seekBy(-10000);
+        break;
+      case 'ArrowUp':
+        event.preventDefault();
+        volumeBy(5);
+        break;
+      case 'ArrowDown':
+        event.preventDefault();
+        volumeBy(-5);
+        break;
+      case 'n':
+      case 'N':
+        app()?.playerCommand?.('next');
+        break;
+      case 'p':
+      case 'P':
+        app()?.playerCommand?.('previous');
+        break;
+      case 'r':
+      case 'R':
         if (!isRadioCurrent(app()?.state?.current)) document.getElementById('modeToggle')?.click();
         break;
       case '?': {
@@ -73,7 +96,8 @@
         typeof d.showModal === 'function' ? d.showModal() : d.setAttribute('open', '');
         break;
       }
-      default: break;
+      default:
+        break;
     }
   });
 })();

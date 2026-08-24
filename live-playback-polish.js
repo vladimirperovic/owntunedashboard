@@ -71,7 +71,8 @@
         if (playingFrom) playingFrom.dataset.kind = 'radio';
 
         const fullscreenSource = $('fullscreenSource');
-        if (fullscreenSource && fullscreenSource.textContent !== station) fullscreenSource.textContent = station;
+        if (fullscreenSource && fullscreenSource.textContent !== station)
+          fullscreenSource.textContent = station;
 
         const elapsed = Number(state.player?.item_progress_ms || 0);
         const session = $('liveStreamSession');
@@ -142,6 +143,6 @@
     });
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount, {once:true});
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount, { once: true });
   else mount();
 })();

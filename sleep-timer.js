@@ -43,7 +43,9 @@
   }
 
   async function refresh() {
-    try { renderStatus(await api('/sleep', { cache: 'no-store' })); } catch (_) {}
+    try {
+      renderStatus(await api('/sleep', { cache: 'no-store' }));
+    } catch (_) {}
   }
 
   async function set(minutes) {
@@ -56,10 +58,14 @@
       renderStatus(result);
       close();
       say(minutes > 0 ? `Sleep timer: ${minutes} min` : 'Sleep timer off');
-    } catch (_) { say('Scheduler unavailable'); }
+    } catch (_) {
+      say('Scheduler unavailable');
+    }
   }
 
-  function close() { popover?.setAttribute('hidden', ''); }
+  function close() {
+    popover?.setAttribute('hidden', '');
+  }
 
   function mount() {
     if (button) return;
@@ -73,7 +79,8 @@
     button.type = 'button';
     button.title = 'Sleep timer';
     button.setAttribute('aria-label', 'Sleep timer');
-    button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/><path d="M17 4v3M15.5 5.5h3"/></svg>';
+    button.innerHTML =
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/><path d="M17 4v3M15.5 5.5h3"/></svg>';
     dock.appendChild(button);
 
     popover = document.createElement('div');
@@ -87,7 +94,9 @@
     document.body.appendChild(popover);
     statusEl = popover.querySelector('#sleepStatus');
 
-    popover.querySelectorAll('[data-min]').forEach(b => b.addEventListener('click', () => set(Number(b.dataset.min))));
+    popover
+      .querySelectorAll('[data-min]')
+      .forEach(b => b.addEventListener('click', () => set(Number(b.dataset.min))));
     button.addEventListener('click', () => {
       const show = popover.hidden;
       if (show) {
@@ -101,7 +110,9 @@
     document.addEventListener('click', e => {
       if (!popover.hidden && !e.target.closest('#sleepPopover,#sleepButton')) close();
     });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') close();
+    });
 
     clearInterval(pollTimer);
     pollTimer = setInterval(refresh, 60000);

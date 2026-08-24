@@ -11,7 +11,10 @@ async function openDemo(page, viewport) {
 }
 
 async function assertNoHorizontalOverflow(page) {
-  const dimensions = await page.evaluate(() => ({ width: innerWidth, scrollWidth: document.documentElement.scrollWidth }));
+  const dimensions = await page.evaluate(() => ({
+    width: innerWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.width + 1);
 }
 
@@ -31,7 +34,7 @@ test('desktop premium experience renders and operates', async ({ page }) => {
 
   await page.locator('#premiumOutputButton').click();
   await expect(page.locator('#multiroomSheet')).toHaveClass(/open/);
-  await expect(page.locator('.multiroom-output-row').filter({hasText:'HomePod mini'})).toBeVisible();
+  await expect(page.locator('.multiroom-output-row').filter({ hasText: 'HomePod mini' })).toBeVisible();
   await expect(page.locator('.multiroom-volume').first()).toBeVisible();
   await page.locator('.multiroom-close').click();
 
@@ -54,7 +57,11 @@ test('desktop premium experience renders and operates', async ({ page }) => {
   await expect(page.locator('.fullscreen-controls')).toBeVisible();
   await page.locator('.fullscreen-close').click();
 
-  const accent = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--context-accent-rgb') || getComputedStyle(document.documentElement).getPropertyValue('--context-accent-hue'));
+  const accent = await page.evaluate(
+    () =>
+      getComputedStyle(document.documentElement).getPropertyValue('--context-accent-rgb') ||
+      getComputedStyle(document.documentElement).getPropertyValue('--context-accent-hue')
+  );
   expect(accent.trim().length).toBeGreaterThan(0);
 
   await page.screenshot({ path: 'test-results/desktop-premium.png', fullPage: true });
