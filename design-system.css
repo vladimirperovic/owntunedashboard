@@ -223,3 +223,52 @@ body.radio-mode #albumsSection .library-folders-button{color:#fff;background:rgb
 @media(prefers-contrast:more){
   .album-card,.playlist-card,.quick-card,.audio-dock,.player-card,.search-panel{border-color:rgba(20,16,12,.26)!important}body.radio-mode .player-card,body.radio-mode .audio-dock,body.radio-mode .radio-card{border-color:rgba(255,255,255,.24)!important}.track-meta,.playlist-copy small,.album-copy small,.search-item-copy small{opacity:1!important}
 }
+
+/* Desktop header alignment: center the brand, status and actions in one chrome row. */
+@media(min-width:901px){
+  .app-shell{
+    grid-template-rows:74px minmax(0,1fr)!important;
+    row-gap:0!important;
+  }
+  .topbar{
+    height:74px!important;
+    grid-template-columns:var(--sidebar-width) minmax(0,1fr) auto!important;
+    align-items:center!important;
+  }
+  .topbar-brand{
+    height:40px!important;
+    align-self:center!important;
+    padding:1px 7px 1px 23px!important;
+  }
+  .desktop-status{
+    justify-self:end!important;
+    width:max-content!important;
+    margin-right:0!important;
+  }
+  .sidebar{
+    top:74px!important;
+    height:calc(100vh - 74px)!important;
+  }
+}
+
+@media(min-width:981px){
+  .app-shell{column-gap:20px!important}
+}
+
+@media(min-width:1280px){
+  .app-shell{--sidebar-width:198px!important;column-gap:16px!important}
+}
+
+/* Give the desktop navigation a little more room while keeping the header aligned. */
+@media(min-width:901px) and (max-width:1279px){
+  .app-shell{
+    --sidebar-width:213px!important;
+    grid-template-columns:var(--sidebar-width) minmax(0,1fr)!important;
+  }
+}
+@media(min-width:1280px){
+  .app-shell{
+    --sidebar-width:228px!important;
+    grid-template-columns:var(--sidebar-width) minmax(0,1fr)!important;
+  }
+}

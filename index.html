@@ -14,12 +14,30 @@
   <div class="app-bg" aria-hidden="true"></div>
 
   <div class="app-shell" id="app">
-    <aside class="sidebar" aria-label="Primary navigation">
-      <div class="sidebar-brand">
+    <header class="topbar">
+      <div class="sidebar-brand topbar-brand">
         <div class="sound-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
         <div><strong>OwnTone</strong><span>DASHBOARD</span></div>
       </div>
 
+      <div class="mobile-brand">
+        <div class="brand-mark">OT</div>
+        <div><div class="eyebrow">OWN TONE</div><div class="brand-subtitle" id="connectionText">Connecting…</div></div>
+      </div>
+
+      <div class="desktop-status"><span class="status-mini"></span><span id="desktopConnection">OwnTone</span></div>
+
+      <div class="top-actions">
+        <button class="icon-button subtle" id="searchButton" type="button" aria-label="Search music" title="Search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35m1.35-5.65a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"/></svg>
+        </button>
+        <button class="mode-toggle" id="modeToggle" type="button" aria-label="Open radio" title="Open radio">
+          <span id="modeToggleIcon"></span><span class="mode-toggle-label" id="modeToggleLabel">Radio</span>
+        </button>
+      </div>
+    </header>
+
+    <aside class="sidebar" aria-label="Primary navigation">
       <nav class="side-nav">
         <button class="side-link active" type="button" onclick="window.scrollTo({top:0,behavior:'smooth'})"><span>⌂</span>Home</button>
         <button class="side-link" type="button" onclick="document.getElementById('searchButton').click()"><span>⌕</span>Search</button>
@@ -40,23 +58,6 @@
     </aside>
 
     <div class="page-area">
-      <header class="topbar">
-        <div class="mobile-brand">
-          <div class="brand-mark">OT</div>
-          <div><div class="eyebrow">OWN TONE</div><div class="brand-subtitle" id="connectionText">Connecting…</div></div>
-        </div>
-        <div class="desktop-status"><span class="status-mini"></span><span id="desktopConnection">OwnTone</span></div>
-
-        <div class="top-actions">
-          <button class="icon-button subtle" id="searchButton" type="button" aria-label="Search music" title="Search">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35m1.35-5.65a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"/></svg>
-          </button>
-          <button class="mode-toggle" id="modeToggle" type="button" aria-label="Open radio" title="Open radio">
-            <span id="modeToggleIcon"></span><span class="mode-toggle-label" id="modeToggleLabel">Radio</span>
-          </button>
-        </div>
-      </header>
-
       <main>
         <section class="hero-stack">
           <section class="player-card" id="playerCard">
