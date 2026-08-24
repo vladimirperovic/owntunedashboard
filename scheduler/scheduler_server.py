@@ -26,9 +26,27 @@ OWNTONE_BASE = os.environ.get("OWNTONE_BASE", "http://127.0.0.1:3689/api").rstri
 DATA_DIR = Path(os.environ.get("OWNTONE_SCHEDULER_DATA", "/var/lib/owntone-dashboard"))
 STATIONS_DIR = Path(os.environ.get("OWNTONE_STATIONS_DIR", "/media/music/Radio"))
 PLAYLISTS_DIR = Path(os.environ.get("OWNTONE_PLAYLISTS_DIR", "/media/music/Playlists"))
-NIGHT_START = float(os.environ.get("OWNTONE_NIGHT_START", "0"))
-NIGHT_END = float(os.environ.get("OWNTONE_NIGHT_END", "8"))
-NIGHT_MAX = int(os.environ.get("OWNTONE_NIGHT_MAX", "8"))
+
+
+def _env_float(name: str, default: float) -> float:
+    try:
+        return float(os.environ.get(name, default))
+    except (TypeError, ValueError):
+        return default
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name, default))
+    except (TypeError, ValueError):
+        return default
+
+
+NIGHT_START = _env_float("OWNTONE_NIGHT_START", 0)
+NIGHT_END = _env_float("OWNTONE_NIGHT_END", 8)
+NIGHT_MAX = _env_int("OWNTONE_NIGHT_MAX", 8)
+# How many minutes past its scheduled time a run may still fire (restart/DST recovery).
+GRACE_MINUTES = max(0, _env_int("OWNTONE_SCHEDULE_GRACE_MIN", 30))
 SCHEDULES_FILE = DATA_DIR / "schedules.json"
 STATE_FILE = DATA_DIR / "scheduler-state.json"
 HISTORY_FILE = DATA_DIR / "history.json"
@@ -347,6 +365,27 @@ def find_schedule(schedule_id: str):
         if str(item.get("id")) == schedule_id:
             return items, index, item
     return items, -1, None
+
+
+def _schedule_occurrence(item: dict, now: datetime | None = None, field: str = "time"):
+    """Return the most recent due occurrence within the scheduler grace window."""
+    time_value = str(item.get(field) or "")
+    if not TIME_RE.match(time_value):
+        return None
+    now = now or datetime.now().astimezone()
+    hour, minute = [int(x) for x in time_value.split(":", 1)]
+    selected_days = set(item.get("days") or [])
+    grace = timedelta(minutes=GRACE_MINUTES)
+
+    for days_back in range(0, 8):
+        day = now - timedelta(days=days_back)
+        if DAYS[day.weekday()] not in selected_days:
+            continue
+        candidate = day.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        if candidate > now:
+            continue
+        return candidate if now - candidate <= grace else None
+    return None
 
 
 def next_run(item: dict, now: datetime | None = None):
@@ -820,9 +859,6 @@ def scheduler_loop():
     while True:
         try:
             now = datetime.now().astimezone()
-            minute_key = now.strftime("%Y-%m-%dT%H:%M")
-            day_key = DAYS[now.weekday()]
-            hhmm = now.strftime("%H:%M")
             schedules = load_schedules()
             runtime = load_runtime_state()
             runs = runtime.setdefault("runs", {})
@@ -830,17 +866,19 @@ def scheduler_loop():
             dirty = False
 
             for item in schedules:
-                if not item.get("enabled") or day_key not in item.get("days", []):
+                if not item.get("enabled"):
                     continue
                 schedule_id = str(item.get("id"))
-                if item.get("time") == hhmm and runs.get(schedule_id) != minute_key:
+                run_at = _schedule_occurrence(item, now)
+                run_key = run_at.strftime("%Y-%m-%dT%H:%M") if run_at else ""
+                if run_key and runs.get(schedule_id) != run_key:
                     try:
                         result = execute_schedule(item)
-                        runs[schedule_id] = minute_key
+                        runs[schedule_id] = run_key
                         runtime["last_error"] = None
                         log_activity("schedule", f"⏰ {item.get('name')}: {result.get('message','')}")
                     except Exception as exc:
-                        runs[schedule_id] = minute_key
+                        runs[schedule_id] = run_key
                         runtime["last_error"] = {
                             "at": datetime.now().astimezone().isoformat(),
                             "schedule": schedule_id,
@@ -861,13 +899,15 @@ def scheduler_loop():
                     dirty = True
 
                 stop_time = item.get("stop_time") or ""
-                if stop_time == hhmm and stops.get(schedule_id) != minute_key:
+                stop_at = _schedule_occurrence(item, now, "stop_time") if stop_time else None
+                stop_key = stop_at.strftime("%Y-%m-%dT%H:%M") if stop_at else ""
+                if stop_key and stops.get(schedule_id) != stop_key:
                     try:
                         stop_playback(item)
-                        stops[schedule_id] = minute_key
+                        stops[schedule_id] = stop_key
                         runtime["last_error"] = None
                     except Exception as exc:
-                        stops[schedule_id] = minute_key
+                        stops[schedule_id] = stop_key
                         runtime["last_error"] = {
                             "at": datetime.now().astimezone().isoformat(),
                             "schedule": schedule_id,
