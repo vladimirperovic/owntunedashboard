@@ -19,6 +19,16 @@ TARGET_DIR="${TARGET_DIR:-/opt/owntone-dashboard}"
 
 # The remote install starts with `rm -rf "$TARGET"`, and TARGET_DIR comes from a
 # hand-edited config file. Refuse anything that is not a deliberate install path.
+# ssh joins its arguments with spaces rather than quoting them, so a path
+# containing whitespace or a shell metacharacter would be re-split remotely —
+# reject those here as well as the wrong prefix.
+case "$TARGET_DIR" in
+  *[!A-Za-z0-9/._-]*)
+    echo "Refusing to deploy to '$TARGET_DIR': the path may only contain letters," >&2
+    echo "digits and / . _ - characters." >&2
+    exit 1
+    ;;
+esac
 case "$TARGET_DIR" in
   /opt/?*|/srv/?*|/usr/local/share/?*) ;;
   *)
@@ -46,9 +56,13 @@ git archive --format=tar.gz -o "$STAGE/dashboard.tar.gz" HEAD
 
 echo "==> Uploading via $PROXMOX_TARGET to LXC $LXC_ID"
 scp -q "$STAGE/dashboard.tar.gz" "$PROXMOX_TARGET:/tmp/dashboard-deploy.tar.gz"
+# LXC_ID and TARGET_DIR are deliberately expanded here, on this machine: they
+# come from deploy.local.conf and the container knows nothing about them.
+# shellcheck disable=SC2029
 ssh "$PROXMOX_TARGET" "pct push $LXC_ID /tmp/dashboard-deploy.tar.gz /tmp/dashboard-deploy.tar.gz >/dev/null"
 
 echo "==> Installing on LXC $LXC_ID"
+# shellcheck disable=SC2029
 ssh "$PROXMOX_TARGET" "pct exec $LXC_ID -- /bin/bash -s" "$COMMIT" "$TARGET_DIR" <<'REMOTE'
 set -euo pipefail
 COMMIT="$1"; TARGET="$2"
