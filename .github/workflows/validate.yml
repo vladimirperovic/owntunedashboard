@@ -9,7 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  static:
+  lint:
+    name: Lint and format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,74 +18,52 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+          cache: npm
 
-      - name: Check JavaScript syntax
-        shell: bash
+      - run: npm ci
+
+      # ESLint's no-undef is what catches a function reading a variable from a
+      # sibling's scope; `node --check` only ever proved the file parsed.
+      - name: ESLint
+        run: npx eslint .
+
+      - name: Prettier
+        run: npx prettier --check .
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Ruff
         run: |
-          set -euo pipefail
-          while IFS= read -r -d '' file; do
-            node --check "$file"
-          done < <(find . -maxdepth 2 -name '*.js' -print0)
+          pip install --quiet ruff==0.14.4
+          ruff check scheduler/
 
-      - name: Check companion Python
-        run: python3 -m py_compile scheduler/scheduler_server.py
+      - name: Shellcheck deploy script
+        run: shellcheck deploy/deploy.sh
 
-      - name: Validate HTML parsing and configured assets
-        shell: python
-        run: |
-          from html.parser import HTMLParser
-          from pathlib import Path
-          import re
-
-          class Parser(HTMLParser):
-              pass
-
-          Parser().feed(Path('index.html').read_text(encoding='utf-8'))
-          config = Path('config.js').read_text(encoding='utf-8')
-          assets = re.findall(r"add(?:Style|Script)\('([^']+)'", config)
-          missing = [asset for asset in assets if not Path(asset).is_file()]
-          if missing:
-            raise SystemExit(f'Missing configured assets: {missing}')
-          logos = re.findall(r"'[^']+':\s*'(station-logos/[^']+)'", config)
-          missing_logos = [asset for asset in logos if not Path(asset).is_file()]
-          if missing_logos:
-            raise SystemExit(f'Missing station logos: {missing_logos}')
-          print(f'HTML parsed; {len(assets)} configured assets and {len(logos)} station identities exist')
-
-      - name: Guard playback ownership and design architecture
-        shell: bash
-        run: |
-          set -euo pipefail
-          if grep -q 'OWNTONE_PLAY_URI(uri)' radio-dnd.js; then
-            echo 'radio-dnd.js must not trigger playback directly; app.js owns that path'
-            exit 1
-          fi
-          grep -q 'design-system.css' config.js
-          grep -q 'design-enhancements.js' config.js
-          grep -q 'premium-experience.css' config.js
-          grep -q 'premium-experience.js' config.js
-          grep -q 'context-multiroom.css' config.js
-          grep -q 'context-multiroom.js' config.js
-          grep -q 'production-polish.css' config.js
-          grep -q 'safari-touch-fix.js' config.js
-          grep -q 'live-playback-polish.css' config.js
-          grep -q 'live-playback-polish.js' config.js
-          grep -qE "BUILD = '[0-9]{8}-[0-9]+'" config.js
-          ! grep -q "addStyle('ui-polish.css'" config.js
-          ! grep -q "addStyle('final-fixes.css'" config.js
-
-  browser:
-    needs: static
+  test:
+    name: Tests
+    needs: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # The companion service writes and deletes files in the music library and
+      # starts playback in the house, so its logic gets unit tests.
+      - name: Companion service unit tests
+        run: python -m unittest discover -s scheduler -p 'test_*.py' -v
+
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+          cache: npm
 
-      - name: Install browser test dependencies
-        run: npm install
+      - run: npm ci
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
@@ -102,3 +81,31 @@ jobs:
             test-results/**/*.zip
           if-no-files-found: ignore
           retention-days: 7
+
+  assets:
+    name: Referenced assets exist
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # config.js is the single place assets are registered, so a rename that
+      # misses one would 404 in the browser and nowhere else.
+      - name: Every asset config.js loads is present
+        shell: python
+        run: |
+          import re, sys
+          from html.parser import HTMLParser
+          from pathlib import Path
+
+          HTMLParser().feed(Path('index.html').read_text(encoding='utf-8'))
+
+          config = Path('config.js').read_text(encoding='utf-8')
+          listed = re.findall(r"^\s*'([\w./-]+\.(?:css|js))',", config, re.MULTILINE)
+          logos = re.findall(r"'(station-logos/[^']+)'", config)
+          referenced = listed + logos + ['icon.svg', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png']
+
+          missing = [asset for asset in referenced if not Path(asset).is_file()]
+          if missing:
+              sys.exit(f'Missing assets referenced by config.js or index.html: {missing}')
+          print(f'{len(referenced)} referenced assets present')

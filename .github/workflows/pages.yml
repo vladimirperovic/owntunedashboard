@@ -25,8 +25,11 @@ jobs:
 
       - name: Assemble site
         run: |
+          # No `|| true` here: a missing file used to publish a broken demo
+          # while the workflow stayed green.
+          set -euo pipefail
           mkdir -p _site
-          cp -r *.html *.js *.css icon.svg manifest.webmanifest README.md _site/ 2>/dev/null || true
+          cp *.html *.js *.css *.png icon.svg manifest.webmanifest README.md _site/
           cp -r station-logos docs _site/
           touch _site/.nojekyll
 

@@ -22,7 +22,7 @@ os.environ.setdefault("TZ", "Europe/Belgrade")
 os.environ.setdefault("OWNTONE_SCHEDULER_DATA", str(Path(__file__).parent / ".test-data"))
 sys.path.insert(0, str(Path(__file__).parent))
 
-import scheduler_server as srv  # noqa: E402
+import scheduler_server as srv
 
 ZONE = ZoneInfo("Europe/Belgrade")
 

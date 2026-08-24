@@ -660,9 +660,12 @@ def capture_history_once() -> None:
         history.insert(0, record)
         save_history(history[:HISTORY_LIMIT])
         label = f"{title} — {artist}" if artist else title
-        log_activity("track", f"▶ {label}") if not is_radio else log_activity("radio", f"📡 {station_name or title}: {label}")
-    except Exception:
-        return
+        if is_radio:
+            log_activity("radio", f"📡 {station_name or title}: {label}")
+        else:
+            log_activity("track", f"▶ {label}")
+    except Exception as exc:
+        print(f"[history] capture failed: {exc}", flush=True)
 
 
 def history_loop():

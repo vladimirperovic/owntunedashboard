@@ -39,8 +39,8 @@ one small Python service.
 - 🧩 **Companion service** — pure Python stdlib: schedules, history, stats,
   radio health, playlist & station file management
 
-| Radio mode (dark) | Music mode (light) | Mobile |
-|---|---|---|
+| Radio mode (dark)                    | Music mode (light)                    | Mobile                                 |
+| ------------------------------------ | ------------------------------------- | -------------------------------------- |
 | ![](docs/screenshots/radio-dark.png) | ![](docs/screenshots/music-light.png) | ![](docs/screenshots/mobile-radio.png) |
 
 ## Quick start
@@ -94,7 +94,7 @@ bridge (e.g. [homebridge](https://homebridge.io) +
 - list stations → `GET http://<host>:3690/scheduler/stations`
 
 Name a switch per station (plus short aliases like "Porto" or "Naxi") and say
-*"Hey Siri, turn on Porto"*. A `POST /scheduler/stations/random/play` endpoint
+_"Hey Siri, turn on Porto"_. A `POST /scheduler/stations/random/play` endpoint
 is included for a "Shuffle Radio" switch.
 
 ## macOS menu bar
