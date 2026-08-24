@@ -10,16 +10,35 @@ Group=www-data
 WorkingDirectory=/opt/owntone-dashboard
 StateDirectory=owntone-dashboard
 Environment=PYTHONUNBUFFERED=1
-Environment=TZ=Europe/Belgrade
+
+# Schedules are expressed in this zone, and it is what decides when a rule with
+# a stop time or a sunrise ramp fires. Set it to your own zone.
+Environment=TZ=Etc/UTC
+
 Environment=OWNTONE_BASE=http://127.0.0.1:3689/api
 Environment=OWNTONE_SCHEDULER_HOST=127.0.0.1
 Environment=OWNTONE_SCHEDULER_PORT=3691
 Environment=OWNTONE_SCHEDULER_DATA=/var/lib/owntone-dashboard
+
+# Where station and playlist .m3u files live. If you change these, change
+# ReadWritePaths below to match — ProtectSystem=strict makes everything else
+# read-only, and writes would fail with a confusing EROFS.
 Environment=OWNTONE_STATIONS_DIR=/media/music/Radio
 Environment=OWNTONE_PLAYLISTS_DIR=/media/music/Playlists
+
+# Manual playback started from the dashboard is capped to OWNTONE_NIGHT_MAX
+# between these hours. Scheduled runs keep their configured volume unless the
+# schedule opts in to the cap.
 Environment=OWNTONE_NIGHT_START=0
 Environment=OWNTONE_NIGHT_END=8
 Environment=OWNTONE_NIGHT_MAX=8
+
+# Which playlists count as radio stations. The path hint is the reliable
+# signal; the name hints are a comma-separated fallback matched on whole words.
+# Keep these in step with radioPathHint / radioNameHints in config.js.
+Environment=OWNTONE_RADIO_PATH_HINT=/radio/
+Environment=OWNTONE_RADIO_NAME_HINTS=radio
+
 ExecStart=/usr/bin/python3 /opt/owntone-dashboard/scheduler/scheduler_server.py
 Restart=on-failure
 RestartSec=3

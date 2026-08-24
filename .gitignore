@@ -1,10 +1,15 @@
+node_modules/
 test-results/
 playwright-report/
 
+# Python bytecode from the companion service
+__pycache__/
+*.py[cod]
+scheduler/.test-data/
+
 # Local deploy targets (real hosts/IDs) — never commit
 deploy/deploy.local.conf
-
-# Generated deployment identity (not source)
-version.json
-node_modules/
 deploy/DEPLOY.local.md
+
+# Generated at deploy time, not source
+version.json

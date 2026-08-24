@@ -8,17 +8,20 @@ health probes so browser CORS rules never get in the way.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
 import threading
 import time
+from functools import partial
 import uuid
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlparse
 from urllib.request import Request, urlopen
+from zoneinfo import ZoneInfo
 
 HOST = os.environ.get("OWNTONE_SCHEDULER_HOST", "127.0.0.1")
 PORT = int(os.environ.get("OWNTONE_SCHEDULER_PORT", "3691"))
@@ -47,6 +50,31 @@ NIGHT_END = _env_float("OWNTONE_NIGHT_END", 8)
 NIGHT_MAX = _env_int("OWNTONE_NIGHT_MAX", 8)
 # How many minutes past its scheduled time a run may still fire (restart/DST recovery).
 GRACE_MINUTES = max(0, _env_int("OWNTONE_SCHEDULE_GRACE_MIN", 30))
+
+
+def _local_zone() -> ZoneInfo:
+    """
+    The zone schedules are expressed in. TZ from the environment (the systemd
+    unit sets it); falls back to UTC when the name is not installed.
+    """
+    name = os.environ.get("TZ") or os.environ.get("OWNTONE_TZ") or ""
+    if name:
+        try:
+            return ZoneInfo(name)
+        except Exception as exc:
+            print(f"[time] unknown time zone {name!r} ({exc}); falling back to UTC", flush=True)
+    return ZoneInfo("UTC")
+
+
+LOCAL_ZONE = _local_zone()
+
+# Mirrors radioPathHint / radioNameHints in config.js. Keep the two in step.
+RADIO_PATH_HINT = (os.environ.get("OWNTONE_RADIO_PATH_HINT") or "/radio/").lower()
+RADIO_NAME_HINTS = [
+    hint.strip().lower()
+    for hint in (os.environ.get("OWNTONE_RADIO_NAME_HINTS") or "radio").split(",")
+    if hint.strip()
+]
 SCHEDULES_FILE = DATA_DIR / "schedules.json"
 STATE_FILE = DATA_DIR / "scheduler-state.json"
 HISTORY_FILE = DATA_DIR / "history.json"
@@ -57,15 +85,6 @@ HISTORY_LIMIT = 500
 ACTIVITY_LIMIT = 30
 RADIO_HEALTH_TTL = 90
 RADIO_MAP_TTL = 600
-SWITCH_STATES: dict[str, bool] = {}
-
-
-def set_all_switch_states(on_slug: str = "") -> None:
-    """One OwnTone queue means one station plays at a time."""
-    with LOCK:
-        SWITCH_STATES.clear()
-        if on_slug:
-            SWITCH_STATES[on_slug] = True
 RADIO_HEALTH_CACHE: dict[str, dict] = {}
 RADIO_MAP_CACHE = {"expires": 0.0, "by_path": {}}
 
@@ -117,24 +136,46 @@ def save_runtime_state(state) -> None:
         _atomic_write(STATE_FILE, state)
 
 
+def update_runtime_state(mutate):
+    """
+    Read-modify-write the runtime state under one lock.
+
+    The scheduler loop used to load the state, work for fifteen seconds and
+    then write its stale copy back — silently dropping any activity entry or
+    sleep field another thread had written in the meantime. Every writer goes
+    through here now, so the whole cycle is atomic.
+
+    `mutate(state)` may return False to skip the write.
+    """
+    with LOCK:
+        state = load_runtime_state()
+        if mutate(state) is False:
+            return state
+        _atomic_write(STATE_FILE, state)
+        return state
+
+
 def log_activity(kind: str, text: str) -> None:
     """Append a short event to the activity feed (latest first)."""
+
+    def add(state):
+        feed = state.setdefault("activity", [])
+        entry = {"at": local_now().isoformat(), "kind": str(kind)[:24], "text": str(text)[:200]}
+        if feed and feed[0] == entry:
+            return False
+        feed.insert(0, entry)
+        state["activity"] = feed[:ACTIVITY_LIMIT]
+        return True
+
     try:
-        with LOCK:
-            state = load_runtime_state()
-            feed = state.setdefault("activity", [])
-            entry = {"at": datetime.now().astimezone().isoformat(), "kind": str(kind)[:24], "text": str(text)[:200]}
-            if not feed or feed[0] != entry:
-                feed.insert(0, entry)
-                state["activity"] = feed[:ACTIVITY_LIMIT]
-                _atomic_write(STATE_FILE, state)
-    except Exception:
-        pass
+        update_runtime_state(add)
+    except OSError as exc:
+        print(f"[activity] could not record {kind}: {exc}", flush=True)
 
 
 def library_stats(days: int = 30) -> dict:
     history = load_history()
-    cutoff = (datetime.now().astimezone() - timedelta(days=days)).isoformat()
+    cutoff = (local_now() - timedelta(days=days)).isoformat()
     recent = [h for h in history if str(h.get("played_at") or "") >= cutoff]
     day_counts: dict[str, int] = {}
     station_counts: dict[str, int] = {}
@@ -150,7 +191,10 @@ def library_stats(days: int = 30) -> dict:
             artist = str(item.get("artist") or "").strip()
             if artist and artist != "Unknown artist":
                 artist_counts[artist] = artist_counts.get(artist, 0) + 1
-    top = lambda counts: [{"name": n, "count": c} for n, c in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:8]]
+    def top(counts):
+        ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:8]
+        return [{"name": name, "count": count} for name, count in ranked]
+
     return {
         "window_days": days,
         "total_plays": len(recent),
@@ -158,7 +202,7 @@ def library_stats(days: int = 30) -> dict:
         "days": [{"date": d, "count": c} for d, c in sorted(day_counts.items())],
         "top_stations": top(station_counts),
         "top_artists": top(artist_counts),
-        "generated_at": datetime.now().astimezone().isoformat(),
+        "generated_at": local_now().isoformat(),
     }
 
 
@@ -198,18 +242,18 @@ def clean_schedule(raw: dict, existing_id: str | None = None) -> dict:
 
     try:
         volume = max(0, min(100, int(raw.get("volume", 55))))
-    except (TypeError, ValueError):
-        raise ValueError("volume must be 0-100")
+    except (TypeError, ValueError) as exc:
+        raise ValueError("volume must be 0-100") from exc
 
     try:
         ramp_minutes = max(0, min(1440, int(raw.get("ramp_minutes", 0))))
-    except (TypeError, ValueError):
-        raise ValueError("ramp_minutes must be 0-1440")
+    except (TypeError, ValueError) as exc:
+        raise ValueError("ramp_minutes must be 0-1440") from exc
 
     try:
         ramp_volume = max(0, min(100, int(raw.get("ramp_volume", 0))))
-    except (TypeError, ValueError):
-        raise ValueError("ramp_volume must be 0-100")
+    except (TypeError, ValueError) as exc:
+        raise ValueError("ramp_volume must be 0-100") from exc
 
     name = str(raw.get("name") or "").strip() or f"{source_name} · {time_value}"
     return {
@@ -264,10 +308,10 @@ def schedule_volume_bump(item: dict, runtime: dict) -> bool:
     if bumps.get(str(item.get("id"))) == run_key:
         return False
     try:
-        ran_at = datetime.strptime(run_key, "%Y-%m-%dT%H:%M").astimezone()
+        ran_at = datetime.strptime(run_key, "%Y-%m-%dT%H:%M").replace(tzinfo=LOCAL_ZONE)
     except ValueError:
         return False
-    if datetime.now().astimezone() < ran_at + timedelta(minutes=ramp_minutes):
+    if local_now() < ran_at + timedelta(minutes=ramp_minutes):
         return False
     output_id = str(item.get("output_id") or "")
     volume_query = urlencode({"volume": ramp_volume, "output_id": output_id})
@@ -277,7 +321,7 @@ def schedule_volume_bump(item: dict, runtime: dict) -> bool:
 
 
 def _night_window(now: datetime | None = None) -> bool:
-    now = now or datetime.now().astimezone()
+    now = now or local_now()
     hour = now.hour + now.minute / 60.0
     if NIGHT_START == NIGHT_END:
         return True
@@ -302,10 +346,12 @@ def _playlist_id_from_uri(uri: str) -> str:
 
 
 def rescan_library() -> None:
+    """Ask OwnTone to pick up a file we just wrote. Best effort — the caller's
+    own result should not depend on the rescan succeeding."""
     try:
         owntone_request("/rescan", "POST", timeout=8)
-    except Exception:
-        pass
+    except Exception as exc:
+        print(f"[library] rescan failed: {exc}", flush=True)
 
 
 def execute_schedule(item: dict) -> dict:
@@ -367,21 +413,53 @@ def find_schedule(schedule_id: str):
     return items, -1, None
 
 
+def local_now() -> datetime:
+    """
+    Now, in the configured zone.
+
+    datetime.now().astimezone() returns a *fixed* offset for today, so adding
+    or subtracting days across a DST boundary kept today's offset and shifted
+    schedules by an hour. A real ZoneInfo keeps each day's own offset.
+    """
+    return datetime.now(LOCAL_ZONE)
+
+
+def _at_local_time(day: datetime, hour: int, minute: int) -> datetime:
+    """
+    `day` at hour:minute in the local zone.
+
+    On the spring-forward day the wall clock time may not exist and on the
+    autumn one it happens twice; normalising through the zone gives a real
+    instant either way instead of a datetime that compares wrong.
+    """
+    naive = day.replace(hour=hour, minute=minute, second=0, microsecond=0, tzinfo=None)
+    return naive.replace(tzinfo=LOCAL_ZONE)
+
+
+def _parse_hhmm(value: str):
+    """(hour, minute) for a validated HH:MM string, or None."""
+    text = str(value or "")
+    if not TIME_RE.match(text):
+        return None
+    hour, minute = text.split(":", 1)
+    return int(hour), int(minute)
+
+
 def _schedule_occurrence(item: dict, now: datetime | None = None, field: str = "time"):
     """Return the most recent due occurrence within the scheduler grace window."""
-    time_value = str(item.get(field) or "")
-    if not TIME_RE.match(time_value):
+    parsed = _parse_hhmm(item.get(field))
+    if not parsed:
         return None
-    now = now or datetime.now().astimezone()
-    hour, minute = [int(x) for x in time_value.split(":", 1)]
+    hour, minute = parsed
+    now = now or local_now()
     selected_days = set(item.get("days") or [])
     grace = timedelta(minutes=GRACE_MINUTES)
 
-    for days_back in range(0, 8):
+    for days_back in range(8):
         day = now - timedelta(days=days_back)
         if DAYS[day.weekday()] not in selected_days:
             continue
-        candidate = day.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        candidate = _at_local_time(day, hour, minute)
         if candidate > now:
             continue
         return candidate if now - candidate <= grace else None
@@ -389,24 +467,39 @@ def _schedule_occurrence(item: dict, now: datetime | None = None, field: str = "
 
 
 def next_run(item: dict, now: datetime | None = None):
+    """The next time this schedule will fire, or None if it never will."""
     if not item.get("enabled"):
         return None
-    now = now or datetime.now().astimezone()
-    hour, minute = [int(x) for x in item["time"].split(":", 1)]
-    for add_days in range(0, 8):
+    # A hand-edited schedules.json used to reach int() here and raise, which
+    # took the whole GET /schedules response down with it.
+    parsed = _parse_hhmm(item.get("time"))
+    if not parsed:
+        return None
+    hour, minute = parsed
+    now = now or local_now()
+    for add_days in range(8):
         day = now + timedelta(days=add_days)
         if DAYS[day.weekday()] not in item.get("days", []):
             continue
-        candidate = day.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        candidate = _at_local_time(day, hour, minute)
         if candidate >= now:
             return candidate
     return None
 
 
 def _is_radio_playlist(item: dict) -> bool:
-    path = str(item.get("path") or "").lower()
+    """
+    Mirror of isRadioPlaylist() in shared.js.
+
+    The path hint is the reliable signal; RADIO_NAME_HINTS is for libraries
+    where stations are not all in one folder. This used to hardcode a handful
+    of Belgrade station names, which misread any playlist called "S1" as one.
+    """
+    path = str(item.get("path") or "").lower().replace("\\", "/")
     name = str(item.get("name") or "").lower()
-    return "/radio/" in path or "radio" in name or "naxi" in name or name in {"202", "s1"}
+    if RADIO_PATH_HINT in path:
+        return True
+    return any(re.search(rf"(^|\s){re.escape(hint)}(\s|$)", name) for hint in RADIO_NAME_HINTS)
 
 
 def _refresh_radio_map() -> dict:
@@ -433,7 +526,8 @@ def _refresh_radio_map() -> dict:
                         "uri": playlist.get("uri") or "",
                         "id": str(pid),
                     }
-            except Exception:
+            except Exception as exc:
+                print(f"[radio] could not read playlist {pid}: {exc}", flush=True)
                 continue
     finally:
         with LOCK:
@@ -484,7 +578,7 @@ def probe_radio(playlist_id: str, force: bool = False) -> dict:
         if cached and not force and now - float(cached.get("_mono", 0)) < RADIO_HEALTH_TTL:
             return {k: v for k, v in cached.items() if k != "_mono"}
 
-    checked = datetime.now().astimezone().isoformat()
+    checked = local_now().isoformat()
     started = time.monotonic()
     try:
         info = playlist_stream_info(key)
@@ -551,7 +645,7 @@ def capture_history_once() -> None:
             return
         record = {
             "key": key,
-            "played_at": datetime.now().astimezone().isoformat(),
+            "played_at": local_now().isoformat(),
             "title": title or station_name or "Unknown",
             "artist": artist,
             "album": album,
@@ -577,28 +671,46 @@ def history_loop():
         time.sleep(12)
 
 
+def _fade_output_id() -> str:
+    """Which output the sleep fade should act on: the player's, else the first selected."""
+    player = owntone_request("/player", timeout=4) or {}
+    output_id = str(player.get("output_id") or "")
+    if output_id:
+        return output_id
+    outputs = owntone_request("/outputs", timeout=4) or {}
+    selected = [o for o in (outputs.get("outputs") or []) if o.get("selected")]
+    return str(selected[0].get("id") or "") if selected else ""
+
+
 def start_sleep(minutes: int) -> dict:
-    with LOCK:
-        runtime = load_runtime_state()
-        if minutes <= 0:
-            runtime.pop("sleep", None)
-            save_runtime_state(runtime)
-            log_activity("sleep", "🌙 Sleep timer cancelled")
-            return {"active": False}
-        player = owntone_request("/player", timeout=4) or {}
-        try:
-            start_volume = max(0, min(100, int(player.get("volume") or 20)))
-        except (TypeError, ValueError):
-            start_volume = 20
-        started = datetime.now().astimezone()
-        runtime["sleep"] = {
-            "start": started.isoformat(),
+    if minutes <= 0:
+        update_runtime_state(lambda state: state.pop("sleep", None) is not None or True)
+        log_activity("sleep", "🌙 Sleep timer cancelled")
+        return {"active": False}
+
+    # Resolved before taking the lock: these are network calls.
+    player = owntone_request("/player", timeout=4) or {}
+    try:
+        start_volume = max(0, min(100, int(player.get("volume") or 20)))
+    except (TypeError, ValueError):
+        start_volume = 20
+    output_id = _fade_output_id()
+
+    def begin(state):
+        # sleep and sleep_output_id are written together. They used to be two
+        # separate saves, and the scheduler loop could overwrite the second one
+        # before sleep_tick ever read it — the fade then never started.
+        state["sleep"] = {
+            "start": local_now().isoformat(),
             "duration_min": int(minutes),
             "start_volume": start_volume,
         }
-        save_runtime_state(runtime)
+        state["sleep_output_id"] = output_id
+        return True
+
+    update_runtime_state(begin)
     log_activity("sleep", f"🌙 Sleep timer {minutes} min")
-    return {"active": True, **sleep_status()}
+    return sleep_status()
 
 
 def sleep_status() -> dict:
@@ -609,11 +721,11 @@ def sleep_status() -> dict:
         try:
             started = datetime.fromisoformat(str(entry.get("start")))
             total_s = int(entry.get("duration_min") or 0) * 60
-            remaining_s = total_s - int((datetime.now().astimezone() - started).total_seconds())
+            remaining_s = total_s - int((local_now() - started).total_seconds())
         except (TypeError, ValueError):
             return {"active": False}
         if remaining_s <= 0:
-            return {"active": True, "remaining_min": 0}
+            return {"active": True, "remaining_min": 0, "remaining_s": 0}
         return {
             "active": True,
             "remaining_min": round(remaining_s / 60),
@@ -631,7 +743,7 @@ def sleep_tick(runtime: dict) -> bool:
     try:
         started = datetime.fromisoformat(str(entry.get("start")))
         total_s = int(entry.get("duration_min") or 0) * 60
-        elapsed = (datetime.now().astimezone() - started).total_seconds()
+        elapsed = (local_now() - started).total_seconds()
     except (TypeError, ValueError):
         runtime.pop("sleep", None)
         return True
@@ -640,7 +752,7 @@ def sleep_tick(runtime: dict) -> bool:
     if remaining <= 0:
         owntone_request("/player/stop", "PUT")
         runtime.pop("sleep", None)
-        set_all_switch_states()
+        _forget_now_playing()
         log_activity("sleep", "🌙 Sleep timer finished — playback stopped")
         return True
     # fade only in the final stretch (<=3 min) so normal listening is untouched
@@ -727,15 +839,20 @@ def delete_station(slug: str) -> dict:
 
 
 def _resolve_station_playlist(station: dict) -> str:
-    """Map a Radio-folder .m3u file to its OwnTone playlist URI."""
+    """Map a station .m3u file in STATIONS_DIR to its OwnTone playlist URI."""
     filename = str(station.get("file") or "")
-    suffix = f"/media/music/Radio/{filename}"
+    if not filename:
+        raise ValueError("Station has no file name")
+    # Match on the full configured path. The old code hardcoded
+    # /media/music/Radio/ and fell back to matching the bare file name, which
+    # could pick a same-named playlist from anywhere in the library.
+    wanted = str((STATIONS_DIR / filename).as_posix()).lower()
     playlists = owntone_request("/library/playlists?limit=500") or {}
     for playlist in playlists.get("items", []):
-        path = str(playlist.get("path") or "")
-        if path.endswith(suffix) or path.endswith(f"/{filename}"):
+        path = str(playlist.get("path") or "").replace("\\", "/").lower()
+        if path == wanted or path.endswith(wanted):
             return str(playlist.get("uri") or "")
-    raise ValueError(f"No OwnTone playlist found for {filename}")
+    raise ValueError(f"No OwnTone playlist found for {filename} under {STATIONS_DIR}")
 
 
 def play_station(slug: str, output_id: str = "", shuffle: bool = False) -> dict:
@@ -751,8 +868,60 @@ def play_station(slug: str, output_id: str = "", shuffle: bool = False) -> dict:
     query = urlencode({"uris": uri, "clear": "true", "playback": "start", "shuffle": "true" if shuffle else "false"})
     owntone_request(f"/queue/items/add?{query}", "POST")
     log_activity("station", f"▶ Playing {station['name']}")
-    set_all_switch_states(slug)
+    _forget_now_playing()
     return {"ok": True, "played": station["name"], "playlist": uri}
+
+
+NOW_PLAYING_TTL = 2.0
+_now_playing_cache = {"expires": 0.0, "path": ""}
+
+
+def _current_stream_url() -> str:
+    """
+    The URL OwnTone is streaming right now, or "" when it is not playing.
+
+    Cached for a couple of seconds because HomeKit bridges poll the switch
+    endpoints often and each call would otherwise hit OwnTone twice.
+    """
+    now = time.monotonic()
+    with LOCK:
+        if _now_playing_cache["expires"] > now:
+            return _now_playing_cache["path"]
+    path = ""
+    try:
+        player = owntone_request("/player", timeout=4) or {}
+        if player.get("state") == "play":
+            queue = owntone_request("/queue?id=now_playing", timeout=4) or {}
+            item = (queue.get("items") or [None])[0]
+            candidate = str((item or {}).get("path") or "").strip()
+            if candidate.startswith(("http://", "https://")):
+                path = candidate
+    except Exception:
+        path = ""
+    with LOCK:
+        _now_playing_cache["path"] = path
+        _now_playing_cache["expires"] = time.monotonic() + NOW_PLAYING_TTL
+    return path
+
+
+def station_is_playing(slug: str) -> bool:
+    """
+    Whether this station is the one currently on air.
+
+    Read from OwnTone rather than remembered in a dict: the old in-memory map
+    reported every switch as off after a service restart, and a scheduled run
+    never updated it at all, so Siri could report the wrong state for hours.
+    """
+    station = next((s for s in list_stations() if s["slug"] == slug), None)
+    if not station or not station.get("url"):
+        return False
+    return _current_stream_url() == str(station["url"]).strip()
+
+
+def _forget_now_playing() -> None:
+    """Drop the cache so a state change is visible on the next poll."""
+    with LOCK:
+        _now_playing_cache["expires"] = 0.0
 
 
 def play_random_station(output_id: str = "") -> dict:
@@ -855,75 +1024,94 @@ def delete_playlist(slug: str) -> dict:
     return {"ok": True}
 
 
+def _record_last_error(state: dict, message: str) -> bool:
+    state["last_error"] = {"at": local_now().isoformat(), "message": message}
+    return True
+
+
+def _run_due_schedules(runtime: dict, now: datetime) -> bool:
+    """
+    Fire every schedule that came due, plus its ramp and stop time.
+
+    Called inside update_runtime_state, so the read-modify-write of the
+    runtime file is atomic with respect to the history thread and request
+    handlers. Returns True when the state changed.
+    """
+    runs = runtime.setdefault("runs", {})
+    stops = runtime.setdefault("stops", {})
+    dirty = False
+
+    for item in load_schedules():
+        if not item.get("enabled"):
+            continue
+        schedule_id = str(item.get("id"))
+
+        run_at = _schedule_occurrence(item, now)
+        run_key = run_at.strftime("%Y-%m-%dT%H:%M") if run_at else ""
+        if run_key and runs.get(schedule_id) != run_key:
+            # The key is written whether or not the run succeeded, so a broken
+            # schedule is retried at its next occurrence, not every 15 seconds.
+            runs[schedule_id] = run_key
+            try:
+                result = execute_schedule(item)
+                runtime["last_error"] = None
+                log_activity("schedule", f"⏰ {item.get('name')}: {result.get('message', '')}")
+            except Exception as exc:
+                runtime["last_error"] = {
+                    "at": local_now().isoformat(),
+                    "schedule": schedule_id,
+                    "message": str(exc),
+                }
+                log_activity("error", f"⏰ {item.get('name')}: {exc}")
+            dirty = True
+
+        try:
+            if schedule_volume_bump(item, runtime):
+                dirty = True
+        except Exception as exc:
+            runtime["last_error"] = {
+                "at": local_now().isoformat(),
+                "schedule": schedule_id,
+                "message": f"ramp: {exc}",
+            }
+            dirty = True
+
+        stop_at = _schedule_occurrence(item, now, "stop_time") if item.get("stop_time") else None
+        stop_key = stop_at.strftime("%Y-%m-%dT%H:%M") if stop_at else ""
+        if stop_key and stops.get(schedule_id) != stop_key:
+            stops[schedule_id] = stop_key
+            try:
+                stop_playback(item)
+                runtime["last_error"] = None
+            except Exception as exc:
+                runtime["last_error"] = {
+                    "at": local_now().isoformat(),
+                    "schedule": schedule_id,
+                    "message": str(exc),
+                }
+            dirty = True
+
+    return dirty
+
+
 def scheduler_loop():
     while True:
         try:
-            now = datetime.now().astimezone()
-            schedules = load_schedules()
-            runtime = load_runtime_state()
-            runs = runtime.setdefault("runs", {})
-            stops = runtime.setdefault("stops", {})
-            dirty = False
+            now = local_now()
 
-            for item in schedules:
-                if not item.get("enabled"):
-                    continue
-                schedule_id = str(item.get("id"))
-                run_at = _schedule_occurrence(item, now)
-                run_key = run_at.strftime("%Y-%m-%dT%H:%M") if run_at else ""
-                if run_key and runs.get(schedule_id) != run_key:
-                    try:
-                        result = execute_schedule(item)
-                        runs[schedule_id] = run_key
-                        runtime["last_error"] = None
-                        log_activity("schedule", f"⏰ {item.get('name')}: {result.get('message','')}")
-                    except Exception as exc:
-                        runs[schedule_id] = run_key
-                        runtime["last_error"] = {
-                            "at": datetime.now().astimezone().isoformat(),
-                            "schedule": schedule_id,
-                            "message": str(exc),
-                        }
-                        log_activity("error", f"⏰ {item.get('name')}: {exc}")
-                    dirty = True
+            def tick(runtime, now=now):
+                # Both halves report whether they changed anything. `or` alone
+                # would short-circuit and skip the sleep fade.
+                due = _run_due_schedules(runtime, now)
+                slept = sleep_tick(runtime)
+                return due or slept
 
-                try:
-                    if schedule_volume_bump(item, runtime):
-                        dirty = True
-                except Exception as exc:
-                    runtime["last_error"] = {
-                        "at": datetime.now().astimezone().isoformat(),
-                        "schedule": schedule_id,
-                        "message": f"ramp: {exc}",
-                    }
-                    dirty = True
-
-                stop_time = item.get("stop_time") or ""
-                stop_at = _schedule_occurrence(item, now, "stop_time") if stop_time else None
-                stop_key = stop_at.strftime("%Y-%m-%dT%H:%M") if stop_at else ""
-                if stop_key and stops.get(schedule_id) != stop_key:
-                    try:
-                        stop_playback(item)
-                        stops[schedule_id] = stop_key
-                        runtime["last_error"] = None
-                    except Exception as exc:
-                        stops[schedule_id] = stop_key
-                        runtime["last_error"] = {
-                            "at": datetime.now().astimezone().isoformat(),
-                            "schedule": schedule_id,
-                            "message": str(exc),
-                        }
-                    dirty = True
-
-            if dirty:
-                save_runtime_state(runtime)
-
-            if sleep_tick(runtime):
-                save_runtime_state(runtime)
+            update_runtime_state(tick)
         except Exception as exc:
-            state = load_runtime_state()
-            state["last_error"] = {"at": datetime.now().astimezone().isoformat(), "message": str(exc)}
-            save_runtime_state(state)
+            message = str(exc)
+            print(f"[scheduler] tick failed: {message}", flush=True)
+            with contextlib.suppress(OSError):
+                update_runtime_state(partial(_record_last_error, message=message))
         time.sleep(15)
 
 
@@ -959,6 +1147,16 @@ class Handler(BaseHTTPRequestHandler):
         return None
 
     def do_GET(self):
+        try:
+            self._handle_get()
+        except Exception as exc:
+            # GET used to be the only verb without a handler here, so a single
+            # malformed schedules.json closed the connection with no response
+            # and the dashboard reported a network error.
+            self.log_message("GET %s failed: %s", self.path, exc)
+            self._send(500, {"error": str(exc)})
+
+    def _handle_get(self):
         parsed = urlparse(self.path)
         path = parsed.path
         query = parse_qs(parsed.query)
@@ -968,15 +1166,15 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, {
                 "ok": True,
                 "service": "owntone-dashboard-companion",
-                "time": datetime.now().astimezone().isoformat(),
-                "timezone": str(datetime.now().astimezone().tzinfo),
+                "time": local_now().isoformat(),
+                "timezone": str(LOCAL_ZONE),
                 "owntone": OWNTONE_BASE,
                 "history_count": len(load_history()),
                 "last_error": state.get("last_error"),
             })
             return
         if path == "/schedules":
-            now = datetime.now().astimezone()
+            now = local_now()
             items = []
             for item in load_schedules():
                 enriched = dict(item)
@@ -1004,10 +1202,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200, {"playlist_id": playlist_id, "online": False, "status": "OFFLINE", "error": str(exc)})
             return
         if len(parts) == 3 and parts[0] == "stations" and parts[2] == "status":
-            with LOCK:
-                on = SWITCH_STATES.get(parts[1], False)
-            self._send(200, {"on": bool(on)})
-            return
+            self._send(200, {"on": station_is_playing(parts[1])})
             return
         if path == "/sleep":
             self._send(200, sleep_status())
@@ -1058,22 +1253,8 @@ class Handler(BaseHTTPRequestHandler):
                 body = self._body()
                 try:
                     minutes = int(body.get("minutes") or 0)
-                except (TypeError, ValueError):
-                    raise ValueError("minutes must be an integer")
-                runtime = load_runtime_state()
-                if minutes > 0:
-                    player = owntone_request("/player", timeout=4) or {}
-                    try:
-                        output_id = str((player.get("output_id") or ""))
-                    except (TypeError, ValueError):
-                        output_id = ""
-                    # remember which output to fade; fall back to first selected via /outputs
-                    if not output_id:
-                        outputs = owntone_request("/outputs", timeout=4) or {}
-                        selected = [o for o in (outputs.get("outputs") or []) if o.get("selected")]
-                        output_id = str(selected[0].get("id") or "") if selected else ""
-                    runtime["sleep_output_id"] = output_id
-                    save_runtime_state(runtime)
+                except (TypeError, ValueError) as exc:
+                    raise ValueError("minutes must be an integer") from exc
                 self._send(200, start_sleep(minutes))
                 return
 
@@ -1089,7 +1270,7 @@ class Handler(BaseHTTPRequestHandler):
 
             if path == "/playback/stop":
                 owntone_request("/player/stop", "PUT")
-                set_all_switch_states()
+                _forget_now_playing()
                 log_activity("station", "⏹ Playback stopped")
                 self._send(200, {"ok": True})
                 return
@@ -1144,7 +1325,6 @@ class Handler(BaseHTTPRequestHandler):
         if not schedule_id:
             self._send(404, {"error": "Not found"})
             return
-        parts = [x for x in urlparse(self.path).path.split("/") if x]
         if parts and parts[0] == "stations":
             try:
                 self._send(200, delete_station(schedule_id))
