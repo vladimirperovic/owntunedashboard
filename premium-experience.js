@@ -1,26 +1,10 @@
 (() => {
   'use strict';
 
-  const cfg = Object.assign(
-    {
-      apiBase: '/api',
-      schedulerBase: '/scheduler',
-      historyLimit: 50,
-      queueLimit: 20,
-      radioArtwork: {},
-    },
-    window.OWNTONE_DASHBOARD || {}
-  );
+  const { apiUrl, schedulerUrl, json: requestJson, escapeHtml, toast, whenReady, on } = window.OwnTone;
 
-  const apiBase = String(cfg.apiBase || '/api').replace(/\/$/, '');
-  const schedulerBase = String(cfg.schedulerBase || '/scheduler').replace(/\/$/, '');
   const $ = id => document.getElementById(id);
   const app = () => window.OWNTONE_APP || null;
-  const escapeHtml = value =>
-    String(value ?? '').replace(
-      /[&<>"']/g,
-      ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]
-    );
   const normalize = value =>
     String(value || '')
       .toLowerCase()
@@ -61,6 +45,10 @@
   let outputButton;
   let refreshHandle;
   let accentToken = '';
+  // Bumped on every refresh: an await that started before the library loaded
+  // must not paint its stale result over the render that came after it.
+  let miniQueueRun = 0;
+  let recentRailRun = 0;
 
   function readSource() {
     try {
@@ -88,30 +76,6 @@
   function isDemo() {
     return !!appState().demo;
   }
-  function apiUrl(path) {
-    return `${apiBase}${path.startsWith('/') ? path : '/' + path}`;
-  }
-  function schedulerUrl(path) {
-    return `${schedulerBase}${path.startsWith('/') ? path : '/' + path}`;
-  }
-
-  async function requestJson(url, options = {}) {
-    const response = await window.fetch(url, options);
-    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-    if (response.status === 204) return null;
-    const text = await response.text();
-    return text ? JSON.parse(text) : null;
-  }
-
-  function toast(message) {
-    const el = $('toast');
-    if (!el) return;
-    el.textContent = message;
-    el.classList.add('show');
-    clearTimeout(el._premiumTimer);
-    el._premiumTimer = setTimeout(() => el.classList.remove('show'), 2200);
-  }
-
   function mountPlayingFrom() {
     if ($('playingFrom')) return;
     const copy = document.querySelector('.track-copy');
@@ -534,6 +498,7 @@
 
   async function refreshRecentRail() {
     if (!recentRail) return;
+    const run = ++recentRailRun;
     let items = [];
     if (isDemo()) items = demoRecentItems();
     else {
@@ -544,6 +509,7 @@
         items = demoRecentItems().slice(0, 1);
       }
     }
+    if (run !== recentRailRun) return;
     recentRail.innerHTML = items.length
       ? items
           .slice(0, 8)
@@ -582,6 +548,7 @@
   async function refreshMiniQueue() {
     const body = $('desktopMiniQueueBody');
     if (!body) return;
+    const run = ++miniQueueRun;
     let items = [];
     if (isDemo()) {
       items = [
@@ -601,6 +568,7 @@
         items = [];
       }
     }
+    if (run !== miniQueueRun) return;
     const item = currentItem();
     if (items.length) {
       body.innerHTML = items
@@ -812,11 +780,19 @@
     });
 
     clearInterval(refreshHandle);
-    refreshHandle = setInterval(() => {
-      syncPremiumNowPlaying();
-      refreshRecentRail();
-      refreshMiniQueue();
-    }, 9000);
+    refreshHandle = setInterval(refreshAll, 9000);
+
+    // The first render happens before app.js has answered the server, so redraw
+    // once the library is in. Without this the panels show whatever the empty
+    // initial state implies for the first nine seconds.
+    whenReady(refreshAll);
+    on('owntone:library-updated', refreshAll);
+  }
+
+  function refreshAll() {
+    syncPremiumNowPlaying();
+    refreshRecentRail();
+    refreshMiniQueue();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount, { once: true });

@@ -1,25 +1,11 @@
 (() => {
   'use strict';
 
-  const cfg = Object.assign(
-    {
-      apiBase: '/api',
-      nightSafeStartHour: 0,
-      nightSafeEndHour: 8,
-      nightSafeMaxVolume: 8,
-    },
-    window.OWNTONE_DASHBOARD || {}
-  );
+  const { api: requestJson, escapeHtml, toast, icons: shared } = window.OwnTone;
 
-  const apiBase = String(cfg.apiBase || '/api').replace(/\/$/, '');
   const $ = id => document.getElementById(id);
   const app = () => window.OWNTONE_APP || null;
   const state = () => app()?.state || {};
-  const escapeHtml = value =>
-    String(value ?? '').replace(
-      /[&<>"']/g,
-      ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]
-    );
   const normalize = value =>
     String(value || '')
       .toLowerCase()
@@ -30,7 +16,7 @@
 
   const icons = {
     more: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg>',
-    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7L8 5Z"/></svg>',
+    play: shared.play,
     next: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l9 6-9 6V6ZM18 5v14"/></svg>',
     queue:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10M7 12h10M7 17h6"/><path d="M17 15v5M14.5 17.5h5"/></svg>',
@@ -39,12 +25,11 @@
       '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2.3"/></svg>',
     artist:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20c.8-4 3-6 6.5-6s5.7 2 6.5 6"/></svg>',
-    output:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14v8H5zM8 19h8M12 16v3"/><path d="M8 11.5a6 6 0 0 1 8 0M10 13.5a3 3 0 0 1 4 0"/></svg>',
+    output: shared.output,
     check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>',
-    close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>',
+    close: shared.close,
     save: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h12l2 2v14H5zM8 4v6h8V4M8 20v-6h8v6"/></svg>',
-    trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>',
+    trash: shared.trash,
     speakers:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="7" height="14" rx="2"/><circle cx="6.5" cy="14" r="2"/><rect x="14" y="5" width="7" height="14" rx="2"/><circle cx="17.5" cy="14" r="2"/></svg>',
   };
@@ -56,28 +41,9 @@
   let exactTrackRewrite = false;
   let exactTrackTimer = null;
   let syncTimer = null;
-  let originalFetch = null;
   const SCENES_KEY = 'owntone-output-scenes-v1';
   const BROWSER_OUTPUT_ID = 'browser';
 
-  function apiUrl(path) {
-    return `${apiBase}${path.startsWith('/') ? path : '/' + path}`;
-  }
-  async function requestJson(path, options = {}) {
-    const response = await window.fetch(apiUrl(path), options);
-    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-    if (response.status === 204) return null;
-    const text = await response.text();
-    return text ? JSON.parse(text) : null;
-  }
-  function toast(message) {
-    const el = $('toast');
-    if (!el) return;
-    el.textContent = message;
-    el.classList.add('show');
-    clearTimeout(el._contextTimer);
-    el._contextTimer = setTimeout(() => el.classList.remove('show'), 2200);
-  }
   function isDemo() {
     return !!state().demo;
   }
@@ -118,8 +84,6 @@
     if (selected.length === 1) return selected[0].name || '1 output';
     return `${selected.length} outputs`;
   }
-
-  let browserPreviousOutputIds = null;
 
   async function setPhysicalOutputs(ids) {
     const unique = [...new Set(ids.map(String))];
@@ -895,48 +859,6 @@
     });
   }
 
-  function isNightSafeTime(date = new Date()) {
-    const hour = date.getHours() + date.getMinutes() / 60;
-    const start = Number(cfg.nightSafeStartHour ?? 0);
-    const end = Number(cfg.nightSafeEndHour ?? 8);
-    if (start === end) return true;
-    return start < end ? hour >= start && hour < end : hour >= start || hour < end;
-  }
-
-  async function capAllSelectedForNight() {
-    if (!isNightSafeTime()) return;
-    const cap = Math.max(0, Math.min(100, Number(cfg.nightSafeMaxVolume ?? 8)));
-    const tooLoud = selectedOutputs().filter(output => Number(output.volume ?? 0) > cap);
-    if (!tooLoud.length) return;
-    await Promise.all(tooLoud.map(output => setOutputVolume(output.id, cap, { quiet: true })));
-    const range = $('volumeRange');
-    const value = $('volumeValue');
-    if (range && Number(range.value) > cap) {
-      range.value = String(cap);
-      range.style.setProperty('--range-progress', `${cap}%`);
-    }
-    if (value && Number(String(value.textContent).replace('%', '')) > cap) value.textContent = `${cap}%`;
-  }
-
-  function installMultiroomNightSafety() {
-    if (window.__OWNTONE_MULTIROOM_FETCH__) return;
-    window.__OWNTONE_MULTIROOM_FETCH__ = true;
-    originalFetch = window.fetch.bind(window);
-    window.fetch = async function (input, init = {}) {
-      const url = typeof input === 'string' ? input : String(input?.url || '');
-      const method = String(
-        init?.method || (typeof input !== 'string' && input?.method) || 'GET'
-      ).toUpperCase();
-      if (
-        method === 'POST' &&
-        url.includes('/api/queue/items/add') &&
-        /(?:\?|&)playback=start(?:&|$)/.test(url)
-      )
-        await capAllSelectedForNight();
-      return originalFetch(input, init);
-    };
-  }
-
   function mount() {
     ensureDemoOutputs();
     ensureContextMenu();
@@ -947,7 +869,6 @@
     enhanceContextTargets();
     observeDynamicContent();
     installGroupVolumeBridge();
-    installMultiroomNightSafety();
     syncGroupLabel();
     window.addEventListener('owntone-browser-output-change', () => {
       syncGroupLabel();

@@ -1,22 +1,25 @@
 (() => {
   'use strict';
 
-  const cfg = Object.assign(
-    {
-      apiBase: '/api',
-      demoOnFailure: true,
-      pollMs: 3000,
-      fallbackPollMs: 15000,
-      websocketPath: '/owntone-events',
-      websocketReconnectMs: 2500,
-      radioPathHint: '/Radio/',
-      preferredOutput: 'HomePod',
-    },
-    window.OWNTONE_DASHBOARD || {}
-  );
+  const {
+    config: cfg,
+    api: request,
+    escapeHtml,
+    formatTime: fmtTime,
+    toast,
+    emit,
+    icons,
+    isRadioPlaylist,
+    isRadioItem: isRadioCurrent,
+    browserOutput,
+    startPlayback,
+    setOutputVolume,
+  } = window.OwnTone;
+
   const $ = id => document.getElementById(id);
   const els = {
     connectionText: $('connectionText'),
+    desktopConnection: $('desktopConnection'),
     modeToggle: $('modeToggle'),
     modeToggleIcon: $('modeToggleIcon'),
     modeToggleLabel: $('modeToggleLabel'),
@@ -50,23 +53,13 @@
     albumGrid: $('albumGrid'),
     playlistGrid: $('playlistGrid'),
     radioGrid: $('radioGrid'),
+    radioFavoritesGrid: $('radioFavoritesGrid'),
     serverVersion: $('serverVersion'),
     searchDialog: $('searchDialog'),
     searchForm: $('searchForm'),
     searchInput: $('searchInput'),
     searchResults: $('searchResults'),
     toast: $('toast'),
-  };
-
-  const icons = {
-    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7L8 5Z"/></svg>',
-    pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM14 5h4v14h-4z"/></svg>',
-    radio:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10h16v10H4zM7 7l9-4M8 14h.01M12 14h5M12 17h5"/></svg>',
-    note: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v12M9 9l10-2M6.5 20A2.5 2.5 0 1 0 6.5 15a2.5 2.5 0 0 0 0 5ZM16.5 18A2.5 2.5 0 1 0 16.5 13a2.5 2.5 0 0 0 0 5Z"/></svg>',
-    smallPlay: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7L8 5Z"/></svg>',
-    spinner:
-      '<svg class="playback-spinner" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.6" opacity="0.25"/><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.6" stroke-dasharray="16 40" stroke-linecap="round"/></svg>',
   };
 
   const state = {
@@ -153,25 +146,9 @@
     ].map((x, i) => ({ id: `a${i}`, name: x[0], artist: x[1], uri: `library:album:${i}` })),
   };
 
-  function apiUrl(path) {
-    const base = String(cfg.apiBase || '/api').replace(/\/$/, '');
-    return `${base}${path.startsWith('/') ? path : `/${path}`}`;
-  }
-  async function request(path, options = {}) {
-    const init = Object.assign({ headers: {}, cache: 'no-store' }, options);
-    if (init.body && typeof init.body !== 'string') {
-      init.headers['Content-Type'] = 'application/json';
-      init.body = JSON.stringify(init.body);
-    }
-    const response = await fetch(apiUrl(path), init);
-    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-    if (response.status === 204) return null;
-    const text = await response.text();
-    return text ? JSON.parse(text) : null;
-  }
   function serverOrigin() {
     try {
-      const api = new URL(apiUrl('/'), window.location.href);
+      const api = new URL(window.OwnTone.apiUrl('/'), window.location.href);
       return api.pathname.includes('/api') ? `${api.origin}${api.pathname.split('/api')[0]}` : api.origin;
     } catch (_) {
       return window.location.origin;
@@ -327,30 +304,6 @@
     };
     loadNext();
   }
-  function fmtTime(ms) {
-    const total = Math.max(0, Math.floor((Number(ms) || 0) / 1000));
-    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
-  }
-  function toast(message) {
-    els.toast.textContent = message;
-    els.toast.classList.add('show');
-    clearTimeout(state.toastTimer);
-    state.toastTimer = setTimeout(() => els.toast.classList.remove('show'), 2200);
-  }
-  function escapeHtml(value) {
-    return String(value ?? '').replace(
-      /[&<>'"]/g,
-      ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[ch]
-    );
-  }
-  function isRadioPlaylist(p) {
-    const path = String(p.path || '').toLowerCase();
-    const hint = String(cfg.radioPathHint || '/Radio/').toLowerCase();
-    return path.includes(hint) || /(^|\s)(radio|naxi|s1|202|lola)(\s|$)/i.test(p.name || '');
-  }
-  function isRadioCurrent(item) {
-    return item && (item.data_kind === 'url' || /^https?:\/\//i.test(item.path || ''));
-  }
   function qualityText(item) {
     if (!item) return '—';
     const type = String(item.type || '').toUpperCase();
@@ -427,9 +380,6 @@
       chips.map(value => `<span class="track-chip">${escapeHtml(value)}</span>`).join('') + infoChip;
     els.trackChips.hidden = !chips.length && !item;
   }
-  function browserOutput() {
-    return window.OWNTONE_BROWSER_OUTPUT?.getState?.() || null;
-  }
   function selectedOutput() {
     const browser = browserOutput();
     if (browser?.active) return browser;
@@ -477,7 +427,7 @@
     document.querySelectorAll('.radio-card.is-starting').forEach(card => {
       card.classList.remove('is-starting');
       const playBtn = card.querySelector('.radio-play-btn');
-      if (playBtn) playBtn.innerHTML = icons.smallPlay;
+      if (playBtn) playBtn.innerHTML = icons.play;
     });
   }
 
@@ -506,6 +456,8 @@
       renderAll();
       connectRealtime();
       pollLater();
+      // Modules wait for this instead of polling window.OWNTONE_APP every 1.5 s.
+      emit('owntone:ready', { demo: false });
     } catch (err) {
       console.warn('OwnTone connection failed:', err);
       if (cfg.demoOnFailure) activateDemo();
@@ -529,6 +481,7 @@
     state.library = { ...demo.library };
     state.config = { version: 'Demo' };
     renderAll();
+    emit('owntone:ready', { demo: true });
   }
   let pollHandle,
     playbackRequestId = 0,
@@ -628,10 +581,9 @@
     trackTransitionTimer = setTimeout(() => card.classList.remove('track-refreshed'), 560);
   }
   async function refreshPlayback() {
-    if (state.demo) {
-      pollLater();
-      return;
-    }
+    // Demo mode has no server to poll. Returning without rescheduling stops a
+    // timer that used to fire every 3 s for the lifetime of the tab.
+    if (state.demo) return;
     const requestId = ++playbackRequestId;
     const previousKey = playingItemKey(state.player, state.current);
     try {
@@ -678,6 +630,7 @@
       state.library = library;
       renderLibrary();
       renderRadio();
+      emit('owntone:library-updated');
       toast('Library refreshed');
     } catch (err) {
       toast(`Refresh failed: ${err.message}`);
@@ -706,11 +659,16 @@
   let buildSuffix = '',
     buildInfoStarted = false;
   function renderConnection() {
-    els.connectionText.textContent = state.demo
+    const status = state.demo
       ? 'Preview mode · connect OwnTone'
       : state.online
         ? 'OwnTone connected'
         : 'OwnTone offline';
+    // Both labels are written here. index.html used to keep them in sync with a
+    // MutationObserver over the whole document, which fired on every DOM change
+    // the 3 s poll caused.
+    els.connectionText.textContent = status;
+    if (els.desktopConnection) els.desktopConnection.textContent = status;
     const base = state.config?.version ? `OwnTone ${state.config.version}` : 'OwnTone API';
     els.serverVersion.textContent = buildSuffix ? `${base} · ${buildSuffix}` : base;
     if (!buildInfoStarted) {
@@ -730,6 +688,37 @@
     } catch (_) {}
     buildSuffix = bits.join(' · ');
     renderConnection();
+  }
+
+  /**
+   * Rebuild the output picker only when the outputs actually changed.
+   *
+   * renderPlayer() runs on every poll (every 3 s). Replacing innerHTML that
+   * often closes a native <select> picker under the user's finger on iOS.
+   */
+  function renderOutputSelect() {
+    const signature = state.outputs.map(o => `${o.id}|${o.name}|${o.type}`).join('~');
+    if (els.outputSelect.dataset.signature === signature) {
+      const selected = state.outputs.find(o => o.selected);
+      if (selected && String(els.outputSelect.value) !== String(selected.id) && !state.outputPickerOpen) {
+        els.outputSelect.value = String(selected.id);
+      }
+      return;
+    }
+    els.outputSelect.dataset.signature = signature;
+
+    const previous = els.outputSelect.value;
+    els.outputSelect.innerHTML = state.outputs.length
+      ? state.outputs
+          .map(
+            o =>
+              `<option value="${escapeHtml(o.id)}" ${o.selected ? 'selected' : ''}>${escapeHtml(o.name)} · ${escapeHtml(o.type)}</option>`
+          )
+          .join('')
+      : '<option value="">No output</option>';
+    if (previous && state.outputs.some(o => String(o.id) === String(previous))) {
+      els.outputSelect.value = previous;
+    }
   }
 
   function renderPlayer() {
@@ -802,16 +791,7 @@
       els.volumeRange.style.setProperty('--range-progress', `${volume}%`);
       els.volumeValue.textContent = `${volume}%`;
     }
-    const old = els.outputSelect.value;
-    els.outputSelect.innerHTML = state.outputs.length
-      ? state.outputs
-          .map(
-            o =>
-              `<option value="${escapeHtml(o.id)}" ${o.selected ? 'selected' : ''}>${escapeHtml(o.name)} · ${escapeHtml(o.type)}</option>`
-          )
-          .join('')
-      : '<option value="">No output</option>';
-    if (old && state.outputs.some(o => String(o.id) === String(old))) els.outputSelect.value = old;
+    renderOutputSelect();
     [els.previousButton, els.nextButton].forEach(button => {
       if (!button) return;
       button.disabled = directRadio;
@@ -874,15 +854,36 @@
           .join('')
       : '<p class="empty-state">No playlists found.</p>';
   }
+  // Cards start as CHECKING, not LIVE: radio-dnd probes each stream right after
+  // mount, and claiming LIVE before the probe answers is a lie for ~300 ms.
+  function radioCardHtml(station) {
+    return `
+      <div class="radio-card" role="button" tabindex="0" data-uri="${escapeHtml(station.uri)}" title="${escapeHtml(station.name)}">
+        <span class="radio-card-top">
+          <span class="radio-card-badges">
+            <span class="radio-health-pill" data-status="checking">CHECKING</span>
+            <span class="radio-quality-pill">STREAM</span>
+          </span>
+          <span class="radio-card-actions">
+            <button type="button" class="radio-favorite" title="Pin favorite station">♡</button>
+          </span>
+        </span>
+        <span class="radio-card-body">
+          <b class="radio-station-name">${escapeHtml(station.name)}</b>
+          <small class="radio-station-sub">OwnTone radio preset</small>
+        </span>
+        <span class="radio-card-foot"><span class="radio-play-btn">${icons.play}</span></span>
+      </div>`;
+  }
+
   function renderRadio() {
     const stations = state.radioPlaylists;
+    // Both grids are rebuilt together. radio-dnd moves favourite cards into
+    // #radioFavoritesGrid, so leaving that grid alone would keep the previous
+    // render's nodes alongside the new ones and duplicate every favourite.
+    if (els.radioFavoritesGrid) els.radioFavoritesGrid.innerHTML = '';
     els.radioGrid.innerHTML = stations.length
-      ? stations
-          .map(
-            (p, i) =>
-              `<div class="radio-card" role="button" tabindex="0" data-uri="${escapeHtml(p.uri)}" title="${escapeHtml(p.name)}"><span class="radio-card-top"><span class="radio-card-badges"><span class="radio-health-pill" data-status="live">LIVE</span><span class="radio-quality-pill">STREAM</span></span><span class="radio-card-actions"><button type="button" class="radio-favorite" title="Pin favorite station">♡</button></span></span><span class="radio-card-body"><b class="radio-station-name">${escapeHtml(p.name)}</b><small class="radio-station-sub">OwnTone radio preset</small></span><span class="radio-card-foot"><span class="radio-play-btn">${icons.smallPlay}</span></span></div>`
-          )
-          .join('')
+      ? stations.map(radioCardHtml).join('')
       : `<div class="empty-state">No radio playlists found. Put station M3U files under a path containing <b>${escapeHtml(cfg.radioPathHint)}</b> and refresh the OwnTone library.</div>`;
     if (typeof window.OWNTONE_ENHANCE_RADIO === 'function') window.OWNTONE_ENHANCE_RADIO();
   }
@@ -973,35 +974,22 @@
       return;
     }
     try {
-      const slider = Number(els.volumeRange.value || 0);
-      if (slider > 0) {
-        const out = selectedOutput();
-        if (out?.id === 'browser') window.OWNTONE_BROWSER_OUTPUT?.setVolume(slider);
-        else if (out?.id != null) {
-          const v = new URLSearchParams({ volume: String(slider), output_id: String(out.id) });
-          await request(`/player/volume?${v}`, { method: 'PUT' });
-        }
-      }
-      const qs = new URLSearchParams({
-        uris: uri,
-        clear: 'true',
-        playback: 'start',
-        shuffle: String(shuffle),
-      });
-      await request(`/queue/items/add?${qs}`, { method: 'POST' });
+      // One entry point for every playback path — it applies the night-safe
+      // ceiling and the volume for all selected outputs before starting.
+      await startPlayback({ uris: uri, shuffle });
       await refreshPlayback();
     } catch (err) {
       clearPlaybackFeedback();
       toast(`Could not play: ${err.message}`);
     }
   }
-  async function playPlaylistByName(name) {
+  async function playPlaylistByName(name, { shuffle = false } = {}) {
     const p = state.playlists.find(x => String(x.name).toLowerCase() === String(name).toLowerCase());
     if (!p) {
       toast(`${name} playlist not found`);
       return;
     }
-    await playUri(p.uri, { shuffle: /random|morning|favorites/i.test(name) });
+    await playUri(p.uri, { shuffle });
   }
   async function playExpression(expression, { shuffle = false, label = '' } = {}) {
     if (state.demo) {
@@ -1019,22 +1007,7 @@
       return;
     }
     try {
-      const slider = Number(els.volumeRange.value || 0);
-      if (slider > 0) {
-        const out = selectedOutput();
-        if (out?.id === 'browser') window.OWNTONE_BROWSER_OUTPUT?.setVolume(slider);
-        else if (out?.id != null) {
-          const v = new URLSearchParams({ volume: String(slider), output_id: String(out.id) });
-          await request(`/player/volume?${v}`, { method: 'PUT' });
-        }
-      }
-      const qs = new URLSearchParams({
-        expression,
-        clear: 'true',
-        playback: 'start',
-        shuffle: String(!!shuffle),
-      });
-      await request(`/queue/items/add?${qs}`, { method: 'POST' });
+      await startPlayback({ expression, shuffle });
       await refreshPlayback();
     } catch (err) {
       toast(`Playback failed: ${err.message}`);
@@ -1072,10 +1045,9 @@
       renderPlayer();
       return;
     }
+    if (out?.id == null) return;
     try {
-      const qs = new URLSearchParams({ volume: String(v) });
-      if (out?.id != null) qs.set('output_id', String(out.id));
-      await request(`/player/volume?${qs}`, { method: 'PUT' });
+      await setOutputVolume(out.id, v);
     } catch (err) {
       console.warn('Volume PUT failed:', err);
     }
@@ -1206,7 +1178,39 @@
   els.shuffleLibraryButton.addEventListener('click', shuffleLibrary);
   els.quickGrid.addEventListener('click', e => {
     const card = e.target.closest('[data-playlist]');
-    if (card) playPlaylistByName(card.dataset.playlist);
+    if (card) playPlaylistByName(card.dataset.playlist, { shuffle: card.dataset.shuffle === 'true' });
+  });
+
+  /**
+   * One delegated handler for every declarative control in index.html.
+   *
+   * The markup used to carry inline onclick attributes that reached across the
+   * page with querySelector — which is how "Recently played" ended up playing
+   * "Random 500". Buttons now declare intent via data-action, and a Content
+   * Security Policy no longer needs 'unsafe-inline' to allow them.
+   */
+  const navActions = {
+    'scroll-top': () => window.scrollTo({ top: 0, behavior: 'smooth' }),
+    'scroll-to': button => $(button.dataset.target)?.scrollIntoView({ behavior: 'smooth' }),
+    'open-search': () => els.searchButton.click(),
+    'toggle-mode': () => els.modeToggle.click(),
+    'shuffle-library': () => shuffleLibrary(),
+    'play-playlist': button =>
+      playPlaylistByName(button.dataset.playlistName, { shuffle: button.dataset.shuffle !== 'false' }),
+    // The Recently played rail is built by premium-experience.js. Fall back to
+    // the history drawer when that module is not mounted yet.
+    'show-recent': () => {
+      const rail = $('premiumRecentlyPlayed');
+      if (rail) rail.scrollIntoView({ behavior: 'smooth' });
+      else $('queueDrawerButton')?.click();
+    },
+  };
+  document.addEventListener('click', e => {
+    const button = e.target.closest('[data-action]');
+    const action = button && navActions[button.dataset.action];
+    if (!action) return;
+    e.preventDefault();
+    action(button);
   });
   els.albumGrid.addEventListener('click', e => {
     const card = e.target.closest('[data-uri]');

@@ -1,28 +1,12 @@
 (() => {
   'use strict';
 
-  const cfg = Object.assign({ schedulerBase: '/scheduler' }, window.OWNTONE_DASHBOARD || {});
-  const base = String(cfg.schedulerBase || '/scheduler').replace(/\/$/, '');
+  const { scheduler: api, toast: say } = window.OwnTone;
   const PRESETS = [15, 30, 45, 60, 90];
   let button;
   let popover;
   let statusEl;
   let pollTimer;
-
-  function say(message) {
-    const el = document.getElementById('toast');
-    if (!el) return;
-    el.textContent = message;
-    el.classList.add('show');
-    clearTimeout(el._sleepTimer);
-    el._sleepTimer = setTimeout(() => el.classList.remove('show'), 2400);
-  }
-
-  async function api(path, options = {}) {
-    const response = await fetch(`${base}${path}`, options);
-    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-    return response.json();
-  }
 
   function renderStatus(status) {
     if (!statusEl || !button) return;

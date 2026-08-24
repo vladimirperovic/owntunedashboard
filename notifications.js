@@ -1,8 +1,7 @@
 (() => {
   'use strict';
 
-  const cfg = Object.assign({ schedulerBase: '/scheduler' }, window.OWNTONE_DASHBOARD || {});
-  const base = String(cfg.schedulerBase || '/scheduler').replace(/\/$/, '');
+  const { scheduler } = window.OwnTone;
   const KEY = 'owntone-notify-enabled-v1';
   const SEEN_KEY = 'owntone-notify-last-seen';
   let button;
@@ -88,9 +87,8 @@
   async function poll() {
     if (!enabled()) return;
     try {
-      const response = await fetch(`${base}/activity`, { cache: 'no-store' });
-      if (!response.ok) return;
-      const data = await response.json();
+      const data = await scheduler('/activity').catch(() => null);
+      if (!data) return;
       const items = data?.items || [];
       const seen = lastSeen();
       const fresh = items.filter(it => !seen || String(it.at) > seen);

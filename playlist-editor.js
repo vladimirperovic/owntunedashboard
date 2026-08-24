@@ -1,41 +1,13 @@
 (() => {
   'use strict';
 
-  const cfg = Object.assign({ schedulerBase: '/scheduler' }, window.OWNTONE_DASHBOARD || {});
-  const base = String(cfg.schedulerBase || '/scheduler').replace(/\/$/, '');
-  const escapeHtml = v =>
-    String(v ?? '').replace(
-      /[&<>"']/g,
-      c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
-    );
-  const trashIcon =
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>';
+  const { scheduler: api, escapeHtml, toast: say, icons } = window.OwnTone;
+  const trashIcon = icons.trash;
   let dialog;
   let listEl;
   let editorEl;
   let msgEl;
   let currentSlug = '';
-
-  async function api(path, options = {}) {
-    const response = await fetch(`${base}${path}`, options);
-    if (!response.ok) {
-      let detail = `${response.status} ${response.statusText}`;
-      try {
-        detail = (await response.json()).error || detail;
-      } catch (_) {}
-      throw new Error(detail);
-    }
-    return response.json();
-  }
-
-  function say(message) {
-    const el = document.getElementById('toast');
-    if (!el) return;
-    el.textContent = message;
-    el.classList.add('show');
-    clearTimeout(el._plTimer);
-    el._plTimer = setTimeout(() => el.classList.remove('show'), 2200);
-  }
 
   async function renderList() {
     try {

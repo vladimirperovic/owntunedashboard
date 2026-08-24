@@ -1,8 +1,8 @@
 (() => {
   'use strict';
 
+  const { schedulerUrl } = window.OwnTone;
   const FAVORITES_KEY = 'owntone-radio-favorites-v1';
-  const companionBase = String(window.OWNTONE_DASHBOARD?.schedulerBase || '/scheduler').replace(/\/$/, '');
   const grid = () => document.getElementById('radioGrid');
   const favGrid = () => document.getElementById('radioFavoritesGrid');
   const grids = () => [favGrid(), grid()].filter(Boolean);
@@ -165,7 +165,7 @@
     }
     try {
       const response = await fetch(
-        `${companionBase}/radio-health?playlist_id=${encodeURIComponent(id)}${force ? '&force=1' : ''}`,
+        schedulerUrl(`/radio-health?playlist_id=${encodeURIComponent(id)}${force ? '&force=1' : ''}`),
         { cache: 'no-store' }
       );
       if (!response.ok) throw new Error(String(response.status));

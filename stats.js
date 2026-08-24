@@ -1,13 +1,7 @@
 (() => {
   'use strict';
 
-  const cfg = Object.assign({ schedulerBase: '/scheduler' }, window.OWNTONE_DASHBOARD || {});
-  const base = String(cfg.schedulerBase || '/scheduler').replace(/\/$/, '');
-  const escapeHtml = v =>
-    String(v ?? '').replace(
-      /[&<>"']/g,
-      c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
-    );
+  const { scheduler, escapeHtml, whenReady } = window.OwnTone;
   let section;
   let timer;
 
@@ -68,8 +62,8 @@
     if (!section || !window.OWNTONE_APP?.state?.online) return;
     try {
       const [stats, activity] = await Promise.all([
-        fetch(`${base}/stats?days=30`, { cache: 'no-store' }).then(r => (r.ok ? r.json() : null)),
-        fetch(`${base}/activity`, { cache: 'no-store' }).then(r => (r.ok ? r.json() : null)),
+        scheduler('/stats?days=30').catch(() => null),
+        scheduler('/activity').catch(() => null),
       ]);
       if (!stats && !activity) return;
       section.innerHTML = `
@@ -98,17 +92,9 @@
     timer = setInterval(render, 120000);
   }
 
-  function boot() {
-    let tries = 0;
-    const t = setInterval(() => {
-      tries += 1;
-      if ((window.OWNTONE_APP?.state?.online && document.getElementById('playlistsSection')) || tries > 40) {
-        clearInterval(t);
-        mount();
-      }
-    }, 1500);
-  }
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
-  else boot();
+  // Same as browse.js: wait for the ready event rather than polling for it.
+  whenReady(({ detail }) => {
+    if (detail?.demo) return;
+    mount();
+  });
 })();

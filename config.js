@@ -8,7 +8,17 @@ window.OWNTONE_DASHBOARD = {
   fallbackPollMs: 15000,
   websocketPath: '/owntone-events',
   websocketReconnectMs: 2500,
+  // A playlist counts as a radio station when its file path contains this
+  // fragment. This is the reliable signal — prefer it to name matching.
   radioPathHint: '/Radio/',
+
+  // Extra whole-word name fragments that also mark a playlist as a station, for
+  // libraries where the stations do not live in one folder. Matching is
+  // case-insensitive and on whole words, so 'radio' matches "Rock Radio" but not
+  // "Radiohead". Keep this list short: anything here can misread an album
+  // playlist as a station. Example: ['radio', 'naxi', 's1', '202'].
+  radioNameHints: ['radio'],
+
   preferredOutput: 'HomePod',
   browserStreamPath: '/stream.mp3',
 
@@ -30,82 +40,95 @@ window.OWNTONE_DASHBOARD = {
   // Default folder path when opening the folder browser
   defaultFolderPath: '/media/music/Music',
 
-  // Optional per-station quality labels. Add verified ffprobe results here when
-  // OwnTone's playlist metadata does not expose codec/bitrate.
-  radioQuality: {
-    'Radio Porto Montenegro': 'MP3 320k',
-  },
+  // Optional per-station quality labels, keyed by station name. Add verified
+  // ffprobe results here when OwnTone's playlist metadata does not expose
+  // codec/bitrate. Example: { 'Radio Porto Montenegro': 'MP3 320k' }
+  radioQuality: {},
 
-  // Local station artwork. Stations without a configured image stay text-only.
-  radioArtwork: {
-    'Naxi Radio': 'station-logos/naxi.svg',
-    'Radio S1': 'station-logos/s1.svg',
-    'Radio Beograd 202': 'station-logos/radio-202.svg',
-    'Rock Radio': 'station-logos/rock-radio.svg',
-    'Radio Porto Montenegro': 'station-logos/porto-montenegro.svg',
-  },
+  // Local station artwork, keyed by station name. Stations without a configured
+  // image stay text-only (the dashboard draws a monogram instead).
+  // The bundled logos under station-logos/ are examples — replace them with
+  // your own. Example: { 'Naxi Radio': 'station-logos/naxi.svg' }
+  radioArtwork: {},
 };
 
-// Feature modules stay isolated, while all cross-app visual rules are consolidated
-// into design-system.css to avoid cascades of competing last-mile overrides.
+/*
+ * Asset loader.
+ *
+ * Everything is appended from here rather than listed in index.html so the
+ * `?v=BUILD` cache buster lives in exactly one place.
+ *
+ * Order matters and is guaranteed: a dynamically created script defaults to
+ * async, and setting `script.async = false` puts it in the browser's
+ * "execute in insertion order, as soon as possible" list. So shared.js runs
+ * before app.js, and app.js before every feature module.
+ *
+ * (`script.defer` is deliberately not set — the spec ignores defer on scripts
+ * that were not inserted by the HTML parser, so setting it only misleads.)
+ */
 (() => {
-  const BUILD = '20260821-22';
+  const BUILD = '20260824-01';
   const asset = path => `${path}?v=${BUILD}`;
 
-  const addStyle = (href, dataKey) => {
-    if (document.querySelector(`link[data-${dataKey}]`)) return;
+  const addStyle = href => {
+    if (document.querySelector(`link[data-owntone-style="${href}"]`)) return;
     const style = document.createElement('link');
     style.rel = 'stylesheet';
     style.href = asset(href);
-    style.setAttribute(`data-${dataKey}`, '1');
+    style.dataset.owntoneStyle = href;
     document.head.appendChild(style);
   };
 
-  const addScript = (src, dataKey) => {
-    if (document.querySelector(`script[data-${dataKey}]`)) return;
+  const addScript = src => {
+    if (document.querySelector(`script[data-owntone-script="${src}"]`)) return;
     const script = document.createElement('script');
     script.src = asset(src);
-    // Dynamically created scripts are async by default; preserve insertion order on Safari/mobile.
     script.async = false;
-    script.defer = true;
-    script.setAttribute(`data-${dataKey}`, '1');
+    script.dataset.owntoneScript = src;
     document.head.appendChild(script);
   };
 
-  addStyle('radio-polish.css', 'owntone-radio-polish');
-  addStyle('radio-features.css', 'owntone-radio-features');
-  addStyle('library-browser.css', 'owntone-library-browser');
-  addStyle('scheduler-ui.css', 'owntone-scheduler-ui');
-  addStyle('mute-control.css', 'owntone-mute-control');
-  addStyle('playback-tools.css', 'owntone-playback-tools');
-  addStyle('design-system.css', 'owntone-design-system');
-  addStyle('premium-experience.css', 'owntone-premium-experience');
-  addStyle('context-multiroom.css', 'owntone-context-multiroom');
-  addStyle('production-polish.css', 'owntone-production-polish');
-  addStyle('live-playback-polish.css', 'owntone-live-playback-polish');
-  addStyle('extras.css', 'owntone-extras');
+  // Stylesheets, in cascade order — styles.css (from index.html) is the base.
+  [
+    'radio-polish.css',
+    'radio-features.css',
+    'library-browser.css',
+    'scheduler-ui.css',
+    'mute-control.css',
+    'playback-tools.css',
+    'design-system.css',
+    'premium-experience.css',
+    'context-multiroom.css',
+    'production-polish.css',
+    'live-playback-polish.css',
+    'extras.css',
+  ].forEach(addStyle);
 
-  addScript('playback-tools.js', 'owntone-playback-tools-js');
-  addScript('night-safety-history.js', 'owntone-night-safety-history-js');
-  addScript('radio-dnd.js', 'owntone-radio-dnd');
-  addScript('library-browser.js', 'owntone-library-browser-js');
-  addScript('scheduler-ui.js', 'owntone-scheduler-ui-js');
-  addScript('radio-visualizer.js', 'owntone-radio-visualizer-js');
-  addScript('mute-control.js', 'owntone-mute-control-js');
-  addScript('design-enhancements.js', 'owntone-design-enhancements-js');
-  addScript('premium-experience.js', 'owntone-premium-experience-js');
-  addScript('browser-output.js', 'owntone-browser-output-js');
-  addScript('context-multiroom.js', 'owntone-context-multiroom-js');
-  addScript('safari-touch-fix.js', 'owntone-safari-touch-fix-js');
-  addScript('live-playback-polish.js', 'owntone-live-playback-polish-js');
-  addScript('sleep-timer.js', 'owntone-sleep-timer-js');
-  addScript('shortcuts.js', 'owntone-shortcuts-js');
-  addScript('browse.js', 'owntone-browse-js');
-  addScript('station-manager.js', 'owntone-station-manager-js');
-  addScript('stats.js', 'owntone-stats-js');
-  addScript('playlist-editor.js', 'owntone-playlist-editor-js');
-  addScript('screensaver.js', 'owntone-screensaver-js');
-  addScript('notifications.js', 'owntone-notifications-js');
+  // shared.js and app.js first — every module below depends on both.
+  [
+    'shared.js',
+    'app.js',
+    'playback-tools.js',
+    'radio-dnd.js',
+    'library-browser.js',
+    'scheduler-ui.js',
+    'radio-visualizer.js',
+    'mute-control.js',
+    'design-enhancements.js',
+    'premium-experience.js',
+    'browser-output.js',
+    'context-multiroom.js',
+    'safari-touch-fix.js',
+    'live-playback-polish.js',
+    'sleep-timer.js',
+    'shortcuts.js',
+    'browse.js',
+    'station-manager.js',
+    'stats.js',
+    'playlist-editor.js',
+    'screensaver.js',
+    'notifications.js',
+  ].forEach(addScript);
 
   // Deployed build identity, shown in the sidebar footer (with version.json commit when present).
   window.OWNTONE_DASHBOARD_BUILD = BUILD;

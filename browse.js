@@ -1,20 +1,8 @@
 (() => {
   'use strict';
 
-  const cfg = Object.assign({ apiBase: '/api' }, window.OWNTONE_DASHBOARD || {});
-  const base = String(cfg.apiBase || '/api').replace(/\/$/, '');
-  const escapeHtml = v =>
-    String(v ?? '').replace(
-      /[&<>"']/g,
-      c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
-    );
+  const { api, escapeHtml, whenReady } = window.OwnTone;
   let mounted = false;
-
-  async function api(path) {
-    const response = await fetch(`${base}${path}`, { cache: 'no-store' });
-    if (!response.ok) throw new Error(`${response.status}`);
-    return response.json();
-  }
 
   function playExpression(expression, label) {
     const appInstance = window.OWNTONE_APP;
@@ -104,23 +92,11 @@
     }
   }
 
-  function mount() {
-    if (mounted) return;
-    // wait for first successful library refresh so sections only appear when online
-    let tries = 0;
-    const timer = setInterval(() => {
-      tries += 1;
-      if (mounted) {
-        clearInterval(timer);
-        return;
-      }
-      if (document.getElementById('playlistsSection') && window.OWNTONE_APP?.state?.online) {
-        clearInterval(timer);
-        load();
-      } else if (tries > 40) clearInterval(timer);
-    }, 1500);
-  }
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount, { once: true });
-  else mount();
+  // app.js announces when the library is loaded. This used to be a setInterval
+  // that checked window.OWNTONE_APP every 1.5 s and gave up silently after 60 s,
+  // so on a slow server the Browse sections simply never appeared.
+  whenReady(({ detail }) => {
+    if (mounted || detail?.demo) return;
+    load();
+  });
 })();

@@ -1,11 +1,7 @@
 (() => {
   'use strict';
 
-  const cfg = Object.assign(
-    { apiBase: '/api', defaultFolderPath: '/media/music/Music' },
-    window.OWNTONE_DASHBOARD || {}
-  );
-  const apiBase = String(cfg.apiBase || '/api').replace(/\/$/, '');
+  const { config: cfg, api: request, escapeHtml, icons: shared, startPlayback } = window.OwnTone;
   const defaultPath = String(cfg.defaultFolderPath || '/media/music/Music');
   let dialog;
   let body;
@@ -21,39 +17,20 @@
   const icon = {
     folder:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.8h6l1.8 2h9.2v9.7a1.7 1.7 0 0 1-1.7 1.7H5.2a1.7 1.7 0 0 1-1.7-1.7V6.8Z"/><path d="M3.5 9h17"/></svg>',
-    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7L8 5Z"/></svg>',
+    play: shared.play,
     back: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',
-    shuffle:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h2.5c4 0 5 10 9 10H20M17 14l3 3-3 3M4 17h2.5c1.5 0 2.6-1.4 3.6-3M15.5 7H20M17 4l3 3-3 3"/></svg>',
+    shuffle: shared.shuffle,
     next: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l9 7-9 7V5Z"/><path d="M18 5v14"/></svg>',
-    add: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+    add: shared.plus,
     search:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
   };
 
-  function apiUrl(path) {
-    return `${apiBase}${path.startsWith('/') ? path : '/' + path}`;
-  }
-  async function request(path, options = {}) {
-    const response = await fetch(apiUrl(path), options);
-    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-    const text = await response.text();
-    return text ? JSON.parse(text) : null;
-  }
-  function escapeHtml(value) {
-    return String(value ?? '').replace(
-      /[&<>"']/g,
-      ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]
-    );
-  }
   function basename(path) {
     const clean = String(path || '').replace(/\/+$/, '');
     return clean.split('/').filter(Boolean).pop() || clean || 'Music';
   }
-  function duration(ms) {
-    const total = Math.max(0, Math.round((Number(ms) || 0) / 1000));
-    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
-  }
+  const duration = window.OwnTone.formatTime;
   function quality(track) {
     const type = String(track.type || '').toUpperCase();
     const bitrate = String(track.bitrate || '').trim();
@@ -360,14 +337,13 @@
       const player = await request('/player').catch(() => null);
       const running = player?.state === 'play' || player?.state === 'pause';
       if (!running) {
-        await request(`/queue/items/add?uris=${encodeURIComponent(uri)}&clear=false&playback=start`, {
+        // Nothing is playing, so "play next" is really "play now" — it starts
+        // audio and therefore goes through the shared night-safe entry point.
+        await startPlayback({ uris: uri, clear: false });
+      } else {
+        await request(`/queue/items/add?uris=${encodeURIComponent(uri)}&clear=false&playback=stop`, {
           method: 'POST',
         });
-      } else {
-        const added = await request(
-          `/queue/items/add?uris=${encodeURIComponent(uri)}&clear=false&playback=stop`,
-          { method: 'POST' }
-        );
         const q = await request('/queue?start=0&end=500');
         const queue = q?.items || [];
         const now = await request('/queue?id=now_playing').catch(() => null);
@@ -393,22 +369,15 @@
     const valid = uris.filter(Boolean);
     if (!valid.length) return;
     try {
+      // Starting from cold uses the configured manual volume rather than
+      // whatever the slider happens to show; shared.js applies the night cap.
       const running = await request('/player').catch(() => null);
-      if (cfg.manualVolume != null && running?.state !== 'play' && running?.state !== 'pause') {
-        const outs = await request('/outputs').catch(() => null);
-        const out = (outs?.outputs || []).find(o => o.selected);
-        if (out?.id != null) {
-          const v = new URLSearchParams({ volume: String(cfg.manualVolume), output_id: String(out.id) });
-          await request(`/player/volume?${v}`, { method: 'PUT' });
-        }
-      }
-      const qs = new URLSearchParams({
+      const cold = running?.state !== 'play' && running?.state !== 'pause';
+      await startPlayback({
         uris: valid.join(','),
-        clear: 'true',
-        playback: 'start',
-        shuffle: String(!!shuffle),
+        shuffle,
+        volume: cold && cfg.manualVolume != null ? cfg.manualVolume : undefined,
       });
-      await request(`/queue/items/add?${qs}`, { method: 'POST' });
       window.OWNTONE_SYNC_PLAYBACK_MODE?.(valid[0]);
       dialog?.close();
     } catch (error) {

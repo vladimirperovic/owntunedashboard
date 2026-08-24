@@ -1,9 +1,8 @@
 (() => {
   'use strict';
 
-  const cfg = Object.assign({ apiBase: '/api', safeUnmuteVolume: 10 }, window.OWNTONE_DASHBOARD || {});
+  const { config: cfg, setOutputVolume } = window.OwnTone;
   const STORAGE_KEY = 'owntone-dashboard-last-volume-v1';
-  const apiBase = String(cfg.apiBase || '/api').replace(/\/$/, '');
   let button;
   let busy = false;
 
@@ -13,10 +12,6 @@
     muted:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="m17 9 5 5M22 9l-5 5"/></svg>',
   };
-
-  function apiUrl(path) {
-    return `${apiBase}${path.startsWith('/') ? path : '/' + path}`;
-  }
 
   function selectedOutputId() {
     return document.getElementById('outputSelect')?.value || '';
@@ -65,12 +60,7 @@
   }
 
   async function setServerVolume(value) {
-    const volume = Math.max(0, Math.min(100, Math.round(value)));
-    const params = new URLSearchParams({ volume: String(volume) });
-    const outputId = selectedOutputId();
-    if (outputId) params.set('output_id', outputId);
-    const response = await fetch(apiUrl(`/player/volume?${params}`), { method: 'PUT' });
-    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+    await setOutputVolume(selectedOutputId(), value);
   }
 
   function render() {

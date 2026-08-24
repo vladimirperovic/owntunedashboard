@@ -1,188 +1,406 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#f2ece4" />
-  <meta name="color-scheme" content="light dark" />
-  <title>OwnTone Dashboard</title>
-  <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
-  <div class="app-bg" aria-hidden="true"></div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="theme-color" content="#f0e8de" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f0f10" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
+    <title>OwnTone Dashboard</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <!-- iOS ignores manifest icons and does not accept SVG for the home screen,
+       so "Add to Home Screen" needs this PNG to show anything but a screenshot. -->
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="OwnTone" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-bg" aria-hidden="true"></div>
 
-  <div class="app-shell" id="app">
-    <header class="topbar">
-      <div class="sidebar-brand topbar-brand">
-        <div class="sound-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
-        <div><strong>OwnTone</strong><span>DASHBOARD</span></div>
-      </div>
+    <div class="app-shell" id="app">
+      <header class="topbar">
+        <div class="sidebar-brand topbar-brand">
+          <div class="sound-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+          <div><strong>OwnTone</strong><span>DASHBOARD</span></div>
+        </div>
 
-      <div class="mobile-brand">
-        <div class="brand-mark">OT</div>
-        <div><div class="eyebrow">OWN TONE</div><div class="brand-subtitle" id="connectionText">Connecting…</div></div>
-      </div>
+        <div class="mobile-brand">
+          <div class="brand-mark">OT</div>
+          <div>
+            <div class="eyebrow">OWN TONE</div>
+            <div class="brand-subtitle" id="connectionText">Connecting…</div>
+          </div>
+        </div>
 
-      <div class="desktop-status"><span class="status-mini"></span><span id="desktopConnection">OwnTone</span></div>
+        <div class="desktop-status">
+          <span class="status-mini"></span><span id="desktopConnection">OwnTone</span>
+        </div>
 
-      <div class="top-actions">
-        <button class="icon-button subtle" id="searchButton" type="button" aria-label="Search music" title="Search">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35m1.35-5.65a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"/></svg>
-        </button>
-        <button class="mode-toggle" id="modeToggle" type="button" aria-label="Open radio" title="Open radio">
-          <span id="modeToggleIcon"></span><span class="mode-toggle-label" id="modeToggleLabel">Radio</span>
-        </button>
-      </div>
-    </header>
+        <div class="top-actions">
+          <button
+            class="icon-button subtle"
+            id="searchButton"
+            type="button"
+            aria-label="Search music"
+            title="Search"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m21 21-4.35-4.35m1.35-5.65a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z" />
+            </svg>
+          </button>
+          <button
+            class="mode-toggle"
+            id="modeToggle"
+            type="button"
+            aria-label="Open radio"
+            title="Open radio"
+          >
+            <span id="modeToggleIcon"></span><span class="mode-toggle-label" id="modeToggleLabel">Radio</span>
+          </button>
+        </div>
+      </header>
 
-    <aside class="sidebar" aria-label="Primary navigation">
-      <nav class="side-nav">
-        <button class="side-link active" type="button" onclick="window.scrollTo({top:0,behavior:'smooth'})"><span>⌂</span>Home</button>
-        <button class="side-link" type="button" onclick="document.getElementById('searchButton').click()"><span>⌕</span>Search</button>
-        <div class="nav-label">Library</div>
-        <button class="side-link" type="button" onclick="document.getElementById('albumsSection').scrollIntoView({behavior:'smooth'})"><span>◎</span>Albums</button>
-        <button class="side-link" type="button" onclick="document.getElementById('playlistsSection').scrollIntoView({behavior:'smooth'})"><span>≡</span>Playlists</button>
-        <button class="side-link" type="button" onclick="document.querySelector('[data-playlist=&quot;Favorites&quot;]')?.click()"><span>♡</span>Favorites</button>
-        <button class="side-link" type="button" onclick="document.querySelector('[data-playlist=&quot;Random 500&quot;]')?.click()"><span>◷</span>Recently played</button>
-        <div class="nav-label">Quick access</div>
-        <button class="side-link" type="button" onclick="document.querySelector('[data-playlist=&quot;Random 500&quot;]')?.click()"><span>⌘</span>Random 500</button>
-        <button class="side-link" type="button" onclick="document.querySelector('[data-playlist=&quot;Morning&quot;]')?.click()"><span>☼</span>Morning</button>
-        <button class="side-link" type="button" onclick="document.getElementById('shuffleLibraryButton')?.click()"><span>♫</span>My Music</button>
-      </nav>
+      <aside class="sidebar" aria-label="Primary navigation">
+        <!-- data-nav is the stable handle: feature modules insert their own links
+           next to these, and data-action is read by the delegated handler in
+           app.js. Neither depends on the visible label. -->
+        <nav class="side-nav">
+          <button class="side-link active" type="button" data-nav="home" data-action="scroll-top">
+            <span>⌂</span>Home
+          </button>
+          <button class="side-link" type="button" data-nav="search" data-action="open-search">
+            <span>⌕</span>Search
+          </button>
+          <div class="nav-label" data-nav-group="library">Library</div>
+          <button
+            class="side-link"
+            type="button"
+            data-nav="albums"
+            data-action="scroll-to"
+            data-target="albumsSection"
+          >
+            <span>◎</span>Albums
+          </button>
+          <button
+            class="side-link"
+            type="button"
+            data-nav="playlists"
+            data-action="scroll-to"
+            data-target="playlistsSection"
+          >
+            <span>≡</span>Playlists
+          </button>
+          <button
+            class="side-link"
+            type="button"
+            data-nav="favorites"
+            data-action="play-playlist"
+            data-playlist-name="Favorites"
+          >
+            <span>♡</span>Favorites
+          </button>
+          <button class="side-link" type="button" data-nav="recent" data-action="show-recent">
+            <span>◷</span>Recently played
+          </button>
+          <div class="nav-label" data-nav-group="quick">Quick access</div>
+          <button
+            class="side-link"
+            type="button"
+            data-nav="random"
+            data-action="play-playlist"
+            data-playlist-name="Random 500"
+          >
+            <span>⌘</span>Random 500
+          </button>
+          <button
+            class="side-link"
+            type="button"
+            data-nav="morning"
+            data-action="play-playlist"
+            data-playlist-name="Morning"
+          >
+            <span>☼</span>Morning
+          </button>
+          <button class="side-link" type="button" data-nav="mymusic" data-action="shuffle-library">
+            <span>♫</span>My Music
+          </button>
+        </nav>
 
-      <div class="sidebar-foot">
-        <span id="serverVersion">OwnTone API</span>
-      </div>
-    </aside>
+        <div class="sidebar-foot">
+          <span id="serverVersion">OwnTone API</span>
+        </div>
+      </aside>
 
-    <div class="page-area">
-      <main>
-        <section class="hero-stack">
-          <section class="player-card" id="playerCard">
-            <div class="player-art-wrap">
-              <div class="player-art" id="playerArt">
-                <div class="art-placeholder" id="artPlaceholder"><div class="record-art"><span></span></div></div>
-                <img id="artwork" src="icon.svg" alt="" />
-                <div class="live-pill" id="livePill">LIVE</div>
-                <div class="format-pill" id="formatPill">FLAC</div>
-              </div>
-            </div>
-
-            <div class="player-content">
-              <div class="player-kicker-row">
-                <span class="section-kicker" id="playerKicker">NOW PLAYING</span>
-                <span class="status-dot-wrap"><span class="status-dot" id="statusDot"></span><span id="outputName">No output</span></span>
-              </div>
-
-              <div class="track-copy">
-                <h1 id="trackTitle">Your music, beautifully simple.</h1>
-                <p id="trackArtist">OwnTone</p>
-                <p class="track-meta" id="trackMeta">Waiting for the server</p>
-                <div class="track-chips" id="trackChips" aria-label="Audio details" aria-live="polite" hidden></div>
-              </div>
-
-              <div class="radio-wave" aria-hidden="true">
-                <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-              </div>
-
-              <div class="transport-row">
-                <button class="micro-action" type="button" aria-label="Random 500" title="Random 500" onclick="document.querySelector('[data-playlist=&quot;Random 500&quot;]')?.click()">⌘</button>
-                <div class="transport" aria-label="Playback controls">
-                  <button class="transport-button" id="previousButton" type="button" aria-label="Previous track" title="Previous track"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 20 9 12l10-8v16M5 19V5"/></svg></button>
-                  <button class="play-button" id="playButton" type="button" aria-label="Play"><span id="playIcon"></span></button>
-                  <button class="transport-button" id="nextButton" type="button" aria-label="Next track" title="Next track"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 4 10 8-10 8V4M19 5v14"/></svg></button>
+      <div class="page-area">
+        <main>
+          <section class="hero-stack">
+            <section class="player-card" id="playerCard">
+              <div class="player-art-wrap">
+                <div class="player-art" id="playerArt">
+                  <div class="art-placeholder" id="artPlaceholder">
+                    <div class="record-art"><span></span></div>
+                  </div>
+                  <img id="artwork" src="icon.svg" alt="" />
+                  <div class="live-pill" id="livePill">LIVE</div>
+                  <div class="format-pill" id="formatPill">FLAC</div>
                 </div>
-                <button class="micro-action" type="button" aria-label="Favorites" title="Favorites" onclick="document.querySelector('[data-playlist=&quot;Favorites&quot;]')?.click()">♡</button>
               </div>
 
-              <div class="progress-block" id="progressBlock">
-                <input id="progressRange" class="range" type="range" min="0" max="1000" value="0" aria-label="Track progress" />
-                <div class="time-row"><span id="elapsedTime">0:00</span><span id="remainingTime">−0:00</span></div>
+              <div class="player-content">
+                <div class="player-kicker-row">
+                  <span class="section-kicker" id="playerKicker">NOW PLAYING</span>
+                  <span class="status-dot-wrap"
+                    ><span class="status-dot" id="statusDot"></span
+                    ><span id="outputName">No output</span></span
+                  >
+                </div>
+
+                <div class="track-copy">
+                  <h1 id="trackTitle">Your music, beautifully simple.</h1>
+                  <p id="trackArtist">OwnTone</p>
+                  <p class="track-meta" id="trackMeta">Waiting for the server</p>
+                  <div
+                    class="track-chips"
+                    id="trackChips"
+                    aria-label="Audio details"
+                    aria-live="polite"
+                    hidden
+                  ></div>
+                </div>
+
+                <div class="radio-wave" aria-hidden="true">
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i
+                  ><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i
+                  ><i></i><i></i>
+                </div>
+
+                <div class="transport-row">
+                  <button
+                    class="micro-action"
+                    type="button"
+                    aria-label="Random 500"
+                    title="Random 500"
+                    data-action="play-playlist"
+                    data-playlist-name="Random 500"
+                  >
+                    ⌘
+                  </button>
+                  <div class="transport" aria-label="Playback controls">
+                    <button
+                      class="transport-button"
+                      id="previousButton"
+                      type="button"
+                      aria-label="Previous track"
+                      title="Previous track"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M19 20 9 12l10-8v16M5 19V5" />
+                      </svg>
+                    </button>
+                    <button class="play-button" id="playButton" type="button" aria-label="Play">
+                      <span id="playIcon"></span>
+                    </button>
+                    <button
+                      class="transport-button"
+                      id="nextButton"
+                      type="button"
+                      aria-label="Next track"
+                      title="Next track"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 4 10 8-10 8V4M19 5v14" /></svg>
+                    </button>
+                  </div>
+                  <button
+                    class="micro-action"
+                    type="button"
+                    aria-label="Favorites"
+                    title="Favorites"
+                    data-action="play-playlist"
+                    data-playlist-name="Favorites"
+                  >
+                    ♡
+                  </button>
+                </div>
+
+                <div class="progress-block" id="progressBlock">
+                  <input
+                    id="progressRange"
+                    class="range"
+                    type="range"
+                    min="0"
+                    max="1000"
+                    value="0"
+                    aria-label="Track progress"
+                  />
+                  <div class="time-row">
+                    <span id="elapsedTime">0:00</span><span id="remainingTime">−0:00</span>
+                  </div>
+                </div>
               </div>
+            </section>
+
+            <div class="audio-dock">
+              <div class="volume-output-row">
+                <div class="volume-wrap">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 9v6h4l5 4V5L9 9H5Zm12.5 1.2a3 3 0 0 1 0 3.6M19.8 7.8a6 6 0 0 1 0 8.4" />
+                  </svg>
+                  <input
+                    id="volumeRange"
+                    class="range volume"
+                    type="range"
+                    min="0"
+                    max="100"
+                    value="25"
+                    aria-label="Volume"
+                  />
+                  <span id="volumeValue">25%</span>
+                </div>
+                <select id="outputSelect" class="output-select" aria-label="Audio output">
+                  <option value="">No output</option>
+                </select>
+              </div>
+              <button
+                class="dock-heart"
+                type="button"
+                aria-label="Play favorites"
+                title="Favorites"
+                data-action="play-playlist"
+                data-playlist-name="Favorites"
+              >
+                ♡
+              </button>
             </div>
           </section>
 
-          <div class="audio-dock">
-            <div class="volume-output-row">
-              <div class="volume-wrap">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9v6h4l5 4V5L9 9H5Zm12.5 1.2a3 3 0 0 1 0 3.6M19.8 7.8a6 6 0 0 1 0 8.4"/></svg>
-                <input id="volumeRange" class="range volume" type="range" min="0" max="100" value="25" aria-label="Volume" />
-                <span id="volumeValue">25%</span>
+          <section class="music-view" id="musicView">
+            <div class="section-heading-row compact-head">
+              <div>
+                <span class="section-kicker">QUICK ACCESS</span>
+                <h2>Start listening</h2>
               </div>
-              <select id="outputSelect" class="output-select" aria-label="Audio output"><option value="">No output</option></select>
+              <button class="text-button" id="refreshButton" type="button">Refresh</button>
             </div>
-            <button class="dock-heart" type="button" aria-label="Play favorites" title="Favorites" onclick="document.querySelector('[data-playlist=&quot;Favorites&quot;]')?.click()">♡</button>
-          </div>
-        </section>
 
-        <section class="music-view" id="musicView">
-          <div class="section-heading-row compact-head">
-            <div><span class="section-kicker">QUICK ACCESS</span><h2>Start listening</h2></div>
-            <button class="text-button" id="refreshButton" type="button">Refresh</button>
-          </div>
+            <div class="quick-grid" id="quickGrid">
+              <button class="quick-card coral" data-playlist="Favorites" data-shuffle="true" type="button">
+                <span class="quick-icon">♡</span><span><b>Favorites</b><small>Your saved picks</small></span>
+              </button>
+              <button class="quick-card ink" data-playlist="Random 500" data-shuffle="true" type="button">
+                <span class="quick-icon">⌘</span><span><b>Random 500</b><small>Surprise me</small></span>
+              </button>
+              <button class="quick-card sand" data-playlist="Morning" data-shuffle="true" type="button">
+                <span class="quick-icon">☼</span><span><b>Morning</b><small>Easy start</small></span>
+              </button>
+              <button class="quick-card blue" id="shuffleLibraryButton" type="button">
+                <span class="quick-icon">♫</span><span><b>My Music</b><small>Shuffle library</small></span>
+              </button>
+            </div>
 
-          <div class="quick-grid" id="quickGrid">
-            <button class="quick-card coral" data-playlist="Favorites" type="button"><span class="quick-icon">♡</span><span><b>Favorites</b><small>Your saved picks</small></span></button>
-            <button class="quick-card ink" data-playlist="Random 500" type="button"><span class="quick-icon">⌘</span><span><b>Random 500</b><small>Surprise me</small></span></button>
-            <button class="quick-card sand" data-playlist="Morning" type="button"><span class="quick-icon">☼</span><span><b>Morning</b><small>Easy start</small></span></button>
-            <button class="quick-card blue" id="shuffleLibraryButton" type="button"><span class="quick-icon">♫</span><span><b>My Music</b><small>Shuffle library</small></span></button>
-          </div>
+            <div class="section-heading-row spaced" id="albumsSection">
+              <div>
+                <span class="section-kicker">LIBRARY</span>
+                <h2>Recently added albums</h2>
+              </div>
+              <div class="library-count" id="libraryCount">—</div>
+            </div>
+            <div class="album-grid" id="albumGrid"></div>
 
-          <div class="section-heading-row spaced" id="albumsSection"><div><span class="section-kicker">LIBRARY</span><h2>Recently added albums</h2></div><div class="library-count" id="libraryCount">—</div></div>
-          <div class="album-grid" id="albumGrid"></div>
+            <div class="section-heading-row spaced" id="playlistsSection">
+              <div>
+                <span class="section-kicker">COLLECTIONS</span>
+                <h2>Playlists</h2>
+              </div>
+            </div>
+            <div class="playlist-grid" id="playlistGrid"></div>
+          </section>
 
-          <div class="section-heading-row spaced" id="playlistsSection"><div><span class="section-kicker">COLLECTIONS</span><h2>Playlists</h2></div></div>
-          <div class="playlist-grid" id="playlistGrid"></div>
-        </section>
+          <section class="radio-view" id="radioView" hidden>
+            <div class="radio-intro">
+              <span class="section-kicker">LIVE RADIO</span>
+              <h2>Stations</h2>
+              <p>
+                Your saved high-quality streams. Tap once and the station takes over the selected AirPlay
+                output.
+              </p>
+            </div>
+            <div class="radio-section">
+              <div class="radio-section-head">
+                <span class="section-kicker">PINNED</span>
+                <h3>Favorite streams</h3>
+              </div>
+              <div class="radio-grid" id="radioFavoritesGrid"></div>
+            </div>
+            <div class="radio-section">
+              <div class="radio-section-head">
+                <span class="section-kicker">STATIONS</span>
+                <h3>Radio</h3>
+              </div>
+              <div class="radio-grid" id="radioGrid"></div>
+            </div>
+            <div class="radio-section">
+              <div class="radio-section-head">
+                <span class="section-kicker">ON AIR</span>
+                <h3>Live text</h3>
+              </div>
+              <div id="radioLiveText"></div>
+            </div>
+          </section>
+        </main>
 
-        <section class="radio-view" id="radioView" hidden>
-          <div class="radio-intro"><span class="section-kicker">LIVE RADIO</span><h2>Stations</h2><p>Your saved high-quality streams. Tap once and the station takes over the selected AirPlay output.</p></div>
-          <div class="radio-section">
-            <div class="radio-section-head"><span class="section-kicker">PINNED</span><h3>Favorite streams</h3></div>
-            <div class="radio-grid" id="radioFavoritesGrid"></div>
-          </div>
-          <div class="radio-section">
-            <div class="radio-section-head"><span class="section-kicker">STATIONS</span><h3>Radio</h3></div>
-            <div class="radio-grid" id="radioGrid"></div>
-          </div>
-          <div class="radio-section">
-            <div class="radio-section-head"><span class="section-kicker">ON AIR</span><h3>Live text</h3></div>
-            <div id="radioLiveText"></div>
-          </div>
-        </section>
-      </main>
-
-      <footer class="footer"><span>OwnTone Dashboard</span><span>Local · AirPlay first</span></footer>
+        <footer class="footer"><span>OwnTone Dashboard</span><span>Local · AirPlay first</span></footer>
+      </div>
     </div>
-  </div>
 
-  <nav class="mobile-nav" aria-label="Mobile navigation">
-    <button class="active" type="button" onclick="window.scrollTo({top:0,behavior:'smooth'})"><span>⌂</span><small>Home</small></button>
-    <button type="button" onclick="document.getElementById('searchButton').click()"><span>⌕</span><small>Search</small></button>
-    <button type="button" onclick="document.getElementById('albumsSection').scrollIntoView({behavior:'smooth'})"><span>◎</span><small>Library</small></button>
-    <button type="button" onclick="document.getElementById('playlistsSection').scrollIntoView({behavior:'smooth'})"><span>≡</span><small>Playlists</small></button>
-    <button type="button" onclick="document.getElementById('modeToggle').click()"><span>◉</span><small>Radio</small></button>
-  </nav>
+    <nav class="mobile-nav" aria-label="Mobile navigation">
+      <button class="active" type="button" data-nav="home" data-action="scroll-top">
+        <span>⌂</span><small>Home</small>
+      </button>
+      <button type="button" data-nav="search" data-action="open-search">
+        <span>⌕</span><small>Search</small>
+      </button>
+      <button type="button" data-nav="albums" data-action="scroll-to" data-target="albumsSection">
+        <span>◎</span><small>Library</small>
+      </button>
+      <button type="button" data-nav="playlists" data-action="scroll-to" data-target="playlistsSection">
+        <span>≡</span><small>Playlists</small>
+      </button>
+      <button type="button" data-nav="radio" data-action="toggle-mode">
+        <span>◉</span><small>Radio</small>
+      </button>
+    </nav>
 
-  <dialog class="search-dialog" id="searchDialog">
-    <form method="dialog" class="search-panel" id="searchForm">
-      <div class="search-title-row"><div><span class="section-kicker">SEARCH</span><h2>Find something</h2></div><button class="icon-button" value="cancel" aria-label="Close" type="submit">×</button></div>
-      <input class="search-input" id="searchInput" type="search" placeholder="Artist, album, track or playlist…" autocomplete="off" />
-      <div class="search-results" id="searchResults"><p class="empty-state">Start typing to search your OwnTone library.</p></div>
-    </form>
-  </dialog>
+    <dialog class="search-dialog" id="searchDialog">
+      <form method="dialog" class="search-panel" id="searchForm">
+        <div class="search-title-row">
+          <div>
+            <span class="section-kicker">SEARCH</span>
+            <h2>Find something</h2>
+          </div>
+          <button class="icon-button" value="cancel" aria-label="Close" type="submit">×</button>
+        </div>
+        <input
+          class="search-input"
+          id="searchInput"
+          type="search"
+          placeholder="Artist, album, track or playlist…"
+          autocomplete="off"
+        />
+        <div class="search-results" id="searchResults">
+          <p class="empty-state">Start typing to search your OwnTone library.</p>
+        </div>
+      </form>
+    </dialog>
 
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="config.js"></script>
-  <script src="app.js" defer></script>
-  <script>
-    new MutationObserver(() => {
-      const src=document.getElementById('connectionText');
-      const dst=document.getElementById('desktopConnection');
-      if(src&&dst&&dst.textContent!==src.textContent) dst.textContent=src.textContent;
-    }).observe(document.documentElement,{subtree:true,childList:true,characterData:true});
-  </script>
-</body>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <!-- config.js defines window.OWNTONE_DASHBOARD and then appends shared.js,
+       app.js and every feature module. They all go through the same
+       `script.async = false` queue, which the HTML spec executes in insertion
+       order — that is what guarantees shared.js is ready before app.js, and
+       app.js before the modules. -->
+    <script src="config.js"></script>
+  </body>
 </html>

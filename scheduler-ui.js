@@ -1,9 +1,14 @@
 (() => {
   'use strict';
 
-  const cfg = Object.assign({ apiBase: '/api', schedulerBase: '/scheduler' }, window.OWNTONE_DASHBOARD || {});
-  const schedulerBase = String(cfg.schedulerBase || '/scheduler').replace(/\/$/, '');
-  const apiBase = String(cfg.apiBase || '/api').replace(/\/$/, '');
+  const {
+    config: cfg,
+    api,
+    scheduler: sched,
+    escapeHtml,
+    icons,
+    isRadioPlaylist: radioMatcher,
+  } = window.OwnTone;
   const DAYS = [
     ['mon', 'Mon'],
     ['tue', 'Tue'],
@@ -13,11 +18,6 @@
     ['sat', 'Sat'],
     ['sun', 'Sun'],
   ];
-  const radioMatcher = p =>
-    String(p.path || '')
-      .toLowerCase()
-      .includes(String(cfg.radioPathHint || '/Radio/').toLowerCase()) ||
-    /(^|\s)(radio|naxi|s1|202|lola)(\s|$)/i.test(p.name || '');
   let dialog,
     list,
     form,
@@ -26,29 +26,8 @@
     outputs = [],
     editingId = null;
 
-  const clockIcon =
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/></svg>';
-  const playIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7L8 5Z"/></svg>';
+  const clockIcon = icons.clock;
 
-  async function jsonRequest(base, path, options = {}) {
-    const response = await fetch(`${base}${path}`, options);
-    if (!response.ok) {
-      let detail = '';
-      try {
-        detail = (await response.json()).error || '';
-      } catch (_) {}
-      throw new Error(detail || `${response.status} ${response.statusText}`);
-    }
-    const text = await response.text();
-    return text ? JSON.parse(text) : null;
-  }
-  const sched = (path, options = {}) => jsonRequest(schedulerBase, path, options);
-  const api = (path, options = {}) => jsonRequest(apiBase, path, options);
-  const escapeHtml = value =>
-    String(value ?? '').replace(
-      /[&<>"']/g,
-      ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]
-    );
   const dayLabel = days => {
     const key = [...days].sort().join(',');
     if (key === ['fri', 'mon', 'thu', 'tue', 'wed'].sort().join(',')) return 'Weekdays';
