@@ -1,89 +1,97 @@
 /* Live playback presentation: distinguish streams from finite music tracks. */
 
-.player-card.is-live-current .progress-block.is-live-stream{
-  margin-top:auto!important;
-  padding-top:12px!important;
-  padding-bottom:4px!important;
+.player-card.is-live-current .progress-block.is-live-stream {
+  margin-top: auto !important;
+  padding-top: 12px !important;
+  padding-bottom: 4px !important;
 }
 
 .player-card.is-live-current .progress-block.is-live-stream #progressRange,
-.player-card.is-live-current .progress-block.is-live-stream .time-row{
-  display:none!important;
+.player-card.is-live-current .progress-block.is-live-stream .time-row {
+  display: none !important;
 }
 
-.live-stream-status{
-  min-height:34px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:14px;
-  border-top:1px solid rgba(20,16,12,.09);
-  padding:11px 1px 0;
-  color:var(--ds-muted,#746c65);
-  font-size:10.5px;
-  line-height:1;
-  font-variant-numeric:tabular-nums;
+.live-stream-status {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-top: 1px solid rgba(20, 16, 12, 0.09);
+  padding: 11px 1px 0;
+  color: var(--ds-muted, #746c65);
+  font-size: 10.5px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
-.live-stream-status[hidden]{display:none!important}
-.live-stream-badge{
-  display:inline-flex;
-  align-items:center;
-  gap:7px;
-  min-width:0;
-  color:var(--ds-ink,#0b0a09);
+.live-stream-status[hidden] {
+  display: none !important;
 }
-.live-stream-badge i{
-  width:7px;
-  height:7px;
-  border-radius:50%;
-  flex:0 0 auto;
-  background:#49b47b;
-  box-shadow:0 0 0 4px rgba(73,180,123,.12);
+.live-stream-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--ds-ink, #0b0a09);
 }
-.live-stream-badge b{
-  font-size:9.5px;
-  font-weight:840;
-  letter-spacing:.12em;
-  white-space:nowrap;
+.live-stream-badge i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: #49b47b;
+  box-shadow: 0 0 0 4px rgba(73, 180, 123, 0.12);
 }
-.live-stream-session{
-  white-space:nowrap;
-  color:var(--ds-muted,#746c65);
+.live-stream-badge b {
+  font-size: 9.5px;
+  font-weight: 840;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+}
+.live-stream-session {
+  white-space: nowrap;
+  color: var(--ds-muted, #746c65);
 }
 
-.player-card.is-live-current .track-meta{
-  max-width:780px;
+.player-card.is-live-current .track-meta {
+  max-width: 780px;
 }
 
 /* If the user is browsing the dark Radio view, keep the existing visualizer-first layout. */
-body.radio-mode .player-card.is-live-current .progress-block.is-live-stream{
-  display:none!important;
+body.radio-mode .player-card.is-live-current .progress-block.is-live-stream {
+  display: none !important;
 }
 
-body.radio-mode .live-stream-status{
-  border-top-color:rgba(255,255,255,.09);
-  color:rgba(255,255,255,.52);
+body.radio-mode .live-stream-status {
+  border-top-color: rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.52);
 }
-body.radio-mode .live-stream-badge{color:#fff}
-
-@media(max-width:620px){
-  .player-card.is-live-current .progress-block.is-live-stream{
-    padding-top:10px!important;
-    padding-bottom:5px!important;
-  }
-  .live-stream-status{
-    min-height:38px;
-    padding-top:10px;
-    font-size:10px;
-  }
-  .live-stream-badge b{font-size:9px}
+body.radio-mode .live-stream-badge {
+  color: #fff;
 }
 
-@media(prefers-reduced-motion:no-preference){
-  .player-card.is-live-current.is-playing .live-stream-badge i{
-    animation:live-stream-pulse 1.7s ease-in-out infinite;
+@media (max-width: 620px) {
+  .player-card.is-live-current .progress-block.is-live-stream {
+    padding-top: 10px !important;
+    padding-bottom: 5px !important;
+  }
+  .live-stream-status {
+    min-height: 38px;
+    padding-top: 10px;
+    font-size: 10px;
+  }
+  .live-stream-badge b {
+    font-size: 9px;
   }
 }
-@keyframes live-stream-pulse{
-  50%{box-shadow:0 0 0 7px rgba(73,180,123,.07)}
+
+@media (prefers-reduced-motion: no-preference) {
+  .player-card.is-live-current.is-playing .live-stream-badge i {
+    animation: live-stream-pulse 1.7s ease-in-out infinite;
+  }
+}
+@keyframes live-stream-pulse {
+  50% {
+    box-shadow: 0 0 0 7px rgba(73, 180, 123, 0.07);
+  }
 }
