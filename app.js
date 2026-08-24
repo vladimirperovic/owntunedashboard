@@ -240,9 +240,30 @@
     ).toUpperCase();
     let hash = 0;
     for (const char of `${title}|${artist}`) hash = (hash * 31 + char.charCodeAt(0)) | 0;
-    const hue = Math.abs(hash) % 360,
-      hue2 = (hue + 68) % 360;
-    const xml = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="hsl(${hue} 72% 58%)"/><stop offset="1" stop-color="hsl(${hue2} 34% 16%)"/></linearGradient></defs><rect width="1000" height="1000" fill="url(#g)"/><circle cx="500" cy="500" r="290" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="8"/><circle cx="500" cy="500" r="190" fill="none" stroke="rgba(255,255,255,.13)" stroke-width="8"/><text x="500" y="548" text-anchor="middle" fill="white" font-family="Arial,sans-serif" font-size="190" font-weight="800" letter-spacing="-12">${escapeHtml(initials)}</text><text x="500" y="870" text-anchor="middle" fill="rgba(255,255,255,.72)" font-family="Arial,sans-serif" font-size="28" font-weight="700" letter-spacing="5">${escapeHtml(radio ? 'LIVE RADIO' : 'OWNTONE')}</text></svg>`;
+    const hue = Math.abs(hash) % 360;
+    const shade = (hue + 68) % 360;
+    const label = radio ? 'LIVE RADIO' : 'OWNTONE';
+
+    const xml = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+        <defs>
+          <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+            <stop stop-color="hsl(${hue} 72% 58%)"/>
+            <stop offset="1" stop-color="hsl(${shade} 34% 16%)"/>
+          </linearGradient>
+        </defs>
+        <rect width="1000" height="1000" fill="url(#g)"/>
+        <circle cx="500" cy="500" r="290" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="8"/>
+        <circle cx="500" cy="500" r="190" fill="none" stroke="rgba(255,255,255,.13)" stroke-width="8"/>
+        <text x="500" y="548" text-anchor="middle" fill="white"
+              font-family="Arial,sans-serif" font-size="190" font-weight="800" letter-spacing="-12">
+          ${escapeHtml(initials)}
+        </text>
+        <text x="500" y="870" text-anchor="middle" fill="rgba(255,255,255,.72)"
+              font-family="Arial,sans-serif" font-size="28" font-weight="700" letter-spacing="5">
+          ${escapeHtml(label)}
+        </text>
+      </svg>`;
     return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(xml)}`;
   }
   function artworkCandidates(item, player) {

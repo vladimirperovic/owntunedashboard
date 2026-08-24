@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const { schedulerUrl } = window.OwnTone;
+  const { scheduler } = window.OwnTone;
   const FAVORITES_KEY = 'owntone-radio-favorites-v1';
   const grid = () => document.getElementById('radioGrid');
   const favGrid = () => document.getElementById('radioFavoritesGrid');
@@ -164,12 +164,9 @@
       healthPill.title = 'Checking stream availability';
     }
     try {
-      const response = await fetch(
-        schedulerUrl(`/radio-health?playlist_id=${encodeURIComponent(id)}${force ? '&force=1' : ''}`),
-        { cache: 'no-store' }
+      const data = await scheduler(
+        `/radio-health?playlist_id=${encodeURIComponent(id)}${force ? '&force=1' : ''}`
       );
-      if (!response.ok) throw new Error(String(response.status));
-      const data = await response.json();
       healthCache.set(id, { ...data, _checked: Date.now() });
     } catch (error) {
       healthCache.set(id, {
