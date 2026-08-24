@@ -11,9 +11,11 @@ WorkingDirectory=/opt/owntone-dashboard
 StateDirectory=owntone-dashboard
 Environment=PYTHONUNBUFFERED=1
 
-# Schedules are expressed in this zone, and it is what decides when a rule with
-# a stop time or a sunrise ramp fires. Set it to your own zone.
-Environment=TZ=Etc/UTC
+# Schedules are expressed in the local time zone. By default the service reads
+# the host's zone from /etc/timezone or /etc/localtime and logs which one it
+# picked. Uncomment to pin it explicitly — for example inside a container that
+# does not carry the host's zone.
+#Environment=TZ=Europe/Berlin
 
 Environment=OWNTONE_BASE=http://127.0.0.1:3689/api
 Environment=OWNTONE_SCHEDULER_HOST=127.0.0.1

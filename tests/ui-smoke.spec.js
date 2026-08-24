@@ -146,14 +146,45 @@ test('an album cover that fails to load falls back to the record placeholder', a
   // check the card recovers instead of leaving an empty dark box.
   await page.evaluate(() => {
     const art = document.querySelector('.album-card .album-art');
-    art.querySelector('.mini-record')?.remove();
+    art.querySelector('.album-art-empty')?.remove();
     const img = document.createElement('img');
     img.alt = '';
     img.src = '/definitely-not-a-cover.png';
     art.prepend(img);
   });
 
-  const placeholder = page.locator('.album-card .album-art .mini-record').first();
+  const placeholder = page.locator('.album-card .album-art .album-art-empty').first();
   await expect(placeholder).toBeVisible();
   await expect(page.locator('.album-card .album-art img').first()).toHaveCount(0);
+});
+
+test('the album count slider has four stops and remembers the choice', async ({ page }) => {
+  await openDemo(page, { width: 1440, height: 1000 });
+
+  const slider = page.locator('#albumCountRange');
+  const label = page.locator('#albumCountValue');
+
+  await expect(slider).toHaveAttribute('min', '1');
+  await expect(slider).toHaveAttribute('max', '4');
+  await expect(label).toHaveText('24 albums');
+
+  for (const [stop, expected] of [
+    ['1', '12 albums'],
+    ['3', '36 albums'],
+    ['4', '48 albums'],
+  ]) {
+    await slider.fill(stop);
+    await expect(label).toHaveText(expected);
+  }
+
+  // The stop is stored, not the count, so the counts behind it can change.
+  expect(await page.evaluate(() => localStorage.getItem('owntone-album-count-v1'))).toBe('4');
+
+  await page.reload();
+  await expect(page.locator('#albumCountValue')).toHaveText('48 albums');
+
+  // The grid never shows more cards than the slider asks for.
+  await page.locator('#albumCountRange').fill('1');
+  await expect(page.locator('#albumCountValue')).toHaveText('12 albums');
+  expect(await page.locator('.album-card').count()).toBeLessThanOrEqual(12);
 });

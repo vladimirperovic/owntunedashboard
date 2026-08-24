@@ -758,13 +758,7 @@
     height: 100%;
     object-fit: cover;
   }
-  .mini-record {
-    position: relative;
-    width: 58%;
-    aspect-ratio: 1;
-    border-radius: 50%;
-    background: repeating-radial-gradient(circle, #0b0b0b 0 5px, #211b17 6px 8px);
-  }
+
   .album-copy {
     padding: 9px 9px 11px;
   }

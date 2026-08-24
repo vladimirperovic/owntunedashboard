@@ -254,7 +254,10 @@
         toast(`${connected.name || 'Output'} connected`);
         return;
       }
-    } catch (_) {}
+    } catch (_) {
+      // Selecting the output failed, which is how OwnTone reports that the
+      // device wants a pairing code. Fall through to the code prompt.
+    }
     toast(`Enter the code shown on ${output.name || 'your AirPlay device'}`);
     document.querySelector(`[data-mr-output="${CSS.escape(String(output.id))}"] .multiroom-pin`)?.focus();
   }

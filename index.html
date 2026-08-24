@@ -303,6 +303,28 @@
               <div>
                 <span class="section-kicker">LIBRARY</span>
                 <h2>Recently added albums</h2>
+                <!-- Four stops rather than a free range: the useful choices are
+                     "a glance", "a screenful" and "everything recent". -->
+                <label class="album-count" for="albumCountRange">
+                  <span class="visually-hidden">How many albums to show</span>
+                  <input
+                    id="albumCountRange"
+                    class="range"
+                    type="range"
+                    min="1"
+                    max="4"
+                    step="1"
+                    value="2"
+                    list="albumCountStops"
+                  />
+                  <datalist id="albumCountStops">
+                    <option value="1"></option>
+                    <option value="2"></option>
+                    <option value="3"></option>
+                    <option value="4"></option>
+                  </datalist>
+                  <output id="albumCountValue" for="albumCountRange">24 albums</output>
+                </label>
               </div>
               <div class="library-count" id="libraryCount">—</div>
             </div>

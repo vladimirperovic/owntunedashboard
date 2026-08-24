@@ -65,9 +65,13 @@ Open `http://<your-host>:3690`. If OwnTone is not reachable the dashboard runs
 in **Preview mode** with demo data — the same mode powering the
 [live demo](https://vladimirperovic.github.io/owntunedashboard/).
 
-Full deployment walkthrough (including a Proxmox LXC flow): see
-[`DEPLOY_AGENT.md`](DEPLOY_AGENT.md). Personal hosts stay out of git via
-`deploy/deploy.local.conf` (see `deploy/deploy.local.conf.example`).
+Full walkthrough, including the manual checks that automated tests cannot
+cover: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Your own hosts stay out of
+git via `deploy/deploy.local.conf` (see `deploy/deploy.local.conf.example`).
+
+> The companion API is **unauthenticated**. It binds to localhost, but the nginx
+> site proxies it to the whole network. Fine on a home LAN, not fine anywhere
+> else — see [`docs/KNOWN-ISSUES.md`](docs/KNOWN-ISSUES.md).
 
 ## Configuration
 

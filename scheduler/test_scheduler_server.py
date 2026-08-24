@@ -200,6 +200,42 @@ class StationFileValidation(unittest.TestCase):
         self.assertIsNone(srv.LINE_RE.match("relative/path.flac"))
 
 
+class PlaylistWriting(unittest.TestCase):
+    """save_playlist_lines writes the file; check what lands in it."""
+
+    def setUp(self):
+        self.written = []
+        target = Path("Evening.m3u")
+        patches = [
+            mock.patch.object(srv, "_playlist_path", lambda slug: target),
+            mock.patch.object(srv, "rescan_library", lambda: None),
+            mock.patch.object(srv, "log_activity", lambda *a, **k: None),
+            mock.patch.object(srv.os, "replace", lambda a, b: None),
+            mock.patch.object(
+                Path, "write_text", lambda _self, text, **kw: self.written.append(text)
+            ),
+        ]
+        for patch in patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def test_writes_one_header_and_the_lines(self):
+        srv.save_playlist_lines("evening", ["https://stream.example/x", "/media/music/a.flac"])
+        self.assertEqual(
+            self.written[-1].splitlines(), ["#EXTM3U", "https://stream.example/x", "/media/music/a.flac"]
+        )
+        self.assertTrue(self.written[-1].endswith(os.linesep) or self.written[-1][-1] == "\n")
+
+    def test_does_not_duplicate_a_header_sent_back_by_the_client(self):
+        # Saving a playlist that was just read used to gain a second #EXTM3U.
+        srv.save_playlist_lines("evening", ["#EXTM3U", "https://stream.example/x"])
+        self.assertEqual(self.written[-1].count("#EXTM3U"), 1)
+
+    def test_rejects_a_relative_path(self):
+        with self.assertRaises(ValueError):
+            srv.save_playlist_lines("evening", ["../../etc/passwd"])
+
+
 class RuntimeStateUpdates(unittest.TestCase):
     """update_runtime_state must not lose a concurrent writer's fields."""
 
@@ -221,6 +257,31 @@ class RuntimeStateUpdates(unittest.TestCase):
     def test_returning_false_skips_the_write(self):
         srv.update_runtime_state(lambda state: False)
         self.assertEqual(self.saved, [])
+
+    def test_a_nested_update_lands_in_the_same_write(self):
+        # A schedule run mutates the state and also calls log_activity, which is
+        # itself an update. If the inner call did its own read-modify-write, the
+        # outer write would overwrite it.
+        def outer(state):
+            state["runs"] = {"s1": "2026-08-24T07:30"}
+            srv.update_runtime_state(lambda inner: inner.setdefault("activity", []).append("x") or True)
+            return True
+
+        srv.update_runtime_state(outer)
+        self.assertEqual(len(self.saved), 1, "expected exactly one write")
+        self.assertEqual(self.saved[-1]["runs"], {"s1": "2026-08-24T07:30"})
+        self.assertEqual(self.saved[-1]["activity"], ["x"])
+
+    def test_a_nested_change_still_writes_when_the_outer_reports_nothing(self):
+        # The scheduler tick reports "nothing changed" on a quiet minute, but a
+        # nested log_activity may still have recorded something.
+        def outer(state):
+            srv.update_runtime_state(lambda inner: inner.setdefault("activity", []).append("y") or True)
+            return False
+
+        srv.update_runtime_state(outer)
+        self.assertEqual(len(self.saved), 1)
+        self.assertEqual(self.saved[-1]["activity"], ["y"])
 
     def test_each_update_starts_from_the_stored_state(self):
         # The scheduler loop used to hold a copy for 15 s and write it back,

@@ -1,5 +1,13 @@
 # Copy to deploy/deploy.local.conf and fill in real values.
 # deploy/deploy.local.conf is gitignored — never commit real hosts.
+
+# SSH target for the Proxmox host that runs the container.
 PROXMOX_TARGET="user@proxmox-host"
-LXC_ID="112"
+
+# Container id, as `pct list` reports it.
+LXC_ID="000"
+
+# Install path inside the container. Must be under /opt, /srv or
+# /usr/local/share — deploy.sh refuses anything else, because it removes the
+# directory before unpacking.
 TARGET_DIR="/opt/owntone-dashboard"

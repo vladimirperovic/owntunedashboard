@@ -531,37 +531,70 @@
   .album-art {
     position: relative;
   }
-  /* Albums with no cover fall back to .mini-record. A near-black disc on a
-     black square dominated the light music view, so the placeholder now takes
-     the paper tones and stays quiet; radio mode keeps the dark treatment. */
-  .album-card .album-art:not(:has(img)) {
-    background: linear-gradient(160deg, var(--paper2), var(--sand));
-  }
-  .mini-record {
-    background: repeating-radial-gradient(
-      circle,
-      rgba(20, 16, 12, 0.14) 0 5px,
-      rgba(20, 16, 12, 0.05) 6px 8px
-    );
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
-  }
-  .mini-record::after {
-    content: '';
+  .visually-hidden {
     position: absolute;
-    inset: 42%;
-    border-radius: 50%;
-    background: rgba(239, 91, 67, 0.45);
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* How many album cards to show — four stops, sitting under the section title
+     so it reads as part of the heading rather than a stray control. */
+  .album-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    cursor: pointer;
+  }
+  .album-count .range {
+    width: 84px;
+    height: 3px;
+  }
+  .album-count output {
+    font-size: 10px;
+    font-weight: 650;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .album-count:hover output {
+    color: var(--ink);
+  }
+  @media (max-width: 620px) {
+    .album-count {
+      display: none;
+    }
+  }
+
+  /* Albums with no cover: an empty tile with a small label, rather than a
+     graphic pretending to be artwork. The old placeholder was a near-black
+     vinyl disc on a black square, which turned the light music view into a
+     grid of black holes. */
+  .album-card .album-art:not(:has(img)) {
+    background: var(--paper2, #f4ede4);
+    box-shadow: inset 0 0 0 1px rgba(20, 16, 12, 0.05);
+  }
+  .album-art-empty {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--muted, #7c746d);
+    opacity: 0.55;
+    text-align: center;
+    padding: 0 10px;
   }
   body.radio-mode .album-card .album-art:not(:has(img)) {
-    background: linear-gradient(160deg, #211b18, #16130f);
+    background: rgba(255, 255, 255, 0.035);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
   }
-  body.radio-mode .mini-record {
-    background: repeating-radial-gradient(
-      circle,
-      rgba(255, 255, 255, 0.1) 0 5px,
-      rgba(255, 255, 255, 0.03) 6px 8px
-    );
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  body.radio-mode .album-art-empty {
+    color: rgba(255, 255, 255, 0.6);
   }
   .album-art img {
     transition:

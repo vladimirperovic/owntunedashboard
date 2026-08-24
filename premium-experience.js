@@ -466,7 +466,7 @@
         played_at: new Date(Date.now() - 18 * 60000).toISOString(),
       },
       {
-        title: 'Radio Beograd 202',
+        title: 'FIP',
         artist: 'Live radio',
         play_uri: 'library:playlist:13',
         is_radio: true,
@@ -487,7 +487,7 @@
         played_at: new Date(Date.now() - 93 * 60000).toISOString(),
       },
       {
-        title: 'Naxi Radio',
+        title: 'KEXP 90.3',
         artist: 'Live radio',
         play_uri: 'library:playlist:11',
         is_radio: true,

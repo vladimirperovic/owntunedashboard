@@ -16,7 +16,7 @@ window.OWNTONE_DASHBOARD = {
   // libraries where the stations do not live in one folder. Matching is
   // case-insensitive and on whole words, so 'radio' matches "Rock Radio" but not
   // "Radiohead". Keep this list short: anything here can misread an album
-  // playlist as a station. Example: ['radio', 'naxi', 's1', '202'].
+  // playlist as a station. Example: ['radio', 'fm', 'kexp'].
   radioNameHints: ['radio'],
 
   preferredOutput: 'HomePod',
@@ -42,13 +42,13 @@ window.OWNTONE_DASHBOARD = {
 
   // Optional per-station quality labels, keyed by station name. Add verified
   // ffprobe results here when OwnTone's playlist metadata does not expose
-  // codec/bitrate. Example: { 'Radio Porto Montenegro': 'MP3 320k' }
+  // codec/bitrate. Example: { 'KEXP 90.3': 'MP3 320k' }
   radioQuality: {},
 
-  // Local station artwork, keyed by station name. Stations without a configured
-  // image stay text-only (the dashboard draws a monogram instead).
-  // The bundled logos under station-logos/ are examples — replace them with
-  // your own. Example: { 'Naxi Radio': 'station-logos/naxi.svg' }
+  // Local station artwork, keyed by station name. Stations without an entry get
+  // a monogram generated from their name, so this is optional.
+  // Drop your own files in station-logos/ — see the README there.
+  // Example: { 'KEXP 90.3': 'station-logos/kexp.svg' }
   radioArtwork: {},
 };
 

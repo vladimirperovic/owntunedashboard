@@ -50,6 +50,8 @@
     refreshButton: $('refreshButton'),
     shuffleLibraryButton: $('shuffleLibraryButton'),
     libraryCount: $('libraryCount'),
+    albumCountRange: $('albumCountRange'),
+    albumCountValue: $('albumCountValue'),
     albumGrid: $('albumGrid'),
     playlistGrid: $('playlistGrid'),
     radioGrid: $('radioGrid'),
@@ -62,8 +64,21 @@
     toast: $('toast'),
   };
 
+  // The album slider has four stops rather than a free range — these are the
+  // counts behind them. The stored value is the stop, so the counts can change
+  // without stranding anyone's setting.
+  const ALBUM_COUNTS = [12, 24, 36, 48];
+  const ALBUM_COUNT_KEY = 'owntone-album-count-v1';
+
+  function readAlbumStop() {
+    const stored = Number(localStorage.getItem(ALBUM_COUNT_KEY));
+    return Number.isInteger(stored) && stored >= 1 && stored <= ALBUM_COUNTS.length ? stored : 2;
+  }
+
   const state = {
     mode: 'music',
+    albumStop: readAlbumStop(),
+    albumCount: ALBUM_COUNTS[readAlbumStop() - 1],
     online: false,
     demo: false,
     player: { state: 'stop', volume: 25, item_progress_ms: 0, item_length_ms: 0 },
@@ -459,7 +474,7 @@
         request('/queue?id=now_playing'),
         request('/outputs'),
         request('/library/playlists?limit=500'),
-        request('/library/albums?limit=24'),
+        request(`/library/albums?limit=${state.albumCount}`),
         request('/library'),
         request('/config'),
       ]);
@@ -478,13 +493,14 @@
       connectRealtime();
       pollLater();
       // Modules wait for this instead of polling window.OWNTONE_APP every 1.5 s.
-      emit('owntone:ready', { demo: false });
+      emit('owntone:ready', { demo: false, online: true });
     } catch (err) {
       console.warn('OwnTone connection failed:', err);
       if (cfg.demoOnFailure) activateDemo();
       else {
         state.online = false;
         renderAll();
+        emit('owntone:ready', { demo: false, online: false });
       }
       pollLater();
     }
@@ -502,7 +518,7 @@
     state.library = { ...demo.library };
     state.config = { version: 'Demo' };
     renderAll();
-    emit('owntone:ready', { demo: true });
+    emit('owntone:ready', { demo: true, online: false });
   }
   let pollHandle,
     playbackRequestId = 0,
@@ -636,13 +652,13 @@
   }
   async function refreshLibrary() {
     if (state.demo) {
-      toast('Demo mode — connect the LXC to refresh');
+      toast('Preview mode — connect OwnTone to refresh');
       return;
     }
     try {
       const [playlists, albums, library] = await Promise.all([
         request('/library/playlists?limit=500'),
-        request('/library/albums?limit=24'),
+        request(`/library/albums?limit=${state.albumCount}`),
         request('/library'),
       ]);
       state.playlists = playlists?.items || [];
@@ -720,8 +736,11 @@
   function renderOutputSelect() {
     const signature = state.outputs.map(o => `${o.id}|${o.name}|${o.type}`).join('~');
     if (els.outputSelect.dataset.signature === signature) {
+      // Same outputs: only follow the server's selection, and not while the
+      // user has the picker open.
       const selected = state.outputs.find(o => o.selected);
-      if (selected && String(els.outputSelect.value) !== String(selected.id) && !state.outputPickerOpen) {
+      const busy = document.activeElement === els.outputSelect;
+      if (selected && !busy && String(els.outputSelect.value) !== String(selected.id)) {
         els.outputSelect.value = String(selected.id);
       }
       return;
@@ -859,11 +878,11 @@
     });
   }
 
-  const RECORD_PLACEHOLDER = '<div class="mini-record"></div>';
+  const NO_COVER_PLACEHOLDER = '<span class="album-art-empty">no cover art</span>';
 
   function albumCardHtml(album) {
     const art = artworkUrl(album.artwork_url, 420);
-    const cover = art ? `<img src="${escapeHtml(art)}" alt="" loading="lazy">` : RECORD_PLACEHOLDER;
+    const cover = art ? `<img src="${escapeHtml(art)}" alt="" loading="lazy">` : NO_COVER_PLACEHOLDER;
     return `
       <button class="album-card" type="button" data-uri="${escapeHtml(album.uri)}" title="Play ${escapeHtml(album.name)}">
         <div class="album-art">${cover}</div>
@@ -886,8 +905,9 @@
       seenCovers.add(key);
       return true;
     });
-    els.albumGrid.innerHTML = albums.length
-      ? albums.map(albumCardHtml).join('')
+    const shown = albums.slice(0, state.albumCount);
+    els.albumGrid.innerHTML = shown.length
+      ? shown.map(albumCardHtml).join('')
       : '<p class="empty-state">No albums found.</p>';
     const normal = state.playlists.filter(p => !isRadioPlaylist(p) && !p.folder).slice(0, 16);
     els.playlistGrid.innerHTML = normal.length
@@ -1220,6 +1240,52 @@
   els.previousButton.addEventListener('click', () => playerCommand('previous'));
   els.nextButton.addEventListener('click', () => playerCommand('next'));
   els.refreshButton.addEventListener('click', refreshLibrary);
+
+  /**
+   * How many album cards the library section shows.
+   *
+   * Dragging re-renders from what is already loaded, so it stays instant.
+   * Raising it past what was fetched asks the server for more, once, when the
+   * drag ends.
+   */
+  function syncAlbumCount(stop, { fetchMore = false } = {}) {
+    state.albumStop = Math.max(1, Math.min(ALBUM_COUNTS.length, Math.round(stop)));
+    state.albumCount = ALBUM_COUNTS[state.albumStop - 1];
+    paintAlbumCountControl();
+    try {
+      localStorage.setItem(ALBUM_COUNT_KEY, String(state.albumStop));
+    } catch (_) {
+      // Private browsing: the setting just will not persist.
+    }
+    renderLibrary();
+    if (fetchMore && !state.demo && state.albums.length < state.albumCount) loadMoreAlbums();
+  }
+
+  function paintAlbumCountControl() {
+    if (!els.albumCountRange) return;
+    els.albumCountRange.value = String(state.albumStop);
+    els.albumCountRange.setAttribute('aria-valuetext', `${state.albumCount} albums`);
+    els.albumCountValue.textContent = `${state.albumCount} albums`;
+    const ratio = (state.albumStop - 1) / (ALBUM_COUNTS.length - 1);
+    els.albumCountRange.style.setProperty('--range-progress', `${ratio * 100}%`);
+  }
+
+  async function loadMoreAlbums() {
+    try {
+      const albums = await request(`/library/albums?limit=${state.albumCount}`);
+      state.albums = albums?.items || state.albums;
+      renderLibrary();
+    } catch (err) {
+      console.warn('Could not load more albums:', err);
+    }
+  }
+
+  if (els.albumCountRange) {
+    els.albumCountRange.addEventListener('input', () => syncAlbumCount(Number(els.albumCountRange.value)));
+    els.albumCountRange.addEventListener('change', () =>
+      syncAlbumCount(Number(els.albumCountRange.value), { fetchMore: true })
+    );
+  }
   els.shuffleLibraryButton.addEventListener('click', shuffleLibrary);
   els.quickGrid.addEventListener('click', e => {
     const card = e.target.closest('[data-playlist]');
@@ -1267,8 +1333,9 @@
       if (image.tagName !== 'IMG') return;
       const wrap = image.closest('.album-art');
       if (!wrap) return;
-      const placeholder = document.createElement('div');
-      placeholder.className = 'mini-record';
+      const placeholder = document.createElement('span');
+      placeholder.className = 'album-art-empty';
+      placeholder.textContent = 'no cover art';
       image.replaceWith(placeholder);
     },
     true
@@ -1386,5 +1453,6 @@
     if (!document.hidden && !state.demo) refreshPlayback();
   });
   renderMode();
+  paintAlbumCountControl();
   loadInitial();
 })();

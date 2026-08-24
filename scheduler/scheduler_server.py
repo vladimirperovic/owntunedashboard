@@ -52,17 +52,56 @@ NIGHT_MAX = _env_int("OWNTONE_NIGHT_MAX", 8)
 GRACE_MINUTES = max(0, _env_int("OWNTONE_SCHEDULE_GRACE_MIN", 30))
 
 
+def _system_zone_name() -> str:
+    """
+    The host's zone name, without pulling in a dependency.
+
+    Falling back to UTC here would be wrong: on a box whose clock is set to
+    Europe/Belgrade but with no TZ in the environment, every schedule would run
+    one or two hours off and nothing would say so.
+    """
+    try:
+        name = Path("/etc/timezone").read_text(encoding="utf-8").strip()
+        if name:
+            return name
+    except OSError:
+        pass
+    try:
+        # Most distributions symlink /etc/localtime into the zoneinfo tree.
+        target = os.path.realpath("/etc/localtime")
+        marker = "/zoneinfo/"
+        if marker in target:
+            return target.split(marker, 1)[1]
+    except OSError:
+        pass
+    return ""
+
+
 def _local_zone() -> ZoneInfo:
     """
-    The zone schedules are expressed in. TZ from the environment (the systemd
-    unit sets it); falls back to UTC when the name is not installed.
+    The zone schedules are expressed in.
+
+    TZ (or OWNTONE_TZ) wins, so the systemd unit can pin it; otherwise the
+    host's own zone; UTC only when neither can be resolved.
     """
-    name = os.environ.get("TZ") or os.environ.get("OWNTONE_TZ") or ""
-    if name:
+    for source, name in (
+        ("TZ", os.environ.get("TZ")),
+        ("OWNTONE_TZ", os.environ.get("OWNTONE_TZ")),
+        ("the host", _system_zone_name()),
+    ):
+        if not name:
+            continue
         try:
-            return ZoneInfo(name)
+            zone = ZoneInfo(name)
+            print(f"[time] schedules use {name} (from {source})", flush=True)
+            return zone
         except Exception as exc:
-            print(f"[time] unknown time zone {name!r} ({exc}); falling back to UTC", flush=True)
+            print(f"[time] {source} names an unknown zone {name!r} ({exc})", flush=True)
+    print(
+        "[time] could not determine the local time zone; schedules will run in UTC. "
+        "Set TZ in the systemd unit.",
+        flush=True,
+    )
     return ZoneInfo("UTC")
 
 
@@ -136,6 +175,12 @@ def save_runtime_state(state) -> None:
         _atomic_write(STATE_FILE, state)
 
 
+# The state dict currently open on this thread, if any. Set only by
+# update_runtime_state, so nested calls join the outer update instead of
+# starting their own read-modify-write.
+_OPEN_UPDATE = threading.local()
+
+
 def update_runtime_state(mutate):
     """
     Read-modify-write the runtime state under one lock.
@@ -145,14 +190,30 @@ def update_runtime_state(mutate):
     sleep field another thread had written in the meantime. Every writer goes
     through here now, so the whole cycle is atomic.
 
-    `mutate(state)` may return False to skip the write.
+    Calls nest: a schedule run mutates the state and also calls log_activity,
+    which is itself an update. The inner call mutates the state the outer one
+    already has open and marks it dirty, so both changes land in the single
+    write at the end. Without that the outer write would overwrite the inner
+    one — the very bug this function exists to prevent.
+
+    `mutate(state)` may return False to mean "nothing changed".
     """
     with LOCK:
+        frame = getattr(_OPEN_UPDATE, "frame", None)
+        if frame is not None:
+            if mutate(frame["state"]) is not False:
+                frame["dirty"] = True
+            return frame["state"]
+
         state = load_runtime_state()
-        if mutate(state) is False:
+        _OPEN_UPDATE.frame = {"state": state, "dirty": False}
+        try:
+            changed = mutate(state) is not False
+            if changed or _OPEN_UPDATE.frame["dirty"]:
+                _atomic_write(STATE_FILE, state)
             return state
-        _atomic_write(STATE_FILE, state)
-        return state
+        finally:
+            _OPEN_UPDATE.frame = None
 
 
 def log_activity(kind: str, text: str) -> None:
@@ -691,13 +752,21 @@ def start_sleep(minutes: int) -> dict:
         log_activity("sleep", "🌙 Sleep timer cancelled")
         return {"active": False}
 
-    # Resolved before taking the lock: these are network calls.
-    player = owntone_request("/player", timeout=4) or {}
+    # Resolved before taking the lock, because these are network calls. Both are
+    # best effort: the timer should still start and still stop playback when it
+    # expires, even if OwnTone is unreachable at the moment it is set. Losing
+    # them only costs the gentle fade over the last three minutes.
+    start_volume = 20
+    output_id = ""
     try:
+        player = owntone_request("/player", timeout=4) or {}
         start_volume = max(0, min(100, int(player.get("volume") or 20)))
-    except (TypeError, ValueError):
-        start_volume = 20
-    output_id = _fade_output_id()
+    except (TypeError, ValueError, OSError) as exc:
+        print(f"[sleep] could not read the current volume: {exc}", flush=True)
+    try:
+        output_id = _fade_output_id()
+    except OSError as exc:
+        print(f"[sleep] could not resolve the fade output: {exc}", flush=True)
 
     def begin(state):
         # sleep and sleep_output_id are written together. They used to be two
@@ -1008,6 +1077,11 @@ def save_playlist_lines(slug: str, lines: list) -> dict:
         line = str(raw).strip()
         if not line:
             continue
+        # The #EXTM3U header is written below, so drop it from the payload —
+        # otherwise saving a playlist that was read back gains a second header
+        # every time.
+        if line.upper() == "#EXTM3U":
+            continue
         if not LINE_RE.match(line):
             raise ValueError(f"Line must be a URL, a /path, or a # comment: {line[:60]}")
         cleaned.append(line)
@@ -1120,6 +1194,12 @@ def scheduler_loop():
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "OwnToneDashboardCompanion/1.1"
+    # HTTP/1.0 (the default) closes the socket after every response, and the
+    # dashboard polls several endpoints from every open device.
+    protocol_version = "HTTP/1.1"
+    # Without this, a client that announces a Content-Length and then sends
+    # nothing keeps a worker thread blocked until TCP times out.
+    timeout = 15
 
     def log_message(self, fmt, *args):
         print(f"[{self.log_date_time_string()}] {fmt % args}", flush=True)
@@ -1242,9 +1322,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(201, item)
                 return
 
-            if path.endswith("/run"):
-                schedule_id = self._id_from_path()
-                _, _, item = find_schedule(schedule_id or "")
+            if len(parts) == 3 and parts[0] == "schedules" and parts[2] == "run":
+                _, _, item = find_schedule(parts[1])
                 if not item:
                     self._send(404, {"error": "Schedule not found"})
                     return
@@ -1291,6 +1370,13 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, {"error": "Not found"})
 
     def do_PUT(self):
+        try:
+            self._handle_put()
+        except Exception as exc:
+            self.log_message("PUT %s failed: %s", self.path, exc)
+            self._send(400, {"error": str(exc)})
+
+    def _handle_put(self):
         parts = [x for x in urlparse(self.path).path.split("/") if x]
         if len(parts) == 2 and parts[0] == "playlists":
             try:
@@ -1317,6 +1403,13 @@ class Handler(BaseHTTPRequestHandler):
             self._send(400, {"error": str(exc)})
 
     def do_DELETE(self):
+        try:
+            self._handle_delete()
+        except Exception as exc:
+            self.log_message("DELETE %s failed: %s", self.path, exc)
+            self._send(400, {"error": str(exc)})
+
+    def _handle_delete(self):
         parts = [x for x in urlparse(self.path).path.split("/") if x]
         if len(parts) == 2 and parts[0] == "playlists":
             try:
