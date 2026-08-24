@@ -100,12 +100,22 @@ jobs:
 
           HTMLParser().feed(Path('index.html').read_text(encoding='utf-8'))
 
+          markup = Path('index.html').read_text(encoding='utf-8')
           config = Path('config.js').read_text(encoding='utf-8')
-          listed = re.findall(r"^\s*'([\w./-]+\.(?:css|js))',", config, re.MULTILINE)
-          logos = re.findall(r"'(station-logos/[^']+)'", config)
-          referenced = listed + logos + ['icon.svg', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png']
+
+          # Strip comments first: they carry examples such as
+          # 'station-logos/kexp.svg' that are documentation, not references.
+          code = re.sub(r'/\*.*?\*/', '', config, flags=re.S)
+          code = re.sub(r'^\s*//.*$', '', code, flags=re.M)
+
+          listed = re.findall(r"^\s*'([\w./-]+\.(?:css|js))',", code, re.MULTILINE)
+          logos = re.findall(r"'(station-logos/[^']+)'", code)
+          icons = re.findall(r'(?:href|src)="([\w./-]+\.(?:svg|png))"', markup)
+          referenced = sorted(set(listed + logos + icons))
 
           missing = [asset for asset in referenced if not Path(asset).is_file()]
           if missing:
               sys.exit(f'Missing assets referenced by config.js or index.html: {missing}')
-          print(f'{len(referenced)} referenced assets present')
+          if not listed:
+              sys.exit('No stylesheets or scripts found in config.js — has the loader changed shape?')
+          print(f'{len(referenced)} referenced assets present ({len(listed)} loaded by config.js)')
