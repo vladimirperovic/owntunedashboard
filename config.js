@@ -49,7 +49,10 @@ window.OWNTONE_DASHBOARD = {
   // a monogram generated from their name, so this is optional.
   // Drop your own files in station-logos/ — see the README there.
   // Example: { 'KEXP 90.3': 'station-logos/kexp.svg' }
-  radioArtwork: {},
+  radioArtwork: {
+    'Radio Porto Montenegro': 'station-logos/porto-montenegro.svg',
+    'Porto Montenegro': 'station-logos/porto-montenegro.svg',
+  },
 };
 
 /*
@@ -67,7 +70,7 @@ window.OWNTONE_DASHBOARD = {
  * that were not inserted by the HTML parser, so setting it only misleads.)
  */
 (() => {
-  const BUILD = '20260824-01';
+  const BUILD = '20260825-01';
   const asset = path => `${path}?v=${BUILD}`;
 
   const addStyle = href => {

@@ -543,8 +543,8 @@
     border: 0;
   }
 
-  /* How many album cards to show — four stops, sitting under the section title
-     so it reads as part of the heading rather than a stray control. */
+  /* Album card density — four stops, sitting under the section title so it
+     reads as part of the heading rather than a stray control. */
   .album-count {
     display: inline-flex;
     align-items: center;

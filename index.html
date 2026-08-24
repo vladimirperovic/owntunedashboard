@@ -303,27 +303,26 @@
               <div>
                 <span class="section-kicker">LIBRARY</span>
                 <h2>Recently added albums</h2>
-                <!-- Four stops rather than a free range: the useful choices are
-                     "a glance", "a screenful" and "everything recent". -->
+                <!-- Four stops choose the album card density, not the library size. -->
                 <label class="album-count" for="albumCountRange">
-                  <span class="visually-hidden">How many albums to show</span>
+                  <span class="visually-hidden">How many album cards per row</span>
                   <input
                     id="albumCountRange"
                     class="range"
                     type="range"
-                    min="1"
-                    max="4"
+                    min="5"
+                    max="8"
                     step="1"
-                    value="2"
+                    value="6"
                     list="albumCountStops"
                   />
                   <datalist id="albumCountStops">
-                    <option value="1"></option>
-                    <option value="2"></option>
-                    <option value="3"></option>
-                    <option value="4"></option>
+                    <option value="5"></option>
+                    <option value="6"></option>
+                    <option value="7"></option>
+                    <option value="8"></option>
                   </datalist>
-                  <output id="albumCountValue" for="albumCountRange">24 albums</output>
+                  <output id="albumCountValue" for="albumCountRange">6 per row</output>
                 </label>
               </div>
               <div class="library-count" id="libraryCount">—</div>

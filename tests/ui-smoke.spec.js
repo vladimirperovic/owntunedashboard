@@ -158,33 +158,46 @@ test('an album cover that fails to load falls back to the record placeholder', a
   await expect(page.locator('.album-card .album-art img').first()).toHaveCount(0);
 });
 
-test('the album count slider has four stops and remembers the choice', async ({ page }) => {
+test('the album density slider has four stops and remembers the choice', async ({ page }) => {
   await openDemo(page, { width: 1440, height: 1000 });
 
   const slider = page.locator('#albumCountRange');
   const label = page.locator('#albumCountValue');
 
-  await expect(slider).toHaveAttribute('min', '1');
-  await expect(slider).toHaveAttribute('max', '4');
-  await expect(label).toHaveText('24 albums');
+  await expect(slider).toHaveAttribute('min', '5');
+  await expect(slider).toHaveAttribute('max', '8');
+  await expect(label).toHaveText('6 per row');
 
-  for (const [stop, expected] of [
-    ['1', '12 albums'],
-    ['3', '36 albums'],
-    ['4', '48 albums'],
+  for (const [columns, expected] of [
+    ['5', '5 per row'],
+    ['7', '7 per row'],
+    ['8', '8 per row'],
   ]) {
-    await slider.fill(stop);
+    await slider.fill(columns);
     await expect(label).toHaveText(expected);
   }
 
-  // The stop is stored, not the count, so the counts behind it can change.
-  expect(await page.evaluate(() => localStorage.getItem('owntone-album-count-v1'))).toBe('4');
+  expect(await page.evaluate(() => localStorage.getItem('owntone-album-columns-v1'))).toBe('8');
 
   await page.reload();
-  await expect(page.locator('#albumCountValue')).toHaveText('48 albums');
+  await expect(page.locator('#albumCountValue')).toHaveText('8 per row');
 
-  // The grid never shows more cards than the slider asks for.
-  await page.locator('#albumCountRange').fill('1');
-  await expect(page.locator('#albumCountValue')).toHaveText('12 albums');
-  expect(await page.locator('.album-card').count()).toBeLessThanOrEqual(12);
+  // Density changes the layout, not how many recent albums are rendered.
+  const albumCount = await page.locator('.album-card').count();
+  expect(albumCount).toBeGreaterThan(0);
+
+  await page.locator('#albumCountRange').fill('5');
+  await expect(page.locator('#albumCountValue')).toHaveText('5 per row');
+  expect(await page.locator('.album-card').count()).toBe(albumCount);
+  const columnsAtSmallest = await page.locator('#albumGrid').evaluate(el =>
+    getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length
+  );
+  expect(columnsAtSmallest).toBe(5);
+
+  await page.locator('#albumCountRange').fill('8');
+  await expect(page.locator('#albumCountValue')).toHaveText('8 per row');
+  const columnsAtLargest = await page.locator('#albumGrid').evaluate(el =>
+    getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length
+  );
+  expect(columnsAtLargest).toBe(8);
 });

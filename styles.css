@@ -732,7 +732,7 @@
   }
   .album-grid {
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--album-columns, 6), minmax(0, 1fr));
     gap: 9px;
     margin-top: 12px;
   }
@@ -1134,9 +1134,6 @@
       padding-left: 30px;
       padding-right: 30px;
     }
-    .album-grid {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
     .radio-grid {
       grid-template-columns: repeat(4, minmax(0, 1fr));
     }
@@ -1201,9 +1198,6 @@
     }
     .quick-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-    .album-grid {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
     }
     .playlist-grid,
     .radio-grid {
@@ -1372,7 +1366,6 @@
       display: none;
     }
     .album-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 7px;
     }
     .playlist-grid,

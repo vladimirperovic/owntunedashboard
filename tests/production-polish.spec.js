@@ -67,6 +67,19 @@ test('radio uses configured artwork only and keeps artwork left of play', async 
   await expect(page.locator('#fallbackMonogramProbe')).toBeVisible();
 });
 
+test('Porto Montenegro keeps its local station identity artwork', async ({ page }) => {
+  await openDemo(page, { width: 1280, height: 800 });
+  await page.locator('#modeToggle').click();
+  const card = page.locator('.radio-card').filter({ hasText: 'Radio Porto Montenegro' });
+  await expect(card.locator('.radio-station-identity')).toHaveClass(/has-image/);
+  await expect(card.locator('.radio-station-identity')).toHaveCSS(
+    'background-image',
+    /porto-montenegro\.svg/
+  );
+  await card.click();
+  await expect(page.locator('#artwork')).toHaveAttribute('src', /porto-montenegro\.svg/);
+});
+
 for (const viewport of [
   { width: 1440, height: 1000 },
   { width: 390, height: 844 },

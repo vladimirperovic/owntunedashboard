@@ -64,21 +64,19 @@
     toast: $('toast'),
   };
 
-  // The album slider has four stops rather than a free range — these are the
-  // counts behind them. The stored value is the stop, so the counts can change
-  // without stranding anyone's setting.
-  const ALBUM_COUNTS = [12, 24, 36, 48];
-  const ALBUM_COUNT_KEY = 'owntone-album-count-v1';
+  // The slider controls density, not how many albums the library fetches.
+  const ALBUM_COLUMNS = [5, 6, 7, 8];
+  const ALBUM_DISPLAY_LIMIT = 48;
+  const ALBUM_COLUMN_KEY = 'owntone-album-columns-v1';
 
-  function readAlbumStop() {
-    const stored = Number(localStorage.getItem(ALBUM_COUNT_KEY));
-    return Number.isInteger(stored) && stored >= 1 && stored <= ALBUM_COUNTS.length ? stored : 2;
+  function readAlbumColumns() {
+    const stored = Number(localStorage.getItem(ALBUM_COLUMN_KEY));
+    return Number.isInteger(stored) && ALBUM_COLUMNS.includes(stored) ? stored : 6;
   }
 
   const state = {
     mode: 'music',
-    albumStop: readAlbumStop(),
-    albumCount: ALBUM_COUNTS[readAlbumStop() - 1],
+    albumColumns: readAlbumColumns(),
     online: false,
     demo: false,
     player: { state: 'stop', volume: 25, item_progress_ms: 0, item_length_ms: 0 },
@@ -144,6 +142,12 @@
         uri: 'library:playlist:15',
       },
       { id: 'r6', name: 'Triple J', path: '/media/music/Radio/Triple J.m3u', uri: 'library:playlist:16' },
+      {
+        id: 'r7',
+        name: 'Radio Porto Montenegro',
+        path: '/media/music/Radio/Radio Porto Montenegro.m3u',
+        uri: 'library:playlist:17',
+      },
     ],
     albums: [
       ['Dummy', 'Portishead'],
@@ -283,11 +287,14 @@
   }
   function artworkCandidates(item, player) {
     if (!item) return [];
+    const configuredArtwork = normalizedArtworkMapValue(item);
     const values = [
+      // Prefer a configured station identity over OwnTone's generic stream
+      // artwork (which may be a generated monogram for the current track).
+      configuredArtwork,
       item.artwork_url,
       item.track_id != null ? `/artwork/item/${encodeURIComponent(item.track_id)}` : '',
       player?.artwork_url,
-      normalizedArtworkMapValue(item),
       fallbackArtwork(item, isRadioCurrent(item)),
     ];
     const key = item.id ?? item.track_id ?? player?.item_id;
@@ -474,7 +481,7 @@
         request('/queue?id=now_playing'),
         request('/outputs'),
         request('/library/playlists?limit=500'),
-        request(`/library/albums?limit=${state.albumCount}`),
+        request(`/library/albums?limit=${ALBUM_DISPLAY_LIMIT}`),
         request('/library'),
         request('/config'),
       ]);
@@ -658,7 +665,7 @@
     try {
       const [playlists, albums, library] = await Promise.all([
         request('/library/playlists?limit=500'),
-        request(`/library/albums?limit=${state.albumCount}`),
+        request(`/library/albums?limit=${ALBUM_DISPLAY_LIMIT}`),
         request('/library'),
       ]);
       state.playlists = playlists?.items || [];
@@ -905,7 +912,7 @@
       seenCovers.add(key);
       return true;
     });
-    const shown = albums.slice(0, state.albumCount);
+    const shown = albums.slice(0, ALBUM_DISPLAY_LIMIT);
     els.albumGrid.innerHTML = shown.length
       ? shown.map(albumCardHtml).join('')
       : '<p class="empty-state">No albums found.</p>';
@@ -1241,51 +1248,40 @@
   els.nextButton.addEventListener('click', () => playerCommand('next'));
   els.refreshButton.addEventListener('click', refreshLibrary);
 
-  /**
-   * How many album cards the library section shows.
-   *
-   * Dragging re-renders from what is already loaded, so it stays instant.
-   * Raising it past what was fetched asks the server for more, once, when the
-   * drag ends.
-   */
-  function syncAlbumCount(stop, { fetchMore = false } = {}) {
-    state.albumStop = Math.max(1, Math.min(ALBUM_COUNTS.length, Math.round(stop)));
-    state.albumCount = ALBUM_COUNTS[state.albumStop - 1];
+  /** Change only the number of album cards that fit on one row. */
+  function syncAlbumColumns(columns) {
+    const next = Math.round(columns);
+    state.albumColumns = ALBUM_COLUMNS.includes(next) ? next : 6;
     paintAlbumCountControl();
     try {
-      localStorage.setItem(ALBUM_COUNT_KEY, String(state.albumStop));
+      localStorage.setItem(ALBUM_COLUMN_KEY, String(state.albumColumns));
     } catch (_) {
       // Private browsing: the setting just will not persist.
     }
     renderLibrary();
-    if (fetchMore && !state.demo && state.albums.length < state.albumCount) loadMoreAlbums();
   }
 
   function paintAlbumCountControl() {
     if (!els.albumCountRange) return;
-    els.albumCountRange.value = String(state.albumStop);
-    els.albumCountRange.setAttribute('aria-valuetext', `${state.albumCount} albums`);
-    els.albumCountValue.textContent = `${state.albumCount} albums`;
-    const ratio = (state.albumStop - 1) / (ALBUM_COUNTS.length - 1);
+    els.albumCountRange.value = String(state.albumColumns);
+    els.albumCountRange.setAttribute('aria-valuetext', `${state.albumColumns} albums per row`);
+    els.albumCountValue.textContent = `${state.albumColumns} per row`;
+    const ratio = (state.albumColumns - ALBUM_COLUMNS[0]) / (ALBUM_COLUMNS.at(-1) - ALBUM_COLUMNS[0]);
     els.albumCountRange.style.setProperty('--range-progress', `${ratio * 100}%`);
-  }
-
-  async function loadMoreAlbums() {
-    try {
-      const albums = await request(`/library/albums?limit=${state.albumCount}`);
-      state.albums = albums?.items || state.albums;
-      renderLibrary();
-    } catch (err) {
-      console.warn('Could not load more albums:', err);
+    if (els.albumGrid) {
+      const maxColumns =
+        window.innerWidth <= 620 ? 2 : window.innerWidth <= 900 ? 4 : window.innerWidth <= 1180 ? 6 : 8;
+      const requested = state.albumColumns;
+      els.albumGrid.style.setProperty('--album-columns', String(Math.min(requested, maxColumns)));
     }
   }
 
   if (els.albumCountRange) {
-    els.albumCountRange.addEventListener('input', () => syncAlbumCount(Number(els.albumCountRange.value)));
-    els.albumCountRange.addEventListener('change', () =>
-      syncAlbumCount(Number(els.albumCountRange.value), { fetchMore: true })
-    );
+    const onAlbumColumnsChange = () => syncAlbumColumns(Number(els.albumCountRange.value));
+    els.albumCountRange.addEventListener('input', onAlbumColumnsChange);
+    els.albumCountRange.addEventListener('change', onAlbumColumnsChange);
   }
+  window.addEventListener('resize', paintAlbumCountControl);
   els.shuffleLibraryButton.addEventListener('click', shuffleLibrary);
   els.quickGrid.addEventListener('click', e => {
     const card = e.target.closest('[data-playlist]');
