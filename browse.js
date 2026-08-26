@@ -6,7 +6,9 @@
 
   function playExpression(expression, label) {
     const appInstance = window.OWNTONE_APP;
-    if (appInstance?.playExpression) return appInstance.playExpression(expression, label);
+    // app.js takes options, not a bare label. Passing the string meant the
+    // destructured `label` fell back to '' and the chip name never showed.
+    if (appInstance?.playExpression) return appInstance.playExpression(expression, { label });
     return Promise.resolve();
   }
 

@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const { api: requestJson, escapeHtml, toast, icons: shared } = window.OwnTone;
+  const { api: requestJson, escapeHtml, toast, icons: shared, outputLabel: labelFor } = window.OwnTone;
 
   const $ = id => document.getElementById(id);
   const app = () => window.OWNTONE_APP || null;
@@ -78,11 +78,9 @@
   function needsOutputAuth(output) {
     return !!(output?.requires_auth || output?.needs_auth_key || output?.has_password);
   }
+  // Shared with app.js, which writes the same hero label on every poll.
   function outputLabel() {
-    const selected = selectedOutputs();
-    if (!selected.length) return 'No output';
-    if (selected.length === 1) return selected[0].name || '1 output';
-    return `${selected.length} outputs`;
+    return labelFor(allOutputs());
   }
 
   async function setPhysicalOutputs(ids) {
@@ -884,13 +882,9 @@
         characterData: true,
         subtree: true,
       });
-    const heroTarget = $('outputName');
-    if (heroTarget)
-      new MutationObserver(syncGroupLabel).observe(heroTarget, {
-        childList: true,
-        characterData: true,
-        subtree: true,
-      });
+    // No observer on #outputName: syncGroupLabel writes to that very element, so
+    // watching it meant every renderPlayer() pass bounced the label back and
+    // forth. app.js now derives the same text from the shared helper.
     clearInterval(syncTimer);
     syncTimer = setInterval(syncGroupLabel, 1800);
 

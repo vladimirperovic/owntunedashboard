@@ -162,11 +162,17 @@
     toggleMute();
   });
 
-  const observer = new MutationObserver(() => {
-    if (!button || !document.body.contains(button)) mount();
-    else render();
-  });
-  observer.observe(document.documentElement, { subtree: true, childList: true });
+  // Scoped to the dock the button lives in. This used to watch every node in
+  // the document and re-render on each change the 3 s poll caused — the same
+  // pattern index.html dropped for being far too expensive. Remounting is all
+  // the observer is needed for; the interval below keeps the icon in step with
+  // volume changes the server pushes into the slider.
+  const dock = document.querySelector('.audio-dock');
+  if (dock) {
+    new MutationObserver(() => {
+      if (!button || !document.body.contains(button)) mount();
+    }).observe(dock, { subtree: true, childList: true });
+  }
 
   document.addEventListener('DOMContentLoaded', mount);
   if (document.readyState !== 'loading') mount();

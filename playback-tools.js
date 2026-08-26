@@ -40,6 +40,12 @@
     return type || (item?.is_radio ? 'RADIO' : 'AUDIO');
   }
 
+  /** "00–08" for the configured window — the badge and the drawer read the same. */
+  function nightWindowText() {
+    const hour = value => String(Math.max(0, Math.min(23, Number(value) || 0))).padStart(2, '0');
+    return `${hour(cfg.nightSafeStartHour)}–${hour(cfg.nightSafeEndHour)}`;
+  }
+
   function mountNightBadge() {
     if (document.getElementById('nightSafeBadge')) return;
     const dock = document.querySelector('.audio-dock');
@@ -48,7 +54,7 @@
     nightBadge.id = 'nightSafeBadge';
     nightBadge.className = 'night-safe-badge';
     nightBadge.innerHTML = `${icons.moon}<span>Night cap ${nightSafe.cap}%</span>`;
-    nightBadge.title = `Manual playback is capped from ${String(cfg.nightSafeStartHour).padStart(2, '0')}:00 to ${String(cfg.nightSafeEndHour).padStart(2, '0')}:00`;
+    nightBadge.title = `Manual playback is capped from ${nightWindowText().replace('–', ':00 to ')}:00`;
     dock.appendChild(nightBadge);
     renderNightBadge();
   }
@@ -77,7 +83,7 @@
       button.title = 'Queue & history';
       button.setAttribute('aria-label', 'Open queue and history');
       button.innerHTML = `${icons.queue}<span class="queue-count-dot" id="queueCountDot"></span>`;
-      const schedulerButton = document.getElementById('schedulerButton');
+      const schedulerButton = document.getElementById('scheduleButton');
       topActions.insertBefore(button, schedulerButton || topActions.firstChild);
       button.addEventListener('click', () => openDrawer('queue'));
     }
@@ -104,7 +110,7 @@
           <button id="queueClear" type="button" title="Clear queue (click twice)" aria-label="Clear queue">${icons.trash}</button>
         </div>
         <div class="playback-drawer-body" id="playbackDrawerBody"></div>
-        <footer class="playback-drawer-foot"><span id="drawerHint">Drag to reorder · swipe left to remove</span><span class="night-foot">${icons.moon} 00–08 · max ${Number(cfg.nightSafeMaxVolume ?? 8)}%</span></footer>
+        <footer class="playback-drawer-foot"><span id="drawerHint">Drag to reorder · swipe left to remove</span><span class="night-foot">${icons.moon} ${nightWindowText()} · max ${nightSafe.cap}%</span></footer>
       </section>`;
     document.body.appendChild(drawer);
     body = drawer.querySelector('#playbackDrawerBody');
@@ -223,9 +229,15 @@
   }
 
   function queueRowHtml(item, currentId, index) {
+    // The item's own position when OwnTone reports one. Filtered results are
+    // fetched from the head of the queue, so offsetting them by queueStart --
+    // the *playing* item's position -- numbered every match wrongly.
+    const position = Number.isFinite(Number(item.position))
+      ? Number(item.position) + 1
+      : queueStart + index + 1;
     return `<div class="queue-row ${String(item.id) === currentId ? 'is-playing' : ''}" draggable="true" data-id="${escapeHtml(item.id)}" data-uri="${escapeHtml(item.uri || '')}">
         <span class="queue-grip">${icons.grip}</span>
-        <span class="queue-index">${String(queueStart + index + 1).padStart(2, '0')}</span>
+        <span class="queue-index">${String(position).padStart(2, '0')}</span>
         <span class="queue-copy"><b>${escapeHtml(item.title || 'Untitled')}</b><small>${escapeHtml([item.artist, item.album].filter(Boolean).join(' · ') || (item.data_kind === 'url' ? 'Live radio' : 'OwnTone'))}</small></span>
         <span class="queue-quality">${escapeHtml(quality(item))}</span>
         <button class="queue-delete" type="button" aria-label="Remove from queue">${icons.trash}</button>

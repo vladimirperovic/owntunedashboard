@@ -183,31 +183,6 @@
     color: #fff;
   }
 
-  .radio-drag-handle {
-    width: 27px;
-    height: 27px;
-    border-radius: 50%;
-    display: grid;
-    place-items: center;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.09);
-    color: rgba(255, 255, 255, 0.55);
-    font-size: 13px;
-    cursor: grab;
-    touch-action: none;
-    transition: all 0.18s ease;
-  }
-
-  .radio-drag-handle:hover {
-    background: rgba(255, 255, 255, 0.14);
-    color: #fff;
-    transform: scale(1.06);
-  }
-
-  .radio-drag-handle:active {
-    cursor: grabbing;
-  }
-
   .radio-favorite {
     width: 27px;
     height: 27px;
@@ -464,7 +439,6 @@
       padding: 3px 6.5px;
       font-size: 8px;
     }
-    .radio-drag-handle,
     .radio-favorite {
       width: 25px;
       height: 25px;

@@ -63,9 +63,13 @@
     wireEditor();
   }
 
+  // The full line lives in data-line, never in the text node. It used to be read
+  // back from textContent, which had already been shortened for display -- so
+  // saving a playlist rewrote every path longer than 58 characters as its own
+  // truncated prefix. CSS does the shortening now, and nothing is lost.
   function plineRow(line, index) {
     return `<div class="pline" draggable="false">
-      <span class="pline-text">${escapeHtml(line.length > 58 ? line.slice(0, 55) + '…' : line)}</span>
+      <span class="pline-text" data-line="${escapeHtml(line)}" title="${escapeHtml(line)}">${escapeHtml(line)}</span>
       <button type="button" data-up="${index}" title="Up">↑</button>
       <button type="button" data-down="${index}" title="Down">↓</button>
       <button type="button" data-del="${index}" title="Remove">×</button>
@@ -73,7 +77,9 @@
   }
 
   function collectLines() {
-    return [...editorEl.querySelectorAll('.pline-text')].map(el => el.textContent.trim()).filter(Boolean);
+    return [...editorEl.querySelectorAll('.pline-text')]
+      .map(el => String(el.dataset.line ?? '').trim())
+      .filter(Boolean);
   }
 
   function rerenderFromLines(lines) {

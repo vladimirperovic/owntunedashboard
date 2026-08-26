@@ -357,6 +357,23 @@ def owntone_request(path: str, method: str = "GET", body=None, timeout: int = 8)
             return raw.decode("utf-8", errors="replace")
 
 
+def night_capped(volume: int, item: dict, now: datetime | None = None) -> tuple[int, bool]:
+    """
+    A schedule's volume with its own night cap applied.
+
+    Both the initial volume and the delayed ramp go through here. The ramp used
+    to be capped into a local variable that execute_schedule then threw away,
+    while the bump itself read the raw value -- so a 06:00 run with
+    respect_night_cap started at 8% and jumped to its full volume ten minutes
+    later, in the middle of the night the flag exists to protect.
+    """
+    volume = max(0, min(100, int(volume)))
+    if not item.get("respect_night_cap") or not _night_window(now):
+        return volume, False
+    cap = max(0, min(100, NIGHT_MAX))
+    return (cap, True) if volume > cap else (volume, False)
+
+
 def schedule_volume_bump(item: dict, runtime: dict) -> bool:
     ramp_minutes = int(item.get("ramp_minutes") or 0)
     ramp_volume = int(item.get("ramp_volume") or 0)
@@ -374,6 +391,9 @@ def schedule_volume_bump(item: dict, runtime: dict) -> bool:
         return False
     if local_now() < ran_at + timedelta(minutes=ramp_minutes):
         return False
+    # Capped at bump time, not at schedule time: the run may have started
+    # outside the night window and be ramping up inside it, or the other way.
+    ramp_volume, _ = night_capped(ramp_volume, item)
     output_id = str(item.get("output_id") or "")
     volume_query = urlencode({"volume": ramp_volume, "output_id": output_id})
     owntone_request(f"/player/volume?{volume_query}", "PUT")
@@ -420,16 +440,11 @@ def execute_schedule(item: dict) -> dict:
     source_uri = item["source_uri"]
     source_name = item["source_name"]
     volume = int(item["volume"])
-    ramp_volume = int(item.get("ramp_volume") or 0)
     note = ""
 
-    if item.get("respect_night_cap") and _night_window():
-        cap = max(0, min(100, NIGHT_MAX))
-        if volume > cap:
-            volume = cap
-            note = " (night cap)"
-        if ramp_volume > cap:
-            ramp_volume = cap
+    volume, capped = night_capped(volume, item)
+    if capped:
+        note = " (night cap)"
 
     if item.get("kind") == "radio":
         playlist_id = _playlist_id_from_uri(source_uri)

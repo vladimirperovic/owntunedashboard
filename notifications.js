@@ -62,16 +62,27 @@
     } catch (_) {}
   }
 
+  /**
+   * Activity timestamps as a number, or NaN.
+   *
+   * The companion stamps events in its own zone ("…+02:00") while the fallback
+   * written here was a UTC "…Z" string. These used to be compared as text,
+   * which happens to work east of UTC and silently swallowed every notification
+   * west of it. Parse both to an instant instead.
+   */
+  const instant = value => Date.parse(String(value || ''));
+
   function lastSeen() {
     try {
-      return localStorage.getItem(SEEN_KEY) || '';
+      return instant(localStorage.getItem(SEEN_KEY));
     } catch (_) {
-      return '';
+      return NaN;
     }
   }
   function markSeen(iso) {
+    const at = instant(iso);
     try {
-      localStorage.setItem(SEEN_KEY, iso || new Date().toISOString());
+      localStorage.setItem(SEEN_KEY, new Date(Number.isNaN(at) ? Date.now() : at).toISOString());
     } catch (_) {}
   }
 
@@ -82,14 +93,17 @@
       if (!data) return;
       const items = data?.items || [];
       const seen = lastSeen();
-      const fresh = items.filter(it => !seen || String(it.at) > seen);
+      const fresh = items.filter(it => {
+        const at = instant(it.at);
+        return Number.isNaN(at) ? false : Number.isNaN(seen) || at > seen;
+      });
       fresh
         .slice(0, 3)
         .reverse()
         .forEach(ev => {
           if (/^(schedule|sleep|error|station|playlist)/.test(ev.kind)) notify(ev.text);
         });
-      markSeen(items[0]?.at || new Date().toISOString());
+      markSeen(items[0]?.at);
     } catch (_) {}
   }
 
@@ -103,7 +117,7 @@
     button.type = 'button';
     button.innerHTML =
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>';
-    const schedulerButton = document.getElementById('schedulerButton');
+    const schedulerButton = document.getElementById('scheduleButton');
     top.insertBefore(button, schedulerButton || top.firstChild);
     button.addEventListener('click', toggle);
     render();

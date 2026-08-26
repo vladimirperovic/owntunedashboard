@@ -2,7 +2,7 @@
   'use strict';
 
   const app = () => window.OWNTONE_APP || null;
-  const TYPING = /input|textarea|select/i;
+  const TYPING = /input|textarea|select|button|a|summary/i;
 
   function ensureLegend() {
     let dialog = document.getElementById('shortcutsDialog');
@@ -49,14 +49,19 @@
     appInstance.setVolume?.(Math.max(0, Math.min(100, current + delta)));
   }
 
-  function isRadioCurrent(item) {
-    return !!(item && (item.data_kind === 'url' || /^https?:\/\//i.test(String(item.path || ''))));
-  }
-
   document.addEventListener('keydown', event => {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
+    // app.js registers its own document handler first (config.js guarantees the
+    // load order) and calls preventDefault() when it has claimed the key --
+    // Space or Enter on a focused .radio-card, for one. Without this guard the
+    // station started *and* the player toggled on the same keystroke.
+    if (event.defaultPrevented) return;
     const tag = String(event.target?.tagName || '').toLowerCase();
+    // TYPING also covers <button> and <a>: Space is their own activation key,
+    // and preventDefault() below would otherwise swallow it, leaving every
+    // button in the dashboard unusable from the keyboard.
     if (TYPING.test(tag) || event.target?.isContentEditable) return;
+    if (event.target?.closest?.('[role="button"],[contenteditable="true"]')) return;
 
     switch (event.key) {
       case ' ':
@@ -89,7 +94,9 @@
         break;
       case 'r':
       case 'R':
-        if (!isRadioCurrent(app()?.state?.current)) document.getElementById('modeToggle')?.click();
+        // A real toggle, as the legend promises. Switching view does not touch
+        // playback, so there was never a reason to refuse it while radio plays.
+        document.getElementById('modeToggle')?.click();
         break;
       case '?': {
         const d = ensureLegend();

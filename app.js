@@ -14,6 +14,7 @@
     browserOutput,
     startPlayback,
     setOutputVolume,
+    outputLabel,
   } = window.OwnTone;
 
   const $ = id => document.getElementById(id);
@@ -70,8 +71,15 @@
   const ALBUM_COLUMN_KEY = 'owntone-album-columns-v1';
 
   function readAlbumColumns() {
-    const stored = Number(localStorage.getItem(ALBUM_COLUMN_KEY));
-    return Number.isInteger(stored) && ALBUM_COLUMNS.includes(stored) ? stored : 6;
+    // Guarded like the matching write below: a browser set to block site data
+    // throws on access, and this runs while `state` is still being built --
+    // an unguarded throw here took the whole dashboard down with it.
+    try {
+      const stored = Number(localStorage.getItem(ALBUM_COLUMN_KEY));
+      return Number.isInteger(stored) && ALBUM_COLUMNS.includes(stored) ? stored : 6;
+    } catch (_) {
+      return 6;
+    }
   }
 
   const state = {
@@ -794,7 +802,11 @@
       els.playButton.setAttribute('aria-label', playing ? 'Pause' : 'Play');
     }
     els.statusDot.classList.toggle('on', !!out?.selected && (state.online || state.demo));
-    els.outputName.textContent = out?.name || 'No output';
+    // Same helper context-multiroom.js uses. Writing the single output's name
+    // here while that module wrote "2 outputs" made the label flip on every
+    // poll whenever more than one speaker was selected.
+    const browser = browserOutput();
+    els.outputName.textContent = outputLabel(browser ? [...state.outputs, browser] : state.outputs);
     if (item) {
       els.trackTitle.textContent = trackTitle(item, radio);
       els.trackArtist.textContent = trackArtist(item, radio);
@@ -926,7 +938,7 @@
           .join('')
       : '<p class="empty-state">No playlists found.</p>';
   }
-  // Cards start as CHECKING, not LIVE: radio-dnd probes each stream right after
+  // Cards start as CHECKING, not LIVE: radio-stations.js probes each stream right after
   // mount, and claiming LIVE before the probe answers is a lie for ~300 ms.
   function radioCardHtml(station) {
     return `
@@ -950,7 +962,7 @@
 
   function renderRadio() {
     const stations = state.radioPlaylists;
-    // Both grids are rebuilt together. radio-dnd moves favourite cards into
+    // Both grids are rebuilt together. radio-stations.js moves favourite cards into
     // #radioFavoritesGrid, so leaving that grid alone would keep the previous
     // render's nodes alongside the new ones and duplicate every favourite.
     if (els.radioFavoritesGrid) els.radioFavoritesGrid.innerHTML = '';
@@ -1345,7 +1357,7 @@
     if (card) playUri(card.dataset.uri);
   });
   document.addEventListener('click', e => {
-    if (e.target.closest('.radio-favorite,.radio-drag-handle')) return;
+    if (e.target.closest('.radio-favorite')) return;
     const card = e.target.closest('.radio-card[data-uri]');
     if (card && card.dataset.uri) {
       state.mode = 'radio';
@@ -1356,7 +1368,7 @@
   document.addEventListener('keydown', e => {
     if (e.key === 'Enter' || e.key === ' ') {
       const card = e.target.closest?.('.radio-card[data-uri]');
-      if (card && card.dataset.uri && !e.target.closest('.radio-favorite,.radio-drag-handle')) {
+      if (card && card.dataset.uri && !e.target.closest('.radio-favorite')) {
         e.preventDefault();
         state.mode = 'radio';
         renderMode();

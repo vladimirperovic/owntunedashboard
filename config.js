@@ -112,7 +112,7 @@ window.OWNTONE_DASHBOARD = {
     'shared.js',
     'app.js',
     'playback-tools.js',
-    'radio-dnd.js',
+    'radio-stations.js',
     'library-browser.js',
     'scheduler-ui.js',
     'radio-visualizer.js',

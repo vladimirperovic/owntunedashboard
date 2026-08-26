@@ -1,3 +1,9 @@
+/**
+ * Radio station cards: favourites, stream health and the quality pill.
+ *
+ * Named radio-dnd.js until the drag-to-reorder it was written for was dropped;
+ * nothing here has reordered anything for a long time.
+ */
 (() => {
   'use strict';
 

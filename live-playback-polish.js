@@ -88,7 +88,9 @@
       } else {
         const range = $('progressRange');
         if (range) {
-          range.disabled = false;
+          // `disabled` belongs to renderPlayer(), which also turns it off for a
+          // track of unknown length. Re-enabling it here every 500 ms handed the
+          // user a seek bar that could not seek.
           range.removeAttribute('aria-hidden');
           range.removeAttribute('tabindex');
         }

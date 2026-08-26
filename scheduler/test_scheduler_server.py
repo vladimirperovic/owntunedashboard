@@ -10,6 +10,7 @@ places where a bug is expensive and a test is cheap.
 """
 
 import os
+import re
 import sys
 import unittest
 from datetime import datetime, timedelta
@@ -128,6 +129,79 @@ class NightWindow(unittest.TestCase):
     def test_equal_bounds_mean_always_on(self):
         with mock.patch.object(srv, "NIGHT_START", 5), mock.patch.object(srv, "NIGHT_END", 5):
             self.assertTrue(srv._night_window(at(2026, 8, 24, 12)))
+
+
+class NightCappedVolume(unittest.TestCase):
+    """
+    The cap has to hold for the delayed ramp too, not just the opening volume.
+
+    execute_schedule used to cap `ramp_volume` into a local it never used, while
+    schedule_volume_bump read the raw field — so a 06:00 wake-up with
+    respect_night_cap started at the cap and then jumped to full volume ten
+    minutes later, still inside the night window.
+    """
+
+    def setUp(self):
+        patches = [
+            mock.patch.object(srv, "NIGHT_START", 0),
+            mock.patch.object(srv, "NIGHT_END", 8),
+            mock.patch.object(srv, "NIGHT_MAX", 8),
+        ]
+        for patch in patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def test_caps_inside_the_night_window(self):
+        item = schedule(respect_night_cap=True)
+        self.assertEqual(srv.night_capped(60, item, at(2026, 8, 24, 6)), (8, True))
+
+    def test_leaves_a_quieter_volume_alone(self):
+        item = schedule(respect_night_cap=True)
+        self.assertEqual(srv.night_capped(5, item, at(2026, 8, 24, 6)), (5, False))
+
+    def test_does_nothing_outside_the_night_window(self):
+        item = schedule(respect_night_cap=True)
+        self.assertEqual(srv.night_capped(60, item, at(2026, 8, 24, 14)), (60, False))
+
+    def test_does_nothing_when_the_schedule_opted_out(self):
+        item = schedule(respect_night_cap=False)
+        self.assertEqual(srv.night_capped(60, item, at(2026, 8, 24, 6)), (60, False))
+
+
+class RampBump(unittest.TestCase):
+    """schedule_volume_bump is the call that actually reaches OwnTone."""
+
+    def setUp(self):
+        for patch in (
+            mock.patch.object(srv, "NIGHT_START", 0),
+            mock.patch.object(srv, "NIGHT_END", 8),
+            mock.patch.object(srv, "NIGHT_MAX", 8),
+        ):
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def _bump_volume(self, item, now):
+        """Run the bump with the clock frozen; return the volume it sent."""
+        runtime = {"runs": {"s1": "2026-08-24T06:00"}}
+        with (
+            mock.patch.object(srv, "local_now", return_value=now),
+            mock.patch.object(srv, "owntone_request") as request,
+        ):
+            self.assertTrue(srv.schedule_volume_bump(item, runtime))
+        path = request.call_args[0][0]
+        return int(re.search(r"volume=(\d+)", path).group(1))
+
+    def test_ramp_is_capped_while_it_is_still_night(self):
+        item = schedule(ramp_minutes=10, ramp_volume=60, respect_night_cap=True)
+        self.assertEqual(self._bump_volume(item, at(2026, 8, 24, 6, 15)), 8)
+
+    def test_ramp_runs_at_full_volume_once_the_night_is_over(self):
+        item = schedule(ramp_minutes=180, ramp_volume=60, respect_night_cap=True)
+        self.assertEqual(self._bump_volume(item, at(2026, 8, 24, 9, 5)), 60)
+
+    def test_ramp_is_untouched_without_the_flag(self):
+        item = schedule(ramp_minutes=10, ramp_volume=60, respect_night_cap=False)
+        self.assertEqual(self._bump_volume(item, at(2026, 8, 24, 6, 15)), 60)
 
 
 class CleanSchedule(unittest.TestCase):

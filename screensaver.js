@@ -38,7 +38,13 @@
   }
 
   function show() {
-    if (!playing() || document.hidden) return;
+    // Nothing to show yet — but keep waiting, or the screensaver could never
+    // appear again until the next mouse move. Playback often starts from
+    // somewhere else entirely (a schedule, a phone, Siri).
+    if (!playing() || document.hidden) {
+      idleTimer = setTimeout(() => show(), IDLE_MS);
+      return;
+    }
     const info = nowInfo();
     const art = overlay.querySelector('.screensaver-art');
     if ((info.art && /^data:|^blob:|^\//.test(info.art)) || /^(https?:)?\/\//.test(info.art)) {

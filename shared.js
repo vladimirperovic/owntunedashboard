@@ -211,6 +211,20 @@ window.OwnTone = (() => {
     await api(`/player/volume?${query}`, { method: 'PUT' });
   }
 
+  /**
+   * How the current output selection is named in the UI.
+   *
+   * app.js and context-multiroom.js both write the hero label; when they
+   * disagreed (one showing the first speaker's name, the other "2 outputs")
+   * the text flipped back and forth on every poll. One rule, one result.
+   */
+  function outputLabel(outputs) {
+    const selected = (outputs || []).filter(output => output?.selected);
+    if (!selected.length) return 'No output';
+    if (selected.length === 1) return selected[0].name || '1 output';
+    return `${selected.length} outputs`;
+  }
+
   /** Mirror a volume into the dashboard's own slider without a round trip. */
   function reflectVolume(volume) {
     const value = Math.max(0, Math.min(100, Math.round(volume)));
@@ -338,6 +352,7 @@ window.OwnTone = (() => {
     browserOutput,
     selectedOutputs,
     setOutputVolume,
+    outputLabel,
     reflectVolume,
     startPlayback,
     icons,
