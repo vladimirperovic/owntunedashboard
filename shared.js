@@ -312,6 +312,7 @@ window.OwnTone = (() => {
       '<path d="M5 8h14v8H5zM8 19h8M12 16v3"/><path d="M8 11.5a6 6 0 0 1 8 0M10 13.5a3 3 0 0 1 4 0"/>'
     ),
     expand: svg('<path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/>'),
+    now: svg('<circle cx="12" cy="12" r="8"/><path d="m10 8.5 5 3.5-5 3.5Z"/>'),
     spinner: svg(
       '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.6" opacity="0.25"/><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.6" stroke-dasharray="16 40" stroke-linecap="round"/>',
       'class="playback-spinner"'

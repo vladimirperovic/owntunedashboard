@@ -189,15 +189,15 @@ test('the album density slider has four stops and remembers the choice', async (
   await page.locator('#albumCountRange').fill('5');
   await expect(page.locator('#albumCountValue')).toHaveText('5 per row');
   expect(await page.locator('.album-card').count()).toBe(albumCount);
-  const columnsAtSmallest = await page.locator('#albumGrid').evaluate(el =>
-    getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length
-  );
+  const columnsAtSmallest = await page
+    .locator('#albumGrid')
+    .evaluate(el => getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length);
   expect(columnsAtSmallest).toBe(5);
 
   await page.locator('#albumCountRange').fill('8');
   await expect(page.locator('#albumCountValue')).toHaveText('8 per row');
-  const columnsAtLargest = await page.locator('#albumGrid').evaluate(el =>
-    getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length
-  );
+  const columnsAtLargest = await page
+    .locator('#albumGrid')
+    .evaluate(el => getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length);
   expect(columnsAtLargest).toBe(8);
 });

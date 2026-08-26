@@ -96,7 +96,6 @@
       else resetIdle();
     });
     resetIdle();
-    setInterval(resetIdle, 15000);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount, { once: true });

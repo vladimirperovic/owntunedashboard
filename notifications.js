@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const { scheduler } = window.OwnTone;
+  const { scheduler, toast } = window.OwnTone;
   const KEY = 'owntone-notify-enabled-v1';
   const SEEN_KEY = 'owntone-notify-last-seen';
   let button;
@@ -73,15 +73,6 @@
     try {
       localStorage.setItem(SEEN_KEY, iso || new Date().toISOString());
     } catch (_) {}
-  }
-
-  function toast(message) {
-    const el = document.getElementById('toast');
-    if (!el) return;
-    el.textContent = message;
-    el.classList.add('show');
-    clearTimeout(el._notifTimer);
-    el._notifTimer = setTimeout(() => el.classList.remove('show'), 2200);
   }
 
   async function poll() {
