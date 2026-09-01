@@ -1,144 +1,242 @@
 (() => {
   'use strict';
 
+  const BAR_COUNT = 30;
+  const FFT_SIZE = 64;
   const prefersReduced = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+
+  let wave;
   let canvas;
   let ctx;
-  let wave;
+  let raf = 0;
+  let last = 0;
   let width = 0;
   let height = 0;
   let dpr = 1;
-  let raf = 0;
-  let last = 0;
+
+  // Smoothed bar heights, one per bar.
+  let bars = new Float32Array(BAR_COUNT);
+
+  // Procedural fallback seed (changes with the track so it doesn't loop identically).
   let seed = 0.71;
+  let phase = 0;
 
-  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  // Live audio plumbing — only created on demand, only when Browser output exists.
+  let analyser = null;
+  let freqData = null;
+  let audioEl = null;
 
-  function hashText(text) {
-    let h = 2166136261;
-    for (let i = 0; i < text.length; i += 1) {
-      h ^= text.charCodeAt(i);
-      h = Math.imul(h, 16777619);
+  function isPlaying() {
+    const state = window.OWNTONE_APP?.state;
+    return !!state && state.player?.state === 'play' && !state.demo && state.online;
+  }
+
+  function isBrowserOutputActive() {
+    return !!window.OWNTONE_BROWSER_OUTPUT?.getState?.().active;
+  }
+
+  function ensureAnalyser() {
+    if (analyser) return analyser;
+    const audio = document.getElementById('browserAudioOutput');
+    if (!audio || typeof window.AudioContext === 'undefined') return null;
+    try {
+      const Ctor = window.AudioContext || window.webkitAudioContext;
+      const ac = new Ctor();
+      const src = ac.createMediaElementSource(audio);
+      const node = ac.createAnalyser();
+      node.fftSize = FFT_SIZE;
+      node.smoothingTimeConstant = 0.7;
+      src.connect(node);
+      // The analyser must be in the graph for it to produce data, but we do
+      // NOT want to mute the speakers. The browser-output module already drives
+      // the audio element's volume directly, so connecting source -> node and
+      // leaving node -> destination missing would silence playback. Bridge it.
+      node.connect(ac.destination);
+      analyser = node;
+      freqData = new Uint8Array(node.frequencyBinCount);
+      audioEl = audio;
+      return analyser;
+    } catch (_) {
+      return null;
     }
-    return (h >>> 0) / 4294967295;
+  }
+
+  function disconnectAnalyser() {
+    if (!analyser) return;
+    try {
+      analyser.disconnect();
+    } catch (_) {}
+    analyser = null;
+    freqData = null;
+    audioEl = null;
   }
 
   function updateSeed() {
     const title = document.getElementById('trackTitle')?.textContent || '';
     const meta = document.getElementById('trackMeta')?.textContent || '';
-    seed = hashText(`${title}|${meta}`) || 0.71;
+    let h = 2166136261;
+    const text = `${title}|${meta}`;
+    for (let i = 0; i < text.length; i += 1) {
+      h ^= text.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    seed = (h >>> 0) / 4294967295 || 0.71;
   }
 
   function resize() {
     if (!canvas || !wave) return;
     const rect = wave.getBoundingClientRect();
     width = Math.max(120, Math.round(rect.width));
-    height = Math.max(36, Math.round(rect.height));
-    dpr = clamp(window.devicePixelRatio || 1, 1, 2);
+    height = Math.max(28, Math.round(rect.height));
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = Math.round(width * dpr);
     canvas.height = Math.round(height * dpr);
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
     ctx = canvas.getContext('2d', { alpha: true });
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    draw(performance.now(), true);
   }
 
-  function draw(time, staticFrame = false) {
-    if (!ctx || !width || !height) return;
+  // Read live FFT bins (0..1) when we have them, otherwise synthesise bars
+  // from sin waves + the track seed. Output is normalised 0..1 per bar.
+  function computeBars(time) {
+    let next;
+    if (analyser && freqData && audioEl && !audioEl.paused) {
+      analyser.getByteFrequencyData(freqData);
+      // Map FFT bins onto our BAR_COUNT bars. freqData has frequencyBinCount
+      // bins; lower indexes are bass, higher are treble. We want bars that
+      // feel like a dancing floor — strong bass, mid, treble. So bin i maps
+      // to bar i * (binCount / BAR_COUNT).
+      const binCount = freqData.length;
+      next = new Float32Array(BAR_COUNT);
+      for (let i = 0; i < BAR_COUNT; i += 1) {
+        const idx = Math.floor((i / BAR_COUNT) * binCount);
+        next[i] = freqData[idx] / 255;
+      }
+    } else {
+      const t = time * 0.001;
+      phase += 1;
+      next = new Float32Array(BAR_COUNT);
+      for (let i = 0; i < BAR_COUNT; i += 1) {
+        const p = i / BAR_COUNT;
+        // Bass envelope: loud on the left, dies off toward the right, with a
+        // slow pulse so the floor visibly breathes.
+        const envelope = Math.pow(1 - p, 0.7);
+        const bass = Math.sin(t * 3.1 + seed * 6.28 + p * 4.0) * 0.5 + 0.5;
+        const mid = Math.sin(t * 6.4 + seed * 9.1 + p * 9.0) * 0.5 + 0.5;
+        const hi = Math.sin(t * 11.2 + seed * 12.7 + p * 17.0) * 0.5 + 0.5;
+        const pulse = 0.55 + 0.35 * Math.sin(t * 1.3 + seed * 4.2);
+        next[i] = (bass * 0.55 + mid * 0.3 + hi * 0.15) * envelope * pulse;
+      }
+    }
+    // Smooth toward target so spikes don't snap.
+    for (let i = 0; i < BAR_COUNT; i += 1) {
+      const target = next[i];
+      const cur = bars[i];
+      // Asymmetric smoothing: fast attack, slower release — feels musical.
+      const k = target > cur ? 0.55 : 0.18;
+      bars[i] = cur + (target - cur) * k;
+    }
+  }
+
+  function draw() {
+    if (!ctx) return;
     ctx.clearRect(0, 0, width, height);
 
-    const t = staticFrame ? 0.8 : time * 0.001;
-    const mid = height * 0.5;
-    const pad = 2;
-    const amp = Math.min(height * 0.34, 15);
+    const mid = height / 2;
+    const gap = 3;
+    const barWidth = Math.max(2, (width - gap * (BAR_COUNT - 1)) / BAR_COUNT);
+    const maxHalf = (height - 4) / 2;
 
-    const glow = ctx.createLinearGradient(0, 0, width, 0);
-    glow.addColorStop(0, 'rgba(240,90,67,.08)');
-    glow.addColorStop(0.18, 'rgba(240,90,67,.88)');
-    glow.addColorStop(0.74, 'rgba(255,126,97,.98)');
-    glow.addColorStop(1, 'rgba(240,90,67,.08)');
+    for (let i = 0; i < BAR_COUNT; i += 1) {
+      // Square the height so quiet bars stay visible but loud bars punch.
+      const amp = Math.pow(bars[i], 1.6);
+      const h = Math.max(2, amp * maxHalf);
+      const x = i * (barWidth + gap);
+      const y = mid - h;
 
-    // soft depth line
-    ctx.beginPath();
-    for (let x = pad; x <= width - pad; x += 2) {
-      const p = x / width;
-      const envelope = Math.pow(Math.sin(Math.PI * p), 0.55);
-      const y =
-        mid +
-        Math.sin((p * 9.5 + t * 0.62 + seed * 4.1) * Math.PI) * amp * 0.2 * envelope +
-        Math.sin((p * 23.0 - t * 0.39 + seed * 7.3) * Math.PI) * amp * 0.09 * envelope;
-      x === pad ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    }
-    ctx.strokeStyle = 'rgba(240,90,67,.22)';
-    ctx.lineWidth = 7;
-    ctx.lineCap = 'round';
-    ctx.shadowBlur = 18;
-    ctx.shadowColor = 'rgba(240,90,67,.18)';
-    ctx.stroke();
+      // Gradient per bar: warm coral core, soft top fade so bars feel lit,
+      // not stamped. Cheap — one gradient cached below per draw.
+      const grad = ctx.createLinearGradient(0, y, 0, y + h * 2);
+      grad.addColorStop(0, 'rgba(255, 126, 97, 0.15)');
+      grad.addColorStop(0.45, 'rgba(240, 90, 67, 0.95)');
+      grad.addColorStop(1, 'rgba(240, 90, 67, 0.85)');
 
-    // crisp waveform
-    ctx.beginPath();
-    for (let x = pad; x <= width - pad; x += 1.5) {
-      const p = x / width;
-      const envelope = Math.pow(Math.sin(Math.PI * p), 0.42);
-      const carrier = Math.sin((p * 16.5 + t * 0.95 + seed * 2.8) * Math.PI);
-      const detail = Math.sin((p * 37.0 - t * 0.57 + seed * 5.9) * Math.PI);
-      const slow = Math.sin((p * 5.0 + t * 0.21) * Math.PI);
-      const energy = 0.48 + 0.28 * Math.sin(t * 0.83 + seed * 6.28);
-      const y = mid + (carrier * 0.62 + detail * 0.28 + slow * 0.1) * amp * energy * envelope;
-      x === pad ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    }
-    ctx.shadowBlur = 9;
-    ctx.shadowColor = 'rgba(240,90,67,.26)';
-    ctx.strokeStyle = glow;
-    ctx.lineWidth = 2.25;
-    ctx.stroke();
-
-    // tiny travelling highlights make it feel less like a stock equalizer
-    ctx.shadowBlur = 0;
-    for (let i = 0; i < 4; i += 1) {
-      const p = (t * (0.055 + i * 0.006) + seed * 0.77 + i * 0.23) % 1;
-      const x = 8 + p * (width - 16);
-      const envelope = Math.pow(Math.sin(Math.PI * p), 0.6);
-      const y = mid + Math.sin((p * 16.5 + t * 0.95 + seed * 2.8) * Math.PI) * amp * 0.34 * envelope;
-      ctx.beginPath();
-      ctx.arc(x, y, i === 0 ? 1.9 : 1.25, 0, Math.PI * 2);
-      ctx.fillStyle = i === 0 ? 'rgba(255,241,235,.92)' : 'rgba(255,140,112,.72)';
+      ctx.fillStyle = grad;
+      roundRect(ctx, x, y, barWidth, h * 2, barWidth / 2);
       ctx.fill();
     }
   }
 
-  function animate(time) {
-    raf = requestAnimationFrame(animate);
-    if (document.hidden || !document.body.classList.contains('radio-mode')) return;
-    if (time - last < 33) return; // ~30fps, deliberately light
+  function roundRect(c, x, y, w, h, r) {
+    const rr = Math.min(r, w / 2, h / 2);
+    c.beginPath();
+    c.moveTo(x + rr, y);
+    c.lineTo(x + w - rr, y);
+    c.quadraticCurveTo(x + w, y, x + w, y + rr);
+    c.lineTo(x + w, y + h - rr);
+    c.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+    c.lineTo(x + rr, y + h);
+    c.quadraticCurveTo(x, y + h, x, y + h - rr);
+    c.lineTo(x, y + rr);
+    c.quadraticCurveTo(x, y, x + rr, y);
+    c.closePath();
+  }
+
+  function tick(time) {
+    raf = requestAnimationFrame(tick);
+    if (document.hidden) return;
+    if (time - last < 33) return; // ~30 fps, deliberately light
     last = time;
-    draw(time, false);
+
+    if (!isPlaying()) {
+      // Paused / no playback: hide the visualizer entirely.
+      if (wave.dataset.vizVisible === '1') {
+        wave.dataset.vizVisible = '0';
+        ctx?.clearRect(0, 0, width, height);
+        for (let i = 0; i < BAR_COUNT; i += 1) bars[i] = 0;
+      }
+      return;
+    }
+
+    if (wave.dataset.vizVisible !== '1') wave.dataset.vizVisible = '1';
+    computeBars(time);
+    draw();
   }
 
   function mount() {
     wave = document.querySelector('.radio-wave');
-    if (!wave || wave.dataset.canvasVisualizer === '1') return;
-    wave.dataset.canvasVisualizer = '1';
+    if (!wave || wave.dataset.vizMounted === '1') return;
+    wave.dataset.vizMounted = '1';
+
+    // The static <i> bars are dead weight now; the canvas paints everything.
+    // Keep the elements so layout doesn't shift, but hide them.
+    wave.querySelectorAll('i').forEach(el => {
+      el.style.display = 'none';
+    });
+
     canvas = document.createElement('canvas');
     canvas.className = 'radio-visualizer-canvas';
     canvas.setAttribute('aria-hidden', 'true');
     wave.appendChild(canvas);
-    updateSeed();
-    new ResizeObserver(resize).observe(wave);
-    resize();
 
-    new MutationObserver(() => {
-      updateSeed();
-      if (prefersReduced) draw(performance.now(), true);
-    }).observe(document.querySelector('.track-copy') || document.body, {
+    resize();
+    new ResizeObserver(resize).observe(wave);
+
+    updateSeed();
+    new MutationObserver(updateSeed).observe(document.querySelector('.track-copy') || document.body, {
       subtree: true,
       childList: true,
       characterData: true,
     });
 
-    if (!prefersReduced) raf = requestAnimationFrame(animate);
+    // Bind/unbind the analyser when browser output toggles.
+    window.addEventListener('owntone-browser-output-change', () => {
+      if (isBrowserOutputActive()) ensureAnalyser();
+      else disconnectAnalyser();
+    });
+
+    if (!prefersReduced) raf = requestAnimationFrame(tick);
   }
 
   document.addEventListener('DOMContentLoaded', mount);

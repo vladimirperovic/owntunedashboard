@@ -464,33 +464,20 @@
   }
   .radio-wave {
     display: none;
-    height: 28px;
-    align-items: center;
-    gap: 3px;
-    margin-top: 9px;
+    height: 30px;
+    margin-top: 11px;
+    margin-bottom: 2px;
     overflow: hidden;
+    position: relative;
   }
-  .radio-wave i {
+  .radio-wave[data-viz-visible='1'] {
     display: block;
-    width: 2px;
-    border-radius: 99px;
-    background: var(--coral);
-    height: 34%;
-    animation: wave 1.15s ease-in-out infinite;
   }
-  .radio-wave i:nth-child(3n) {
-    height: 78%;
+  .radio-wave[data-viz-visible='0'] {
+    display: none;
   }
-  .radio-wave i:nth-child(4n) {
-    height: 52%;
-  }
-  .radio-wave i:nth-child(5n) {
-    height: 100%;
-  }
-  @keyframes wave {
-    50% {
-      transform: scaleY(0.44);
-    }
+  body.radio-mode .radio-wave[data-viz-visible='1'] {
+    display: flex;
   }
   .transport-row {
     display: flex;
