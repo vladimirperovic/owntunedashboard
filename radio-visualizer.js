@@ -19,7 +19,6 @@
 
   // Procedural fallback seed (changes with the track so it doesn't loop identically).
   let seed = 0.71;
-  let phase = 0;
 
   // Live audio plumbing — only created on demand, only when Browser output exists.
   let analyser = null;
@@ -86,8 +85,11 @@
   function resize() {
     if (!canvas || !wave) return;
     const rect = wave.getBoundingClientRect();
-    width = Math.max(120, Math.round(rect.width));
-    height = Math.max(28, Math.round(rect.height));
+    // Clamp the visible size: if the container is display:none (paused)
+    // the rect is 0×0. Use a safe default so the canvas still has a buffer;
+    // tick() will re-run resize() the moment the wave becomes visible.
+    width = rect.width >= 4 ? Math.round(rect.width) : 360;
+    height = rect.height >= 4 ? Math.round(rect.height) : 30;
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = Math.round(width * dpr);
     canvas.height = Math.round(height * dpr);
@@ -97,36 +99,57 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  // Read live FFT bins (0..1) when we have them, otherwise synthesise bars
-  // from sin waves + the track seed. Output is normalised 0..1 per bar.
+  // Sample the FFT once. Returns true if the bars look "alive" (something
+  // other than silence), false if every bin is near zero — in which case
+  // we fall back to the procedural pattern instead of letting everything
+  // collapse to the floor.
+  function sampleFFT() {
+    if (!analyser || !freqData || !audioEl) return null;
+    if (audioEl.paused || audioEl.ended) return null;
+    analyser.getByteFrequencyData(freqData);
+    let sum = 0;
+    let peak = 0;
+    for (let i = 0; i < freqData.length; i += 1) {
+      const v = freqData[i];
+      sum += v;
+      if (v > peak) peak = v;
+    }
+    const avg = sum / freqData.length;
+    if (avg < 4 && peak < 12) return null; // silence / dead stream
+    return freqData;
+  }
+
+  // Compute target heights (0..1) for all bars.
   function computeBars(time) {
     let next;
-    if (analyser && freqData && audioEl && !audioEl.paused) {
-      analyser.getByteFrequencyData(freqData);
-      // Map FFT bins onto our BAR_COUNT bars. freqData has frequencyBinCount
-      // bins; lower indexes are bass, higher are treble. We want bars that
-      // feel like a dancing floor — strong bass, mid, treble. So bin i maps
-      // to bar i * (binCount / BAR_COUNT).
-      const binCount = freqData.length;
+    const live = sampleFFT();
+    if (live) {
+      // Bin count is FFT_SIZE/2. Spread across the bar count. Bass gets the
+      // outsized share so the left of the floor visibly pumps.
+      const binCount = live.length;
       next = new Float32Array(BAR_COUNT);
       for (let i = 0; i < BAR_COUNT; i += 1) {
         const idx = Math.floor((i / BAR_COUNT) * binCount);
-        next[i] = freqData[idx] / 255;
+        next[i] = live[idx] / 255;
       }
     } else {
       const t = time * 0.001;
-      phase += 1;
       next = new Float32Array(BAR_COUNT);
       for (let i = 0; i < BAR_COUNT; i += 1) {
         const p = i / BAR_COUNT;
         // Bass envelope: loud on the left, dies off toward the right, with a
         // slow pulse so the floor visibly breathes.
-        const envelope = Math.pow(1 - p, 0.7);
+        const envelope = Math.pow(1 - p, 0.65);
+        // Beat — make the first few bars snap to a regular kick so the floor
+        // visibly bounces in tempo. Frequency stays in human-dance range.
+        const beatHz = 2.2 + seed * 0.8;
+        const beat = Math.max(0, Math.sin(t * beatHz + seed * 6.28)) ** 2;
         const bass = Math.sin(t * 3.1 + seed * 6.28 + p * 4.0) * 0.5 + 0.5;
         const mid = Math.sin(t * 6.4 + seed * 9.1 + p * 9.0) * 0.5 + 0.5;
         const hi = Math.sin(t * 11.2 + seed * 12.7 + p * 17.0) * 0.5 + 0.5;
-        const pulse = 0.55 + 0.35 * Math.sin(t * 1.3 + seed * 4.2);
-        next[i] = (bass * 0.55 + mid * 0.3 + hi * 0.15) * envelope * pulse;
+        const pulse = 0.65 + 0.3 * Math.sin(t * 1.3 + seed * 4.2);
+        // Bass + beat dominate the left half; treble tapers off.
+        next[i] = Math.min(1, (bass * 0.55 + mid * 0.3 + hi * 0.15 + beat * 0.35) * envelope * pulse);
       }
     }
     // Smooth toward target so spikes don't snap.
@@ -140,7 +163,7 @@
   }
 
   function draw() {
-    if (!ctx) return;
+    if (!ctx || !width || !height) return;
     ctx.clearRect(0, 0, width, height);
 
     const mid = height / 2;
@@ -150,7 +173,7 @@
 
     for (let i = 0; i < BAR_COUNT; i += 1) {
       // Square the height so quiet bars stay visible but loud bars punch.
-      const amp = Math.pow(bars[i], 1.6);
+      const amp = Math.pow(bars[i], 1.4);
       const h = Math.max(2, amp * maxHalf);
       const x = i * (barWidth + gap);
       const y = mid - h;
@@ -199,7 +222,17 @@
       return;
     }
 
-    if (wave.dataset.vizVisible !== '1') wave.dataset.vizVisible = '1';
+    if (wave.dataset.vizVisible !== '1') {
+      // Pre-sizing matters: the moment the container flips from
+      // display:none to display:flex, getBoundingClientRect already returns
+      // a usable size, so size the canvas up front rather than waiting on a
+      // ResizeObserver tick.
+      resize();
+      wave.dataset.vizVisible = '1';
+    } else if (!width || !height) {
+      resize();
+    }
+
     computeBars(time);
     draw();
   }
@@ -230,9 +263,13 @@
       characterData: true,
     });
 
-    // Bind/unbind the analyser when browser output toggles.
+    // Bind/unbind the analyser when browser output toggles. Only when the
+    // browser is actually streaming — if it is paused (e.g. user picked a
+    // non-browser output) the AnalyserNode would happily report silence
+    // every frame and make the floor look dead.
     window.addEventListener('owntone-browser-output-change', () => {
-      if (isBrowserOutputActive()) ensureAnalyser();
+      const active = isBrowserOutputActive();
+      if (active) ensureAnalyser();
       else disconnectAnalyser();
     });
 

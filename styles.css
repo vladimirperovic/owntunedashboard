@@ -463,12 +463,15 @@
     font-weight: 500;
   }
   .radio-wave {
-    display: none;
     height: 30px;
     margin-top: 11px;
     margin-bottom: 2px;
     overflow: hidden;
     position: relative;
+  }
+  .radio-wave[data-viz-visible='0'] {
+    height: 0;
+    margin: 0;
   }
   .radio-wave[data-viz-visible='1'] {
     display: block;
