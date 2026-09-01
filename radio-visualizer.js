@@ -2,6 +2,8 @@
   'use strict';
 
   const BAR_COUNT = 30;
+  const BAR_GAP = 4;
+  const BAR_WIDTH = 3;
   const FFT_SIZE = 64;
   const prefersReduced = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
 
@@ -178,8 +180,8 @@
     ctx.clearRect(0, 0, width, height);
 
     const mid = height / 2;
-    const gap = 3;
-    const barWidth = Math.max(2, (width - gap * (BAR_COUNT - 1)) / BAR_COUNT);
+    const barWidth = BAR_WIDTH;
+    const gap = BAR_GAP;
     const maxHalf = (height - 4) / 2;
 
     for (let i = 0; i < BAR_COUNT; i += 1) {
