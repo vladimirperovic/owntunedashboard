@@ -47,18 +47,16 @@
   .player-card:before {
     content: '';
     position: absolute;
-    inset: -32px;
+    inset: -60px;
     z-index: -2;
     pointer-events: none;
     background-image: var(--premium-artwork, none);
     background-size: cover;
     background-position: center;
-    filter: blur(42px) saturate(1.08);
-    opacity: 0.065;
-    transform: scale(1.12);
-    transition:
-      opacity 0.45s ease,
-      background-image 0.25s ease;
+    filter: blur(70px) saturate(1.25) brightness(0.55);
+    transform: scale(1.15);
+    background-color: #0b0908;
+    transition: background-image 0.25s ease;
   }
   .player-card:after {
     content: '';

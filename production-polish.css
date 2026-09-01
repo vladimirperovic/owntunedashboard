@@ -168,23 +168,6 @@
       min-height: 280px;
       overflow: hidden;
     }
-    .player-card::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      z-index: 0;
-      background-image: var(--art-url, none);
-      background-size: cover;
-      background-position: center;
-      filter: blur(52px) saturate(1.45);
-      transform: scale(1.3);
-    }
-    body.radio-mode .player-card::before {
-      opacity: 0.4;
-    }
-    body:not(.radio-mode) .player-card::before {
-      opacity: 0.26;
-    }
     .player-content,
     .player-art-wrap,
     .audio-dock {
@@ -245,31 +228,6 @@
   /* Dark radio: a bit more transparent */
   body.radio-mode .player-card {
     background: rgba(23, 21, 19, 0.84);
-  }
-
-  /* Dark radio: subtle color wash (much less than before) */
-  @media (min-width: 901px) {
-    body.radio-mode .player-card::before {
-      content: '';
-      position: absolute;
-      inset: -16px;
-      z-index: 0;
-      background-image: var(--art-url, none);
-      background-size: cover;
-      background-position: center;
-      filter: blur(38px) saturate(1.25);
-      opacity: 0.18;
-      transform: scale(1.2);
-    }
-    body.radio-mode .player-card {
-      position: relative;
-      overflow: hidden;
-    }
-    body.radio-mode .player-content,
-    body.radio-mode .player-art-wrap {
-      position: relative;
-      z-index: 1;
-    }
   }
 
   /* Living Room pill flush to the card's far right edge (desktop) */
