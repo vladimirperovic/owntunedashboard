@@ -751,30 +751,29 @@
     margin: 0;
     padding: 0;
     border: 0;
-    background: #08070a;
+    background: #0b0908;
     color: #fff;
     overflow: hidden;
   }
   .fullscreen-now-playing::backdrop {
-    background: #08070a;
+    background: #0b0908;
   }
   .fullscreen-ambient {
     position: absolute;
-    inset: -10%;
-    background-image: var(--premium-artwork, none);
+    inset: -60px;
     background-size: cover;
     background-position: center;
-    filter: blur(90px) saturate(1.35) brightness(0.85);
-    opacity: 0.55;
-    transform: scale(1.18);
+    filter: blur(70px) saturate(1.25) brightness(0.55);
+    transform: scale(1.15);
+    background-color: #0b0908;
   }
   .fullscreen-ambient:after {
     content: '';
     position: absolute;
     inset: 0;
     background:
-      radial-gradient(circle at 50% 30%, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.32) 60%, rgba(0, 0, 0, 0.72) 100%),
-      linear-gradient(180deg, rgba(8, 7, 10, 0.32), rgba(8, 7, 10, 0.86));
+      radial-gradient(circle at 50% 30%, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.18) 55%, rgba(0, 0, 0, 0.45) 100%),
+      linear-gradient(180deg, rgba(8, 7, 10, 0.15), rgba(8, 7, 10, 0.55));
   }
   .fullscreen-shell {
     position: relative;

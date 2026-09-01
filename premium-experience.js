@@ -667,6 +667,11 @@
     const src = $('artwork')?.getAttribute('src') || '';
     const img = $('fullscreenArtwork');
     const fallback = $('fullscreenArtFallback');
+    const ambient = fullscreen.querySelector('.fullscreen-ambient');
+    if (ambient) {
+      if (src) ambient.style.backgroundImage = `url("${src.replace(/"/g, '%22')}")`;
+      else ambient.style.backgroundImage = '';
+    }
     if (src) {
       if (img.getAttribute('src') !== src) img.src = src;
       img.hidden = false;
