@@ -76,10 +76,16 @@
     position: relative;
   }
   .album-card > .context-menu-trigger {
-    background: rgba(12, 10, 9, 0.64);
-    border-color: rgba(255, 255, 255, 0.16);
-    color: #fff;
-    backdrop-filter: blur(12px);
+    right: 6px;
+    top: 6px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.82);
+    border: 0;
+    color: var(--ink, #0b0a09);
+    backdrop-filter: none;
+    box-shadow: none;
   }
   body.radio-mode .context-menu-trigger {
     background: rgba(255, 255, 255, 0.08);

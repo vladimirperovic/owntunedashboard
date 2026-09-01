@@ -493,12 +493,16 @@
     }
   }
   .transport-row {
-    display: grid;
-    grid-template-columns: 34px auto 34px;
+    display: flex;
     align-items: center;
-    justify-content: start;
-    gap: 12px;
+    justify-content: space-between;
+    gap: 6px;
+    width: 100%;
     margin-top: 12px;
+    padding: 0 2px;
+  }
+  .transport-row .transport {
+    display: contents;
   }
   .transport {
     display: flex;
@@ -611,8 +615,16 @@
     stroke-width: 1.8;
     flex: 0 0 auto;
   }
-  .volume-wrap span {
-    min-width: 30px;
+  .volume-wrap > .range.volume {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .volume-wrap > .mute-button,
+  .volume-wrap > .volume-step {
+    flex: 0 0 auto;
+  }
+  .volume-wrap > span {
+    min-width: 32px;
     text-align: right;
     color: var(--muted);
     font-size: 9px;
@@ -747,7 +759,7 @@
     transition: 0.18s;
   }
   .album-art {
-    aspect-ratio: 1;
+    aspect-ratio: 1 / 1;
     overflow: hidden;
     background: #211b18;
     display: grid;
@@ -1209,8 +1221,8 @@
       left: 10px;
       right: 10px;
       bottom: max(10px, env(safe-area-inset-bottom));
-      height: 66px;
-      padding: 7px 10px;
+      height: 64px;
+      padding: 6px;
       border-radius: 22px;
       background: rgba(248, 242, 234, 0.94);
       border: 1px solid rgba(255, 255, 255, 0.75);
@@ -1218,6 +1230,7 @@
       backdrop-filter: blur(18px);
       display: grid;
       grid-template-columns: repeat(5, 1fr);
+      align-items: stretch;
     }
     .mobile-nav button {
       border: 0;
@@ -1229,9 +1242,15 @@
       gap: 3px;
       color: var(--muted);
       font-size: 17px;
+      width: 100%;
+      height: 100%;
+      padding: 0;
+      margin: 0;
+      min-width: 0;
     }
     .mobile-nav button small {
-      font-size: 8px;
+      font-size: 9px;
+      line-height: 1.05;
     }
     .mobile-nav button.active {
       color: var(--coral);
@@ -1315,8 +1334,13 @@
       font-size: 13px;
     }
     .transport-row {
-      grid-template-columns: 30px auto 30px;
-      gap: 8px;
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 0 2px;
+    }
+    .transport-row .transport {
+      display: contents;
     }
     .micro-action,
     .transport-button {
@@ -1331,23 +1355,56 @@
       margin-top: 11px;
     }
     .audio-dock {
-      grid-template-columns: 1fr 44px;
-      padding: 6px;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 8px;
+      padding: 9px 10px;
+      border-radius: 20px;
     }
     .volume-output-row {
       flex-direction: column;
       align-items: stretch;
-      gap: 7px;
-      padding: 5px 8px;
+      gap: 8px;
+      padding: 0;
+    }
+    .volume-wrap {
+      height: 40px;
+      padding: 0;
+      gap: 8px;
+    }
+    .volume-wrap > .range.volume {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .volume-wrap > svg {
+      display: none;
+    }
+    .volume-wrap > .mute-button {
+      width: 32px;
+      height: 32px;
+      flex: 0 0 32px;
+    }
+    .volume-wrap > .mute-button svg {
+      width: 17px;
+      height: 17px;
+    }
+    .volume-wrap > span {
+      min-width: 32px;
+      font-size: 10px;
+      font-weight: 700;
     }
     .output-select {
       width: 100%;
       max-width: none;
     }
+    .premium-output-button {
+      align-self: stretch;
+    }
+    .sleep-button {
+      align-self: center;
+      margin: 0 auto;
+    }
     .dock-heart {
-      width: 38px;
-      height: 38px;
-      margin: auto;
+      display: none;
     }
     .music-view,
     .radio-view {

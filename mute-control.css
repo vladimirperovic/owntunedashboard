@@ -104,4 +104,136 @@
   .volume-tooltip.show {
     opacity: 1;
   }
+
+  /* +/- steppers placed inside the volume row, next to the slider. */
+  .volume-step {
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    border: 1px solid rgba(20, 16, 12, 0.08);
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    background: rgba(255, 255, 255, 0.56);
+    color: var(--ink, #0b0a09);
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(30, 20, 13, 0.035);
+    transition:
+      transform 0.15s var(--ds-ease, ease),
+      background 0.15s ease,
+      border-color 0.15s ease;
+  }
+  .volume-step svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+  .volume-step:hover {
+    background: rgba(255, 255, 255, 0.84);
+    transform: translateY(-1px);
+  }
+  .volume-step:active {
+    transform: scale(0.92);
+  }
+  .volume-step.is-busy {
+    opacity: 0.55;
+    pointer-events: none;
+  }
+  body.radio-mode .volume-step {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.09);
+    color: rgba(255, 255, 255, 0.86);
+    box-shadow: none;
+  }
+  body.radio-mode .volume-step:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  @media (max-width: 620px) {
+    .volume-step {
+      width: 32px;
+      height: 32px;
+      flex-basis: 32px;
+    }
+    .volume-step svg {
+      width: 16px;
+      height: 16px;
+    }
+    .dock-second-row {
+      gap: 8px;
+    }
+  }
+
+  .dock-second-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 36px;
+  }
+  .volume-output-row {
+    min-height: 92px;
+  }
+  .dock-second-row .premium-output-button {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .dock-second-row .sleep-button {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    position: static;
+    margin: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+  .dock-second-row .sleep-button:hover {
+    background: rgba(20, 16, 12, 0.06);
+  }
+  .dock-more-button {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: transparent;
+    color: var(--ink, #0b0a09);
+    cursor: pointer;
+    box-shadow: none;
+  }
+  .dock-more-button:hover {
+    background: rgba(20, 16, 12, 0.06);
+  }
+  .dock-more-button svg {
+    width: 18px;
+    height: 18px;
+  }
+  .dock-more-button.left-more svg {
+    width: 16px;
+    height: 16px;
+  }
+  .left-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+  }
+  .left-stack .mute-button,
+  .left-stack .dock-more-button {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+  }
+  body.radio-mode .dock-more-button {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.09);
+    color: rgba(255, 255, 255, 0.86);
+  }
 }

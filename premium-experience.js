@@ -34,6 +34,10 @@
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10h16v10H4zM7 7l9-4M8 14h.01M12 14h5M12 17h5"/></svg>',
     album:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/></svg>',
+    sound:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="M16.5 9.5a4 4 0 0 1 0 5"/><path d="M19 7a7.5 7.5 0 0 1 0 10"/></svg>',
+    muted:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="m17 9 5 5M22 9l-5 5"/></svg>',
   };
 
   let currentSource = readSource();
@@ -595,7 +599,7 @@
       <div class="fullscreen-ambient" aria-hidden="true"></div>
       <div class="fullscreen-shell">
         <header><span class="fullscreen-source" id="fullscreenSource">OwnTone</span><button class="premium-close fullscreen-close" type="button" aria-label="Close fullscreen player">${icons.close}</button></header>
-        <main><div class="fullscreen-art"><img id="fullscreenArtwork" src="icon.svg" alt="" hidden><div id="fullscreenArtFallback">OT</div></div><div class="fullscreen-copy"><span class="section-kicker">NOW PLAYING</span><h2 id="fullscreenTitle">OwnTone</h2><p id="fullscreenArtist">Music</p><small id="fullscreenMeta"></small><div class="fullscreen-progress"><div><span id="fullscreenElapsed">0:00</span><span id="fullscreenRemaining">−0:00</span></div><div class="fullscreen-progress-track"><i id="fullscreenProgressFill"></i></div></div><div class="fullscreen-controls"><button type="button" data-full-command="previous" aria-label="Previous">${icons.previous}</button><button type="button" class="fullscreen-play" data-full-command="toggle" aria-label="Play">${icons.play}</button><button type="button" data-full-command="next" aria-label="Next">${icons.next}</button></div><button type="button" class="fullscreen-output" id="fullscreenOutputButton">${icons.output}<span id="fullscreenOutputName">No output</span></button></div></main>
+        <main><div class="fullscreen-art"><img id="fullscreenArtwork" src="icon.svg" alt="" hidden><div id="fullscreenArtFallback">OT</div></div><div class="fullscreen-copy"><span class="section-kicker">NOW PLAYING</span><h2 id="fullscreenTitle">OwnTone</h2><p id="fullscreenArtist">Music</p><small id="fullscreenMeta"></small><div class="fullscreen-progress"><div><span id="fullscreenElapsed">0:00</span><span id="fullscreenRemaining">−0:00</span></div><div class="fullscreen-progress-track"><i id="fullscreenProgressFill"></i></div></div><div class="fullscreen-controls"><button type="button" data-full-command="previous" aria-label="Previous">${icons.previous}</button><button type="button" class="fullscreen-play" data-full-command="toggle" aria-label="Play">${icons.play}</button><button type="button" data-full-command="next" aria-label="Next">${icons.next}</button><button type="button" id="fullscreenMuteButton" class="fullscreen-mute" aria-label="Mute" data-muted="false">${icons.sound}</button></div><button type="button" class="fullscreen-output" id="fullscreenOutputButton">${icons.output}<span id="fullscreenOutputName">No output</span></button></div></main>
       </div>`;
     document.body.appendChild(fullscreen);
     fullscreen.querySelector('.fullscreen-close').addEventListener('click', () => fullscreen.close());
@@ -609,6 +613,11 @@
       })
     );
     $('fullscreenOutputButton').addEventListener('click', openOutputSheet);
+    $('fullscreenMuteButton').addEventListener('click', () => {
+      const mute = document.getElementById('muteButton');
+      if (mute) mute.click();
+      setTimeout(syncFullscreenMute, 80);
+    });
     fullscreen.addEventListener('click', event => {
       if (event.target === fullscreen) fullscreen.close();
     });
@@ -684,6 +693,18 @@
       play.innerHTML = playing ? icons.pause : icons.play;
       play.setAttribute('aria-label', playing ? 'Pause' : 'Play');
     }
+    syncFullscreenMute();
+  }
+
+  function syncFullscreenMute() {
+    const btn = $('fullscreenMuteButton');
+    if (!btn) return;
+    const range = $('volumeRange');
+    const muted = Number(range?.value || 0) === 0;
+    btn.dataset.muted = muted ? 'true' : 'false';
+    btn.setAttribute('aria-label', muted ? 'Unmute' : 'Mute');
+    btn.setAttribute('aria-pressed', String(muted));
+    btn.innerHTML = muted ? icons.muted : icons.sound;
   }
 
   async function syncArtworkMood() {

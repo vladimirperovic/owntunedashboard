@@ -11,7 +11,13 @@
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="M16.5 9.5a4 4 0 0 1 0 5"/><path d="M19 7a7.5 7.5 0 0 1 0 10"/></svg>',
     muted:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="m17 9 5 5M22 9l-5 5"/></svg>',
+    minus:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>',
+    plus:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
   };
+
+  const STEP = 5;
 
   function selectedOutputId() {
     return document.getElementById('outputSelect')?.value || '';
@@ -102,9 +108,33 @@
     }
   }
 
+  async function stepVolume(delta) {
+    if (busy) return;
+    busy = true;
+    const stepBtn = delta > 0 ? plusButton : minusButton;
+    stepBtn?.classList.add('is-busy');
+    try {
+      const next = Math.max(0, Math.min(100, Math.round(currentVolume() + delta)));
+      setLocalVolume(next);
+      if (next > 0) saveLastVolume(next);
+      await setServerVolume(next);
+    } catch (error) {
+      console.warn('Volume step failed:', error);
+    } finally {
+      busy = false;
+      stepBtn?.classList.remove('is-busy');
+      render();
+    }
+  }
+
+  let plusButton;
+  let minusButton;
+
   function mount() {
     if (document.getElementById('muteButton')) {
       button = document.getElementById('muteButton');
+      plusButton = document.getElementById('volumePlusButton');
+      minusButton = document.getElementById('volumeMinusButton');
       render();
       return;
     }
@@ -122,6 +152,102 @@
     const volumeWrap = volumeRow.querySelector('.volume-wrap');
     if (volumeWrap) volumeWrap.insertBefore(button, volumeWrap.firstChild);
     else volumeRow.insertBefore(button, volumeRow.firstChild);
+
+    plusButton = document.createElement('button');
+    plusButton.id = 'volumePlusButton';
+    plusButton.className = 'volume-step volume-step--plus';
+    plusButton.type = 'button';
+    plusButton.title = `Volume up (+${STEP}%)`;
+    plusButton.setAttribute('aria-label', `Volume up ${STEP} percent`);
+    plusButton.innerHTML = icons.plus;
+    plusButton.addEventListener('click', () => stepVolume(STEP));
+
+    minusButton = document.createElement('button');
+    minusButton.id = 'volumeMinusButton';
+    minusButton.className = 'volume-step volume-step--minus';
+    minusButton.type = 'button';
+    minusButton.title = `Volume down (-${STEP}%)`;
+    minusButton.setAttribute('aria-label', `Volume down ${STEP} percent`);
+    minusButton.innerHTML = icons.minus;
+    minusButton.addEventListener('click', () => stepVolume(-STEP));
+
+    if (volumeWrap) volumeWrap.appendChild(minusButton);
+    if (volumeWrap) volumeWrap.appendChild(plusButton);
+
+    const mobileNav = document.querySelector('.mobile-nav');
+    if (mobileNav && !document.getElementById('muteNavButton')) {
+      const navMute = document.createElement('button');
+      navMute.id = 'muteNavButton';
+      navMute.type = 'button';
+      navMute.setAttribute('aria-label', 'Mute');
+      const updateNavMute = () => {
+        const muted = currentVolume() === 0;
+        const raw = muted ? icons.muted : icons.sound;
+        const withClass = raw.replace('<svg', '<svg class="ui-icon"');
+        navMute.innerHTML = `<span class="mobile-nav-icon" aria-hidden="true">${withClass}</span><small>${muted ? 'Unmute' : 'Mute'}</small>`;
+        navMute.classList.toggle('is-muted', muted);
+      };
+      navMute.addEventListener('click', toggleMute);
+      mobileNav.appendChild(navMute);
+      setInterval(updateNavMute, 1500);
+      updateNavMute();
+      mobileNav.style.gridTemplateColumns = `repeat(${mobileNav.querySelectorAll('button').length}, 1fr)`;
+    }
+
+    function layoutDockSecondRow() {
+      const sleepBtn = document.getElementById('sleepButton');
+      const outputBtn = document.getElementById('premiumOutputButton');
+      const dock = document.querySelector('.audio-dock');
+      if (!sleepBtn || !outputBtn || !dock || document.getElementById('dockMoreButton')) return false;
+      const leftMoreBtn = document.createElement('button');
+      leftMoreBtn.id = 'leftMoreButton';
+      leftMoreBtn.className = 'dock-more-button left-more';
+      leftMoreBtn.type = 'button';
+      leftMoreBtn.setAttribute('aria-label', 'More actions');
+      leftMoreBtn.title = 'More';
+      leftMoreBtn.innerHTML =
+        '<svg viewBox="0 0 24 24" aria-hidden="true" style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="8" cy="7" r="1" fill="currentColor" stroke="none"/><circle cx="8" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="8" cy="17" r="1" fill="currentColor" stroke="none"/></svg>';
+      leftMoreBtn.addEventListener('click', () => {
+        const cur = document.querySelector('.album-card[data-uri]');
+        const trig = cur?.querySelector('.context-menu-trigger');
+        if (trig) trig.click();
+        else document.getElementById('queueDrawerButton')?.click();
+      });
+      const moreBtn = document.createElement('button');
+      moreBtn.id = 'dockMoreButton';
+      moreBtn.className = 'dock-more-button';
+      moreBtn.type = 'button';
+      moreBtn.setAttribute('aria-label', 'More options');
+      moreBtn.title = 'More';
+      moreBtn.innerHTML =
+        '<svg viewBox="0 0 24 24" aria-hidden="true" style="width:18px;height:18px;fill:currentColor"><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/></svg>';
+      const qBtn = document.getElementById('queueDrawerButton');
+      if (qBtn) moreBtn.addEventListener('click', () => qBtn.click());
+      else moreBtn.addEventListener('click', () => document.getElementById('premiumOutputButton')?.click());
+      let row = outputBtn.parentElement;
+      if (row && row.classList.contains('volume-output-row')) {
+        let secondRow = row.querySelector('.dock-second-row');
+        if (!secondRow) {
+          secondRow = document.createElement('div');
+          secondRow.className = 'dock-second-row';
+          row.appendChild(secondRow);
+          secondRow.appendChild(outputBtn);
+        }
+        secondRow.insertBefore(leftMoreBtn, secondRow.firstChild);
+        secondRow.appendChild(sleepBtn);
+        secondRow.appendChild(moreBtn);
+        sleepBtn.style.position = 'static';
+        sleepBtn.style.margin = '0';
+      }
+      return true;
+    }
+    if (!layoutDockSecondRow()) {
+      const obs = new MutationObserver(() => {
+        if (layoutDockSecondRow()) obs.disconnect();
+      });
+      obs.observe(document.body, { childList: true, subtree: true });
+      setTimeout(() => obs.disconnect(), 4000);
+    }
 
     const range = document.getElementById('volumeRange');
     if (range && volumeWrap && !volumeWrap.querySelector('.volume-tooltip')) {
@@ -147,19 +273,23 @@
     render();
   }
 
-  // Handy when the dashboard is open on a Mac: M toggles mute unless the user is typing.
+  // Mute + up/down steppers share one keyboard handler: M toggles mute,
+  // arrow-up / arrow-right raise the volume, arrow-down / arrow-left lower it.
   document.addEventListener('keydown', event => {
     const tag = String(event.target?.tagName || '').toLowerCase();
-    if (
-      event.key?.toLowerCase() !== 'm' ||
-      event.metaKey ||
-      event.ctrlKey ||
-      event.altKey ||
-      /input|textarea|select/.test(tag)
-    )
+    if (event.metaKey || event.ctrlKey || event.altKey || /input|textarea|select/.test(tag)) return;
+    if (event.key?.toLowerCase() === 'm') {
+      event.preventDefault();
+      toggleMute();
       return;
-    event.preventDefault();
-    toggleMute();
+    }
+    if (event.key === 'ArrowUp' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      stepVolume(STEP);
+    } else if (event.key === 'ArrowDown' || event.key === 'ArrowLeft') {
+      event.preventDefault();
+      stepVolume(-STEP);
+    }
   });
 
   // Scoped to the dock the button lives in. This used to watch every node in

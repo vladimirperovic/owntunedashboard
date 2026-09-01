@@ -55,6 +55,8 @@
       albumLink.insertAdjacentElement('afterend', button);
     }
 
+    const foldersButton = document.getElementById('foldersMobileButton');
+    if (foldersButton) foldersButton.remove();
     const mobile = document.querySelector('.mobile-nav');
     if (mobile && !document.getElementById('foldersMobileButton')) {
       const button = document.createElement('button');
@@ -62,8 +64,8 @@
       button.id = 'foldersMobileButton';
       button.innerHTML = `<span class="folder-mobile-icon">${icon.folder}</span><small>Folders</small>`;
       button.addEventListener('click', () => openBrowser(currentPath || defaultPath));
-      const library = [...mobile.querySelectorAll('button')].find(x => /library/i.test(x.textContent || ''));
-      library ? library.insertAdjacentElement('afterend', button) : mobile.appendChild(button);
+      const albumLink = [...document.querySelectorAll('.side-link')].find(x => /albums/i.test(x.textContent || ''));
+      if (albumLink) albumLink.insertAdjacentElement('afterend', button);
     }
 
     dialog = document.createElement('dialog');
