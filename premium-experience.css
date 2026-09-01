@@ -841,6 +841,22 @@
     letter-spacing: -0.08em;
     color: rgba(255, 255, 255, 0.22);
   }
+  .fullscreen-copy {
+    position: relative;
+    isolation: isolate;
+  }
+  .fullscreen-stage {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(
+      ellipse 60% 55% at 22% 75%,
+      rgba(0, 0, 0, 0.55) 0%,
+      rgba(0, 0, 0, 0.32) 38%,
+      rgba(0, 0, 0, 0) 72%
+    );
+  }
   .fullscreen-copy h2 {
     font-size: clamp(40px, 6vw, 78px);
     line-height: 0.91;
@@ -913,14 +929,15 @@
     height: 66px;
     background: #fff;
     color: #0c0a09;
-    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+    transition: box-shadow 0.22s ease, background 0.22s ease;
   }
   .fullscreen-controls .fullscreen-play:hover {
-    transform: scale(1.04);
-    box-shadow: 0 12px 30px rgba(255, 255, 255, 0.18);
+    background: #fff;
+    box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.08);
   }
   .fullscreen-controls .fullscreen-play:active {
-    transform: scale(0.96);
+    box-shadow: 0 0 0 10px rgba(255, 255, 255, 0.04);
   }
   .fullscreen-controls .fullscreen-play svg {
     width: 24px;
