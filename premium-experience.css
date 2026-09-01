@@ -801,6 +801,14 @@
     background: rgba(255, 255, 255, 0.075);
     border-color: rgba(255, 255, 255, 0.09);
     color: #fff;
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+  }
+  .fullscreen-close:hover {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.18);
+  }
+  .fullscreen-close:active {
+    transform: scale(0.94);
   }
   .fullscreen-shell > main {
     width: min(1160px, 100%);
@@ -891,12 +899,28 @@
     border: 0;
     background: rgba(255, 255, 255, 0.065);
     color: #fff;
+    cursor: pointer;
+    transition: background 0.18s ease, transform 0.18s ease;
+  }
+  .fullscreen-controls button:hover {
+    background: rgba(255, 255, 255, 0.16);
+  }
+  .fullscreen-controls button:active {
+    transform: scale(0.92);
   }
   .fullscreen-controls .fullscreen-play {
     width: 66px;
     height: 66px;
     background: #fff;
     color: #0c0a09;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+  }
+  .fullscreen-controls .fullscreen-play:hover {
+    transform: scale(1.04);
+    box-shadow: 0 12px 30px rgba(255, 255, 255, 0.18);
+  }
+  .fullscreen-controls .fullscreen-play:active {
+    transform: scale(0.96);
   }
   .fullscreen-controls .fullscreen-play svg {
     width: 24px;
@@ -946,6 +970,15 @@
     gap: 9px;
     font-size: 11px;
     font-weight: 690;
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+  }
+  .fullscreen-output:hover {
+    background: rgba(255, 255, 255, 0.11);
+    border-color: rgba(255, 255, 255, 0.18);
+  }
+  .fullscreen-output:active {
+    transform: scale(0.98);
   }
   .premium-expandable-art {
     cursor: zoom-in;
