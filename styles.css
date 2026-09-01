@@ -1378,6 +1378,9 @@
     .volume-wrap > svg {
       display: none;
     }
+    .audio-dock {
+      min-height: 0;
+    }
     .volume-wrap > .mute-button {
       width: 32px;
       height: 32px;

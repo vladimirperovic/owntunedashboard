@@ -195,6 +195,7 @@
     }
 
     function layoutDockSecondRow() {
+      if (window.innerWidth > 620) return false;
       const sleepBtn = document.getElementById('sleepButton');
       const outputBtn = document.getElementById('premiumOutputButton');
       const dock = document.querySelector('.audio-dock');

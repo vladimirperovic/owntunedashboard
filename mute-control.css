@@ -71,6 +71,9 @@
   }
 
   /* Volume slider tooltip (follows the thumb while dragging). */
+  .volume-wrap:has(> .mute-button) > svg {
+    display: none;
+  }
   .volume-wrap {
     position: relative;
   }
@@ -168,15 +171,17 @@
     }
   }
 
-  .dock-second-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    min-height: 36px;
-  }
-  .volume-output-row {
-    min-height: 92px;
+  @media (max-width: 620px) {
+    .dock-second-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      min-height: 36px;
+    }
+    .volume-output-row {
+      min-height: 92px;
+    }
   }
   .dock-second-row .premium-output-button {
     flex: 1 1 auto;
