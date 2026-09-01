@@ -135,21 +135,32 @@
     } else {
       const t = time * 0.001;
       next = new Float32Array(BAR_COUNT);
+      // Build a spectrum: each bar has its own (slowly drifting) carrier
+      // frequency, an independent envelope, and a few bass/mid kicks that
+      // land on a tempo so the floor visibly dances.
       for (let i = 0; i < BAR_COUNT; i += 1) {
         const p = i / BAR_COUNT;
-        // Bass envelope: loud on the left, dies off toward the right, with a
-        // slow pulse so the floor visibly breathes.
-        const envelope = Math.pow(1 - p, 0.65);
-        // Beat — make the first few bars snap to a regular kick so the floor
-        // visibly bounces in tempo. Frequency stays in human-dance range.
-        const beatHz = 2.2 + seed * 0.8;
-        const beat = Math.max(0, Math.sin(t * beatHz + seed * 6.28)) ** 2;
-        const bass = Math.sin(t * 3.1 + seed * 6.28 + p * 4.0) * 0.5 + 0.5;
-        const mid = Math.sin(t * 6.4 + seed * 9.1 + p * 9.0) * 0.5 + 0.5;
-        const hi = Math.sin(t * 11.2 + seed * 12.7 + p * 17.0) * 0.5 + 0.5;
-        const pulse = 0.65 + 0.3 * Math.sin(t * 1.3 + seed * 4.2);
-        // Bass + beat dominate the left half; treble tapers off.
-        next[i] = Math.min(1, (bass * 0.55 + mid * 0.3 + hi * 0.15 + beat * 0.35) * envelope * pulse);
+        // Per-bar carrier: stagger phases so adjacent bars never peak together.
+        const carrierPhase = i * 0.71 + seed * 6.28;
+        const carrierHz = 0.7 + (i % 5) * 0.35;
+        // Sharper attack/release cycle per bar — not a slow sin, a pulse.
+        const pulse = Math.max(0, Math.sin(t * carrierHz + carrierPhase)) ** 1.8;
+        // Spectral shape: bass strong on the left, mids dominant in the
+        // middle, treble tapering off. This mirrors what a real mix looks
+        // like (vocals/instruments cluster in 200 Hz - 4 kHz).
+        const spectral = Math.pow(1 - Math.abs(p - 0.45) * 1.6, 0.6);
+        // Three kicks land on a regular tempo. Beat frequency is in human
+        // dance range, slightly varies per track.
+        const bpm = 90 + (seed * 60) | 0; // 90..150 bpm
+        const beatPhase = (t * bpm) / 60;
+        const kick1 = Math.max(0, Math.sin(beatPhase * Math.PI)) ** 4;
+        const kick2 = Math.max(0, Math.sin((beatPhase - 0.5) * Math.PI)) ** 6;
+        const kick3 = Math.max(0, Math.sin((beatPhase - 0.25) * Math.PI)) ** 8;
+        // Bass-side bars get the kick weight; right side mostly pulses.
+        const kickWeight = Math.pow(1 - p, 1.2);
+        const kicks = (kick1 * 0.55 + kick2 * 0.3 + kick3 * 0.15) * kickWeight;
+        // Combine. Use Math.min to avoid clipping past 1.
+        next[i] = Math.min(1, pulse * spectral * 0.85 + kicks * 0.9);
       }
     }
     // Smooth toward target so spikes don't snap.
@@ -157,7 +168,7 @@
       const target = next[i];
       const cur = bars[i];
       // Asymmetric smoothing: fast attack, slower release — feels musical.
-      const k = target > cur ? 0.55 : 0.18;
+      const k = target > cur ? 0.7 : 0.28;
       bars[i] = cur + (target - cur) * k;
     }
   }
