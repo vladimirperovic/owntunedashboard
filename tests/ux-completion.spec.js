@@ -120,6 +120,26 @@ test('mobile navigation stays at five destinations and More uses the current tra
   await expect(page.locator('#safeMoreDialog [data-safe-more="update"]')).toBeHidden();
 });
 
+test('audio dock restores desktop structure after a mobile resize round trip', async ({ page }) => {
+  await openDemo(page, { width: 390, height: 844 });
+  await expect(page.locator('.dock-second-row')).toBeVisible();
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(page.locator('.dock-second-row')).toHaveCount(0);
+  await expect(page.locator('#leftMoreButton')).toHaveCount(0);
+  await expect(page.locator('#dockMoreButton')).toHaveCount(0);
+  await expect(page.locator('.volume-output-row > #premiumOutputButton')).toBeVisible();
+  await expect(page.locator('.volume-output-row > #sleepButton')).toBeVisible();
+
+  const dockBox = await page.locator('.audio-dock').boundingBox();
+  expect(dockBox.height).toBeLessThan(80);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('.dock-second-row')).toBeVisible();
+  await expect(page.locator('.dock-second-row #premiumOutputButton')).toBeVisible();
+  await expect(page.locator('.dock-second-row #sleepButton')).toBeVisible();
+});
+
 test('mobile mini player opens fullscreen instead of only scrolling home', async ({ page }) => {
   await openDemo(page, { width: 390, height: 844 });
   await page.locator('.mobile-nav [data-nav="library"]').click();
