@@ -38,7 +38,9 @@
   };
   const currentPath = () => {
     const item = current() || {};
-    return [item.path, item.uri].map(value => String(value || '').trim()).find(value => /^\//.test(value)) || '';
+    return (
+      [item.path, item.uri].map(value => String(value || '').trim()).find(value => /^\//.test(value)) || ''
+    );
   };
   const isDemo = () => !!state().demo;
   const demoKey = () => `owntone-demo-favorite:${token()}`;
@@ -61,7 +63,14 @@
     return (await scheduler('/playlists', { cache: 'no-store' }))?.items || [];
   }
   function favoritesFrom(items) {
-    return items.find(item => String(item.name || '').trim().toLowerCase() === 'favorites') || null;
+    return (
+      items.find(
+        item =>
+          String(item.name || '')
+            .trim()
+            .toLowerCase() === 'favorites'
+      ) || null
+    );
   }
   async function ensureFavorites() {
     let items = await editablePlaylists();
@@ -235,9 +244,12 @@
   async function openAddToPlaylist() {
     const path = currentPath();
     if (!current() || isLive() || !path)
-      return toast(isLive() ? 'Live radio cannot be added as a track' : 'This track has no savable file path');
+      return toast(
+        isLive() ? 'Live radio cannot be added as a track' : 'This track has no savable file path'
+      );
     ensurePlaylistDialog();
-    $('safePlaylistTrackLabel').textContent = `${current()?.title || 'Current track'} · ${current()?.artist || 'OwnTone'}`;
+    $('safePlaylistTrackLabel').textContent =
+      `${current()?.title || 'Current track'} · ${current()?.artist || 'OwnTone'}`;
     const select = $('safePlaylistSelect');
     select.innerHTML = '<option value="">Loading playlists…</option>';
     $('safePlaylistNewName').value = '';
@@ -375,12 +387,20 @@
       history.innerHTML = `<span>${icons.clock}</span>History`;
       history.title = 'Queue and listening history';
     }
-    const quick = [...nav.querySelectorAll('.nav-label')].find(label => /quick access/i.test(label.textContent || ''));
+    const quick = [...nav.querySelectorAll('.nav-label')].find(label =>
+      /quick access/i.test(label.textContent || '')
+    );
     if (!quick) return;
     if (!$('browseNavButton'))
-      quick.insertAdjacentElement('beforebegin', sideButton('browseNavButton', 'Browse', browseIcon, 'browseSection'));
+      quick.insertAdjacentElement(
+        'beforebegin',
+        sideButton('browseNavButton', 'Browse', browseIcon, 'browseSection')
+      );
     if (!$('insightsNavButton'))
-      quick.insertAdjacentElement('beforebegin', sideButton('insightsNavButton', 'Insights', statsIcon, 'insightsSection'));
+      quick.insertAdjacentElement(
+        'beforebegin',
+        sideButton('insightsNavButton', 'Insights', statsIcon, 'insightsSection')
+      );
   }
 
   function enhanceDock() {
