@@ -37,7 +37,7 @@ jobs:
       - name: Ruff
         run: |
           pip install --quiet ruff==0.14.4
-          ruff check scheduler/ deploy/update_server.py
+          ruff check scheduler/ deploy/update_server.py deploy/test_update_server.py
 
       - name: Shellcheck deploy and updater scripts
         run: shellcheck deploy/deploy.sh deploy/update-dashboard.sh tests/update-dashboard-integration.sh
@@ -57,6 +57,9 @@ jobs:
       # starts playback in the house, so its logic gets unit tests.
       - name: Companion service unit tests
         run: python -m unittest discover -s scheduler -p 'test_*.py' -v
+
+      - name: Updater API unit tests
+        run: python -m unittest deploy.test_update_server -v
 
       # Exercise the real updater script against GitHub main in an isolated
       # temporary install. systemd/nginx/health commands are faked, while the
