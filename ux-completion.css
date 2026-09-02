@@ -1,0 +1,421 @@
+@layer polish {
+  /* Final interaction pass: current-track actions, compact mobile navigation,
+     manager affordances and fullscreen utilities. */
+
+  .current-favorite-control svg,
+  [data-ux-favorite] svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .current-favorite-control svg.fill,
+  [data-ux-favorite] svg.fill {
+    fill: currentColor;
+  }
+  .current-favorite-control.is-current-favorite,
+  [data-ux-favorite].is-current-favorite {
+    color: var(--coral, #ef5b43);
+  }
+
+  .ux-side-link svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .ux-dialog {
+    width: min(430px, calc(100vw - 28px));
+    max-width: none;
+    padding: 0;
+    border: 0;
+    border-radius: 25px;
+    background: transparent;
+    color: var(--ink, #0b0a09);
+  }
+  .ux-dialog::backdrop {
+    background: rgba(10, 9, 8, 0.55);
+    backdrop-filter: blur(10px);
+  }
+  .ux-dialog-panel {
+    position: relative;
+    padding: 20px;
+    border-radius: 25px;
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    background: rgba(248, 242, 234, 0.98);
+    box-shadow: 0 30px 80px rgba(30, 20, 14, 0.3);
+  }
+  body.radio-mode .ux-dialog-panel {
+    background: rgba(18, 16, 14, 0.98);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: #f7f2ed;
+  }
+  .ux-dialog-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .ux-dialog-head h2 {
+    margin: 4px 0 0;
+    font-size: 25px;
+    letter-spacing: -0.045em;
+  }
+  .ux-dialog-close,
+  .ux-manager-close {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border: 1px solid rgba(20, 16, 12, 0.08);
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    background: rgba(255, 255, 255, 0.62);
+    color: inherit;
+    cursor: pointer;
+  }
+  body.radio-mode .ux-dialog-close,
+  body.radio-mode .ux-manager-close {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  .ux-dialog-close svg,
+  .ux-manager-close svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+  }
+
+  .ux-track-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 13px 14px;
+    margin-bottom: 12px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.5);
+  }
+  body.radio-mode .ux-track-summary {
+    background: rgba(255, 255, 255, 0.045);
+  }
+  .ux-track-summary b {
+    font-size: 15px;
+  }
+  .ux-track-summary span {
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .ux-action-list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .ux-action-list button,
+  .ux-more-grid button {
+    min-height: 48px;
+    padding: 0 13px;
+    border: 1px solid rgba(20, 16, 12, 0.075);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    background: rgba(255, 255, 255, 0.5);
+    color: inherit;
+    text-align: left;
+    font-size: 11.5px;
+    font-weight: 720;
+    cursor: pointer;
+  }
+  body.radio-mode .ux-action-list button,
+  body.radio-mode .ux-more-grid button {
+    background: rgba(255, 255, 255, 0.045);
+    border-color: rgba(255, 255, 255, 0.075);
+  }
+  .ux-action-list button:hover,
+  .ux-more-grid button:hover,
+  .ux-action-list button.active {
+    border-color: rgba(239, 91, 67, 0.35);
+    background: rgba(239, 91, 67, 0.09);
+    color: var(--coral);
+  }
+  .ux-action-list button:disabled {
+    opacity: 0.42;
+    cursor: default;
+  }
+  .ux-action-list svg,
+  .ux-more-grid svg {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .ux-action-list svg.fill {
+    fill: currentColor;
+  }
+
+  .ux-more-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .ux-more-grid button[hidden] {
+    display: none;
+  }
+
+  .ux-dialog-copy {
+    margin: -4px 0 14px;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.45;
+  }
+  .ux-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .ux-field + .ux-field {
+    margin-top: 12px;
+  }
+  .ux-field > span {
+    font-size: 9.5px;
+    font-weight: 760;
+    color: var(--muted);
+  }
+  .ux-field select,
+  .ux-field input {
+    width: 100%;
+    height: 42px;
+    padding: 0 12px;
+    border: 1px solid rgba(20, 16, 12, 0.11);
+    border-radius: 12px;
+    outline: 0;
+    background: rgba(255, 255, 255, 0.65);
+    color: inherit;
+    font-size: 12px;
+  }
+  body.radio-mode .ux-field select,
+  body.radio-mode .ux-field input {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.11);
+    color: #fff;
+  }
+  body.radio-mode .ux-field select option {
+    color: #111;
+  }
+  .ux-field select:focus,
+  .ux-field input:focus {
+    border-color: rgba(239, 91, 67, 0.52);
+  }
+  .ux-or {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 12px 0;
+    color: var(--muted);
+    font-size: 9px;
+  }
+  .ux-or:before,
+  .ux-or:after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+  .ux-dialog-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 17px;
+  }
+  .ux-dialog-actions button {
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 780;
+  }
+  .ux-primary {
+    border: 0;
+    background: var(--coral);
+    color: #fff;
+  }
+  .ux-secondary {
+    border: 1px solid rgba(20, 16, 12, 0.1);
+    background: transparent;
+    color: inherit;
+  }
+  body.radio-mode .ux-secondary {
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  .stations-panel {
+    position: relative;
+  }
+  .ux-manager-close {
+    position: absolute;
+    right: 16px;
+    top: 16px;
+    z-index: 3;
+  }
+  .station-del.delete-armed,
+  #plineDelete.delete-armed {
+    border-color: rgba(239, 91, 67, 0.55);
+    background: rgba(239, 91, 67, 0.15);
+    color: var(--coral);
+  }
+  .pline button svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .ux-composite-card {
+    cursor: pointer;
+  }
+  .ux-composite-card:focus-visible {
+    outline: 2px solid var(--coral);
+    outline-offset: 3px;
+  }
+
+  .fullscreen-utility-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 16px;
+    max-width: 420px;
+  }
+  .fullscreen-volume-control {
+    min-width: 0;
+    flex: 1 1 auto;
+    height: 42px;
+    padding: 0 11px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    background: rgba(255, 255, 255, 0.055);
+    color: rgba(255, 255, 255, 0.8);
+  }
+  .fullscreen-volume-control > svg {
+    width: 17px;
+    height: 17px;
+    flex: 0 0 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+  }
+  .fullscreen-volume-control input {
+    min-width: 70px;
+    flex: 1 1 auto;
+    accent-color: #fff;
+  }
+  .fullscreen-volume-control output {
+    min-width: 32px;
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  #fullscreenFavoriteButton,
+  #fullscreenQueueButton {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    background: rgba(255, 255, 255, 0.055);
+    color: rgba(255, 255, 255, 0.82);
+    cursor: pointer;
+  }
+  #fullscreenFavoriteButton:hover,
+  #fullscreenQueueButton:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+  #fullscreenFavoriteButton.is-current-favorite {
+    color: #ff745f;
+    background: rgba(239, 91, 67, 0.16);
+  }
+  #fullscreenQueueButton svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  #leftMoreButton svg,
+  #dockMoreButton svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  #leftMoreButton svg circle {
+    fill: currentColor;
+    stroke: none;
+  }
+
+  @media (max-width: 620px) {
+    /* Keep the bottom bar as navigation only. Queue, schedule and notifications
+       remain available through the dock More sheet instead of crowding header. */
+    .top-actions #queueDrawerButton,
+    .top-actions #scheduleButton,
+    .top-actions #notifyButton {
+      display: none;
+    }
+    .mobile-nav {
+      grid-template-columns: repeat(5, 1fr);
+    }
+    .ux-dialog {
+      width: calc(100vw - 20px);
+    }
+    .ux-dialog-panel {
+      padding: 17px;
+      border-radius: 22px;
+    }
+    .ux-more-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+    .ux-more-grid button {
+      min-height: 54px;
+      padding: 0 11px;
+    }
+    .fullscreen-utility-row {
+      max-width: none;
+    }
+  }
+
+  @media (max-width: 390px) {
+    .ux-more-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+}
