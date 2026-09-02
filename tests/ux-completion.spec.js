@@ -94,6 +94,15 @@ test('mobile navigation stays at five destinations and More uses the current tra
   await expect(page.locator('#leftMoreButton')).toBeVisible();
   await expect(page.locator('#dockMoreButton')).toBeVisible();
 
+  const secondRow = page.locator('.dock-second-row');
+  const output = secondRow.locator('#premiumOutputButton');
+  const sleep = secondRow.locator('#sleepButton');
+  await expect(output).toBeVisible();
+  await expect(sleep).toBeVisible();
+  const outputBox = await output.boundingBox();
+  const sleepBox = await sleep.boundingBox();
+  expect(Math.abs(outputBox.y + outputBox.height / 2 - (sleepBox.y + sleepBox.height / 2))).toBeLessThan(2);
+
   await page.locator('#leftMoreButton').click();
   await expect(page.locator('#safeTrackActionsDialog')).toBeVisible();
   await expect(page.locator('#safeTrackActionTitle')).toHaveText('La Vie En Rose');
