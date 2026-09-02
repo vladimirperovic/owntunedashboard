@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 jobs:
-  capture:
+  probe:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,28 +19,14 @@ jobs:
         run: |
           node tests/static-server.js >/tmp/owntone-static.log 2>&1 &
           for i in {1..20}; do
-            if curl --fail --silent --max-time 2 http://127.0.0.1:4173/ >/tmp/owntone-index.html; then
-              break
-            fi
+            if curl --fail --silent --max-time 2 http://127.0.0.1:4173/ >/tmp/owntone-index.html; then break; fi
             sleep 0.25
           done
           test -s /tmp/owntone-index.html
-      - name: Capture desktop and mobile screenshots
+      - name: Browser load probe
         run: |
-          mkdir -p test-results/visual
-          firefox --version
-          timeout 25s firefox --headless --window-size 1440,900 \
-            --screenshot test-results/visual/desktop-home.png http://127.0.0.1:4173/ || true
-          timeout 25s firefox --headless --window-size 390,844 \
-            --screenshot test-results/visual/mobile-home.png http://127.0.0.1:4173/ || true
-          test -s test-results/visual/desktop-home.png
-          test -s test-results/visual/mobile-home.png
-          file test-results/visual/*.png
-      - name: Upload visual audit
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: visual-audit
-          path: test-results/visual/*.png
-          if-no-files-found: error
-          retention-days: 1
+          google-chrome --version
+          timeout 8s google-chrome --headless=new --no-sandbox --disable-gpu --dump-dom http://127.0.0.1:4173/ >/tmp/dom.html
+          test -s /tmp/dom.html
+          grep -q 'OwnTone Dashboard' /tmp/dom.html
+          echo 'PAGE_LOAD_OK'
