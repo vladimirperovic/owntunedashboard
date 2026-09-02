@@ -51,7 +51,8 @@ def same_commit(left: str, right: str) -> bool:
     right = str(right or "").strip()
     if not left or not right:
         return False
-    return left == right or (len(left) >= 7 and len(right) >= 7 and (left.startswith(right) or right.startswith(left)))
+    prefixes_match = len(left) >= 7 and len(right) >= 7 and (left.startswith(right) or right.startswith(left))
+    return left == right or prefixes_match
 
 
 def status() -> dict:
