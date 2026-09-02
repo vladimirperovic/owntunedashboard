@@ -40,7 +40,7 @@ jobs:
           ruff check scheduler/ deploy/update_server.py
 
       - name: Shellcheck deploy and updater scripts
-        run: shellcheck deploy/deploy.sh deploy/update-dashboard.sh
+        run: shellcheck deploy/deploy.sh deploy/update-dashboard.sh tests/update-dashboard-integration.sh
 
   test:
     name: Tests
@@ -57,6 +57,12 @@ jobs:
       # starts playback in the house, so its logic gets unit tests.
       - name: Companion service unit tests
         run: python -m unittest discover -s scheduler -p 'test_*.py' -v
+
+      # Exercise the real updater script against GitHub main in an isolated
+      # temporary install. systemd/nginx/health commands are faked, while the
+      # download, validation, atomic swap, version write and rollback are real.
+      - name: Dashboard updater integration
+        run: sudo bash tests/update-dashboard-integration.sh
 
       - uses: actions/setup-node@v4
         with:
