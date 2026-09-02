@@ -33,7 +33,7 @@
   }
 
   .dashboard-update-button.update-available,
-  .ux-more-grid [data-safe-more='update'].update-available {
+  body:has(#dashboardUpdateButton.update-available) .ux-more-grid [data-safe-more='update'] {
     background: #dff3e7;
     border-color: #8ac8a2;
     color: #1d6b43;
@@ -41,7 +41,7 @@
   }
 
   .dashboard-update-button.update-available:hover,
-  .ux-more-grid [data-safe-more='update'].update-available:hover {
+  body:has(#dashboardUpdateButton.update-available) .ux-more-grid [data-safe-more='update']:hover {
     background: #d3eedf;
   }
 
@@ -83,7 +83,7 @@
   }
 
   body.radio-mode .dashboard-update-button.update-available,
-  body.radio-mode .ux-more-grid [data-safe-more='update'].update-available {
+  body.radio-mode:has(#dashboardUpdateButton.update-available) .ux-more-grid [data-safe-more='update'] {
     color: #b9f3d0;
     background: rgba(62, 190, 116, 0.17);
     border-color: rgba(110, 224, 157, 0.42);
