@@ -14,9 +14,9 @@ test('fullscreen contrast is full-bleed without a copy-column rectangle', async 
 
   await expect(page.locator('.fullscreen-stage')).toHaveCSS('display', 'none');
 
-  const ambientBackground = await page.locator('.fullscreen-ambient').evaluate(element =>
-    getComputedStyle(element, '::after').backgroundImage
-  );
+  const ambientBackground = await page
+    .locator('.fullscreen-ambient')
+    .evaluate(element => getComputedStyle(element, '::after').backgroundImage);
   expect(ambientBackground).toContain('radial-gradient');
   expect(ambientBackground).toContain('linear-gradient');
 
