@@ -70,7 +70,7 @@ window.OWNTONE_DASHBOARD = {
  * that were not inserted by the HTML parser, so setting it only misleads.)
  */
 (() => {
-  const BUILD = '20260901-14';
+  const BUILD = '20260902-15';
   const asset = path => `${path}?v=${BUILD}`;
 
   const addStyle = href => {
@@ -105,6 +105,7 @@ window.OWNTONE_DASHBOARD = {
     'production-polish.css',
     'live-playback-polish.css',
     'extras.css',
+    'fullscreen-player-polish.css',
   ].forEach(addStyle);
 
   // shared.js and app.js first — every module below depends on both.
