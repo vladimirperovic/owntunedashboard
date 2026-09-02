@@ -70,7 +70,7 @@ window.OWNTONE_DASHBOARD = {
  * that were not inserted by the HTML parser, so setting it only misleads.)
  */
 (() => {
-  const BUILD = '20260902-19';
+  const BUILD = '20260902-20';
   const asset = path => `${path}?v=${BUILD}`;
 
   const addStyle = href => {
@@ -106,6 +106,7 @@ window.OWNTONE_DASHBOARD = {
     'live-playback-polish.css',
     'extras.css',
     'fullscreen-player-polish.css',
+    'dashboard-update.css',
   ].forEach(addStyle);
 
   // shared.js and app.js first — every module below depends on both.
@@ -132,6 +133,7 @@ window.OWNTONE_DASHBOARD = {
     'playlist-editor.js',
     'screensaver.js',
     'notifications.js',
+    'dashboard-update.js',
   ].forEach(addScript);
 
   // Deployed build identity, shown in the sidebar footer (with version.json commit when present).
