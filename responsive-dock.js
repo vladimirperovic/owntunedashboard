@@ -41,6 +41,7 @@
   });
   window.addEventListener('owntone:sleep-mounted', reconcile);
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', reconcile, { once: true });
+  if (document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', reconcile, { once: true });
   else reconcile();
 })();
