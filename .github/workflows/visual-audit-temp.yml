@@ -15,11 +15,27 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - name: Start preview server
+        run: |
+          node tests/static-server.js >/tmp/owntone-static.log 2>&1 &
+          echo $! >/tmp/owntone-static.pid
+          for i in {1..20}; do
+            if curl --fail --silent --max-time 2 http://127.0.0.1:4173/ >/tmp/owntone-index.html; then
+              break
+            fi
+            sleep 0.25
+          done
+          test -s /tmp/owntone-index.html
       - name: Capture desktop and mobile screenshots
-        run: npx playwright test tests/visual-audit.spec.js
+        run: |
+          mkdir -p test-results/visual
+          google-chrome --headless=new --no-sandbox --disable-gpu --hide-scrollbars \
+            --window-size=1440,900 --force-device-scale-factor=1 --virtual-time-budget=8000 \
+            --screenshot=test-results/visual/desktop-home.png http://127.0.0.1:4173/
+          google-chrome --headless=new --no-sandbox --disable-gpu --hide-scrollbars \
+            --window-size=390,844 --force-device-scale-factor=1 --virtual-time-budget=8000 \
+            --screenshot=test-results/visual/mobile-home.png http://127.0.0.1:4173/
+          file test-results/visual/*.png
       - name: Upload visual audit
         if: always()
         uses: actions/upload-artifact@v4
