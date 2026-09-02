@@ -101,7 +101,9 @@ test('mobile navigation stays at five destinations and More uses the current tra
   await expect(sleep).toBeVisible();
   const outputBox = await output.boundingBox();
   const sleepBox = await sleep.boundingBox();
-  expect(Math.abs(outputBox.y + outputBox.height / 2 - (sleepBox.y + sleepBox.height / 2))).toBeLessThan(2);
+  const outputCenter = outputBox.y + outputBox.height / 2;
+  const sleepCenter = sleepBox.y + sleepBox.height / 2;
+  expect(Math.abs(outputCenter - sleepCenter)).toBeLessThan(2);
 
   await page.locator('#leftMoreButton').click();
   await expect(page.locator('#safeTrackActionsDialog')).toBeVisible();
