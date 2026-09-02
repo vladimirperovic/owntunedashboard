@@ -1,0 +1,8 @@
+[Unit]
+Description=OwnTone Dashboard one-click updater
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/owntone-dashboard-update
