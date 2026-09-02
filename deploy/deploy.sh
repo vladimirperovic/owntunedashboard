@@ -80,10 +80,26 @@ find "$TARGET" -type f -exec chmod 0644 {} +
 printf '{"commit":"%s","deployed_at":"%s"}\n' "$COMMIT" "$(date -Is)" > "$TARGET/version.json"
 rm -f /tmp/dashboard-deploy.tar.gz
 
-install -m 0644 "$TARGET/deploy/owntone-dashboard-scheduler.service" /etc/systemd/system/owntone-dashboard-scheduler.service
+# Companion service plus the isolated one-click updater. The browser-facing
+# update API runs as www-data and can only create a request file. A root-owned
+# systemd path/service performs the actual release swap with rollback.
+install -m 0644 "$TARGET/deploy/owntone-dashboard-scheduler.service" \
+  /etc/systemd/system/owntone-dashboard-scheduler.service
+install -m 0644 "$TARGET/deploy/owntone-dashboard-update-api.service" \
+  /etc/systemd/system/owntone-dashboard-update-api.service
+install -m 0644 "$TARGET/deploy/owntone-dashboard-updater.service" \
+  /etc/systemd/system/owntone-dashboard-updater.service
+install -m 0644 "$TARGET/deploy/owntone-dashboard-updater.path" \
+  /etc/systemd/system/owntone-dashboard-updater.path
+install -m 0755 "$TARGET/deploy/update-dashboard.sh" /usr/local/sbin/owntone-dashboard-update
+
 systemctl daemon-reload
 systemctl enable owntone-dashboard-scheduler.service >/dev/null 2>&1 || true
+systemctl enable owntone-dashboard-update-api.service >/dev/null 2>&1 || true
+systemctl enable owntone-dashboard-updater.path >/dev/null 2>&1 || true
 systemctl restart owntone-dashboard-scheduler.service
+systemctl restart owntone-dashboard-update-api.service
+systemctl restart owntone-dashboard-updater.path
 
 NGINX_SITE="/etc/nginx/sites-available/owntone-dashboard"
 if ! cmp -s "$TARGET/deploy/nginx.conf" "$NGINX_SITE"; then
@@ -97,23 +113,25 @@ if ! cmp -s "$TARGET/deploy/nginx.conf" "$NGINX_SITE"; then
   systemctl reload nginx
 fi
 
-# systemctl restart returns before the socket is bound, so poll the health
-# endpoint. Parse the JSON rather than grepping for '"ok": true' — that used to
-# depend on json.dumps' default spacing.
+# systemctl restart returns before sockets are bound, so poll both local APIs.
 for attempt in 1 2 3 4 5 6 7 8; do
   sleep 1
-  if curl -fsS -m5 http://127.0.0.1:3690/scheduler/health \
-     | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin).get("ok") else 1)'; then
+  if curl -fsS -m5 http://127.0.0.1:3691/health \
+      | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin).get("ok") else 1)' \
+    && curl -fsS -m5 http://127.0.0.1:3692/health \
+      | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin).get("ok") else 1)'; then
     break
   fi
   if [ "$attempt" = 8 ]; then
-    echo "scheduler health check failed" >&2
+    echo "dashboard service health check failed" >&2
     systemctl status --no-pager owntone-dashboard-scheduler.service >&2 || true
+    systemctl status --no-pager owntone-dashboard-update-api.service >&2 || true
     exit 1
   fi
 done
 
 curl -fsS -m5 -o /dev/null http://127.0.0.1:3690/
+curl -fsS -m5 -o /dev/null http://127.0.0.1:3690/updater/status
 echo "BUILD: $(grep -o "BUILD = '[^']*'" "$TARGET/config.js" || echo '?')  commit: $COMMIT"
 REMOTE
 
