@@ -37,7 +37,9 @@
     background: #dff3e7;
     border-color: #8ac8a2;
     color: #1d6b43;
-    box-shadow: 0 0 0 1px rgba(29, 107, 67, 0.05), 0 8px 22px rgba(29, 107, 67, 0.11);
+    box-shadow:
+      0 0 0 1px rgba(29, 107, 67, 0.05),
+      0 8px 22px rgba(29, 107, 67, 0.11);
   }
 
   .dashboard-update-button.update-available:hover,
