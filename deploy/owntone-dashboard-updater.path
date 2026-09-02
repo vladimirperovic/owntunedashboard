@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch for OwnTone Dashboard update requests
+
+[Path]
+PathExists=/var/lib/owntone-dashboard/update.request
+Unit=owntone-dashboard-updater.service
+
+[Install]
+WantedBy=multi-user.target
