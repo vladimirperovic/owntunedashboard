@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-test('one-click updater detects new main, turns green, installs it and reports the commit', async ({ page }) => {
+test('updater turns green for new main and installs it', async ({ page }) => {
   let requested = false;
   let statusAfterRequest = 0;
   let checks = 0;
