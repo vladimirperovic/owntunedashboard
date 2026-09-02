@@ -482,6 +482,7 @@
     utility.innerHTML = `
       <label class="fullscreen-volume-control" for="fullscreenVolumeRange">${icons.output}<input id="fullscreenVolumeRange" type="range" min="0" max="100" value="${Number($('volumeRange')?.value || 0)}" aria-label="Fullscreen volume"><output id="fullscreenVolumeValue">${Number($('volumeRange')?.value || 0)}%</output></label>
       <button type="button" id="fullscreenFavoriteButton" data-ux-favorite aria-label="Add current track to Favorites">${heartOutline}</button>
+      <button type="button" id="fullscreenTrackActionsButton" aria-label="Current track actions">${moreIcon}</button>
       <button type="button" id="fullscreenQueueButton" aria-label="Open queue">${icons.queue}</button>`;
     controls.insertAdjacentElement('afterend', utility);
     const fullVolume = $('fullscreenVolumeRange');
@@ -500,6 +501,10 @@
       syncFullscreenVolume();
     });
     $('fullscreenFavoriteButton').addEventListener('click', toggleCurrentFavorite);
+    $('fullscreenTrackActionsButton').addEventListener('click', () => {
+      fullscreen.close?.();
+      setTimeout(openTrackActions, 0);
+    });
     $('fullscreenQueueButton').addEventListener('click', () => {
       fullscreen.close?.();
       setTimeout(() => $('queueDrawerButton')?.click(), 0);
@@ -624,6 +629,25 @@
     }
   }
 
+  function enhanceTrackActionAccess() {
+    const chips = $('trackChips');
+    const info = $('trackInfoButton');
+    if (!chips || !info || $('trackActionsButton')) return;
+    const button = document.createElement('button');
+    button.id = 'trackActionsButton';
+    button.className = 'track-chip track-chip--info track-actions-button';
+    button.type = 'button';
+    button.title = 'Current track actions';
+    button.setAttribute('aria-label', 'Current track actions');
+    button.innerHTML = moreIcon;
+    button.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      openTrackActions();
+    });
+    info.insertAdjacentElement('afterend', button);
+  }
+
   function enhanceAll() {
     const token = currentToken();
     if (token !== lastTrackToken) {
@@ -633,6 +657,7 @@
     cleanMobileNavigation();
     cleanSidebar();
     enhanceDockButtons();
+    enhanceTrackActionAccess();
     enhanceFullscreen();
     enhanceManagers();
     enhancePlaylistEditorIcons();

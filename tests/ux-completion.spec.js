@@ -19,6 +19,7 @@ test('mobile navigation stays at five primary items and mini player opens fullsc
   await expect(page.locator('#fullscreenVolumeRange')).toBeVisible();
   await expect(page.locator('#fullscreenQueueButton')).toBeVisible();
   await expect(page.locator('#fullscreenFavoriteButton')).toBeVisible();
+  await expect(page.locator('#fullscreenTrackActionsButton')).toBeVisible();
 });
 
 test('favorites control toggles the current demo track instead of playing Favorites playlist', async ({
@@ -31,6 +32,15 @@ test('favorites control toggles the current demo track instead of playing Favori
   await favorite.click();
   await expect(favorite).toHaveClass(/is-current-favorite/);
   await expect(favorite).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('desktop now playing exposes current track actions', async ({ page }) => {
+  await openDemo(page, { width: 1280, height: 800 });
+  const actions = page.locator('#trackActionsButton');
+  await expect(actions).toBeVisible();
+  await actions.click();
+  await expect(page.locator('#uxTrackActionsDialog')).toBeVisible();
+  await expect(page.locator('#uxTrackPlaylist')).toBeVisible();
 });
 
 test('sidebar has one History destination plus Browse and Insights', async ({ page }) => {
