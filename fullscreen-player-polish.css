@@ -50,6 +50,20 @@ body:not(.radio-mode) .player-card .track-info-button:hover {
   background: rgba(255, 255, 255, 0.14);
 }
 
+/* Context actions are absolutely positioned. Album cards must establish their
+ * own containing block or a hidden trigger can float across the page and steal
+ * clicks from unrelated controls. Keep it at the bottom-right so it does not
+ * overlap the album-details button in the top-right corner. */
+.album-card {
+  position: relative;
+}
+
+.album-card > .context-menu-trigger {
+  top: auto;
+  right: 8px;
+  bottom: 8px;
+}
+
 .fullscreen-now-playing .fullscreen-stage {
   display: none;
 }
