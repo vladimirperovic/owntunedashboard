@@ -37,10 +37,10 @@ jobs:
       - name: Ruff
         run: |
           pip install --quiet ruff==0.14.4
-          ruff check scheduler/
+          ruff check scheduler/ deploy/update_server.py
 
-      - name: Shellcheck deploy script
-        run: shellcheck deploy/deploy.sh
+      - name: Shellcheck deploy and updater scripts
+        run: shellcheck deploy/deploy.sh deploy/update-dashboard.sh
 
   test:
     name: Tests
