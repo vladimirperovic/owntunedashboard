@@ -197,49 +197,57 @@
       const sleepBtn = document.getElementById('sleepButton');
       const outputBtn = document.getElementById('premiumOutputButton');
       const dock = document.querySelector('.audio-dock');
-      if (!sleepBtn || !outputBtn || !dock || document.getElementById('dockMoreButton')) return false;
-      const leftMoreBtn = document.createElement('button');
-      leftMoreBtn.id = 'leftMoreButton';
-      leftMoreBtn.className = 'dock-more-button left-more';
-      leftMoreBtn.type = 'button';
-      leftMoreBtn.setAttribute('aria-label', 'More actions');
-      leftMoreBtn.title = 'More';
-      leftMoreBtn.innerHTML =
-        '<svg viewBox="0 0 24 24" aria-hidden="true" style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="8" cy="7" r="1" fill="currentColor" stroke="none"/><circle cx="8" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="8" cy="17" r="1" fill="currentColor" stroke="none"/></svg>';
-      leftMoreBtn.addEventListener('click', () => {
-        const cur = document.querySelector('.album-card[data-uri]');
-        const trig = cur?.querySelector('.context-menu-trigger');
-        if (trig) trig.click();
-        else document.getElementById('queueDrawerButton')?.click();
-      });
-      const moreBtn = document.createElement('button');
-      moreBtn.id = 'dockMoreButton';
-      moreBtn.className = 'dock-more-button';
-      moreBtn.type = 'button';
-      moreBtn.setAttribute('aria-label', 'More options');
-      moreBtn.title = 'More';
-      moreBtn.innerHTML =
-        '<svg viewBox="0 0 24 24" aria-hidden="true" style="width:18px;height:18px;fill:currentColor"><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/></svg>';
-      const qBtn = document.getElementById('queueDrawerButton');
-      if (qBtn) moreBtn.addEventListener('click', () => qBtn.click());
-      else moreBtn.addEventListener('click', () => document.getElementById('premiumOutputButton')?.click());
-      let row = outputBtn.parentElement;
-      if (row && row.classList.contains('volume-output-row')) {
-        let secondRow = row.querySelector('.dock-second-row');
-        if (!secondRow) {
-          secondRow = document.createElement('div');
-          secondRow.className = 'dock-second-row';
-          row.appendChild(secondRow);
-          secondRow.appendChild(outputBtn);
-        }
-        secondRow.insertBefore(leftMoreBtn, secondRow.firstChild);
-        secondRow.appendChild(sleepBtn);
-        secondRow.appendChild(moreBtn);
-        sleepBtn.style.position = 'static';
-        sleepBtn.style.margin = '0';
+      if (!sleepBtn || !outputBtn || !dock) return false;
+
+      let secondRow = dock.querySelector('.dock-second-row');
+      if (!secondRow) {
+        secondRow = document.createElement('div');
+        secondRow.className = 'dock-second-row';
+        outputBtn.parentElement?.appendChild(secondRow);
       }
+      if (outputBtn.parentElement !== secondRow) secondRow.appendChild(outputBtn);
+
+      let leftMoreBtn = document.getElementById('leftMoreButton');
+      if (!leftMoreBtn) {
+        leftMoreBtn = document.createElement('button');
+        leftMoreBtn.id = 'leftMoreButton';
+        leftMoreBtn.className = 'dock-more-button left-more';
+        leftMoreBtn.type = 'button';
+        leftMoreBtn.setAttribute('aria-label', 'More actions');
+        leftMoreBtn.title = 'More';
+        leftMoreBtn.innerHTML =
+          '<svg viewBox="0 0 24 24" aria-hidden="true" style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="8" cy="7" r="1" fill="currentColor" stroke="none"/><circle cx="8" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="8" cy="17" r="1" fill="currentColor" stroke="none"/></svg>';
+        leftMoreBtn.addEventListener('click', () => {
+          const cur = document.querySelector('.album-card[data-uri]');
+          const trig = cur?.querySelector('.context-menu-trigger');
+          if (trig) trig.click();
+          else document.getElementById('queueDrawerButton')?.click();
+        });
+      }
+
+      let moreBtn = document.getElementById('dockMoreButton');
+      if (!moreBtn) {
+        moreBtn = document.createElement('button');
+        moreBtn.id = 'dockMoreButton';
+        moreBtn.className = 'dock-more-button';
+        moreBtn.type = 'button';
+        moreBtn.setAttribute('aria-label', 'More options');
+        moreBtn.title = 'More';
+        moreBtn.innerHTML =
+          '<svg viewBox="0 0 24 24" aria-hidden="true" style="width:18px;height:18px;fill:currentColor"><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/></svg>';
+        const qBtn = document.getElementById('queueDrawerButton');
+        if (qBtn) moreBtn.addEventListener('click', () => qBtn.click());
+        else moreBtn.addEventListener('click', () => document.getElementById('premiumOutputButton')?.click());
+      }
+
+      if (leftMoreBtn.parentElement !== secondRow) secondRow.insertBefore(leftMoreBtn, secondRow.firstChild);
+      if (sleepBtn.parentElement !== secondRow) secondRow.appendChild(sleepBtn);
+      if (moreBtn.parentElement !== secondRow) secondRow.appendChild(moreBtn);
+      sleepBtn.style.position = 'static';
+      sleepBtn.style.margin = '0';
       return true;
     }
+
     if (!layoutDockSecondRow()) {
       const obs = new MutationObserver(() => {
         if (layoutDockSecondRow()) obs.disconnect();
@@ -247,6 +255,8 @@
       obs.observe(document.body, { childList: true, subtree: true });
       setTimeout(() => obs.disconnect(), 4000);
     }
+    window.addEventListener('owntone:sleep-mounted', layoutDockSecondRow);
+    window.addEventListener('resize', layoutDockSecondRow);
 
     const range = document.getElementById('volumeRange');
     if (range && volumeWrap && !volumeWrap.querySelector('.volume-tooltip')) {
