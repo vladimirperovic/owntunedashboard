@@ -17,22 +17,72 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Format dashboard files
-        run: >-
-          npx prettier --write
-          library-browser.js
-          mute-control.js
-          premium-experience.css
-          radio-visualizer.js
-          ux-completion.js
-          tests/ux-completion.spec.js
-      - name: Commit formatting
+      - name: Add desktop and fullscreen track actions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          js = Path('ux-completion.js')
+          text = js.read_text()
+
+          old = """      <button type=\"button\" id=\"fullscreenFavoriteButton\" data-ux-favorite aria-label=\"Add current track to Favorites\">${heartOutline}</button>\n      <button type=\"button\" id=\"fullscreenQueueButton\" aria-label=\"Open queue\">${icons.queue}</button>`;"""
+          new = """      <button type=\"button\" id=\"fullscreenFavoriteButton\" data-ux-favorite aria-label=\"Add current track to Favorites\">${heartOutline}</button>\n      <button type=\"button\" id=\"fullscreenTrackActionsButton\" aria-label=\"Current track actions\">${moreIcon}</button>\n      <button type=\"button\" id=\"fullscreenQueueButton\" aria-label=\"Open queue\">${icons.queue}</button>`;"""
+          assert old in text
+          text = text.replace(old, new, 1)
+
+          old = """    $('fullscreenFavoriteButton').addEventListener('click', toggleCurrentFavorite);\n    $('fullscreenQueueButton').addEventListener('click', () => {"""
+          new = """    $('fullscreenFavoriteButton').addEventListener('click', toggleCurrentFavorite);\n    $('fullscreenTrackActionsButton').addEventListener('click', () => {\n      fullscreen.close?.();\n      setTimeout(openTrackActions, 0);\n    });\n    $('fullscreenQueueButton').addEventListener('click', () => {"""
+          assert old in text
+          text = text.replace(old, new, 1)
+
+          anchor = """  function enhanceAll() {\n"""
+          addition = """  function enhanceTrackActionAccess() {\n    const chips = $('trackChips');\n    const info = $('trackInfoButton');\n    if (!chips || !info || $('trackActionsButton')) return;\n    const button = document.createElement('button');\n    button.id = 'trackActionsButton';\n    button.className = 'track-chip track-chip--info track-actions-button';\n    button.type = 'button';\n    button.title = 'Current track actions';\n    button.setAttribute('aria-label', 'Current track actions');\n    button.innerHTML = moreIcon;\n    button.addEventListener('click', event => {\n      event.preventDefault();\n      event.stopPropagation();\n      openTrackActions();\n    });\n    info.insertAdjacentElement('afterend', button);\n  }\n\n"""
+          assert anchor in text
+          text = text.replace(anchor, addition + anchor, 1)
+
+          old = """    enhanceDockButtons();\n    enhanceFullscreen();"""
+          new = """    enhanceDockButtons();\n    enhanceTrackActionAccess();\n    enhanceFullscreen();"""
+          assert old in text
+          text = text.replace(old, new, 1)
+          js.write_text(text)
+
+          css = Path('ux-completion.css')
+          style = css.read_text()
+          style = style.replace(
+              """  #fullscreenFavoriteButton,\n  #fullscreenQueueButton {""",
+              """  #fullscreenFavoriteButton,\n  #fullscreenTrackActionsButton,\n  #fullscreenQueueButton {""",
+          )
+          style = style.replace(
+              """  #fullscreenFavoriteButton:hover,\n  #fullscreenQueueButton:hover {""",
+              """  #fullscreenFavoriteButton:hover,\n  #fullscreenTrackActionsButton:hover,\n  #fullscreenQueueButton:hover {""",
+          )
+          marker = """  #fullscreenQueueButton svg {\n"""
+          extra = """  #fullscreenTrackActionsButton svg,\n  .track-actions-button svg {\n    width: 18px;\n    height: 18px;\n    fill: currentColor;\n    stroke: none;\n  }\n\n"""
+          assert marker in style
+          style = style.replace(marker, extra + marker, 1)
+          css.write_text(style)
+
+          spec = Path('tests/ux-completion.spec.js')
+          tests = spec.read_text()
+          tests = tests.replace(
+              """  await expect(page.locator('#fullscreenQueueButton')).toBeVisible();\n  await expect(page.locator('#fullscreenFavoriteButton')).toBeVisible();""",
+              """  await expect(page.locator('#fullscreenQueueButton')).toBeVisible();\n  await expect(page.locator('#fullscreenFavoriteButton')).toBeVisible();\n  await expect(page.locator('#fullscreenTrackActionsButton')).toBeVisible();""",
+              1,
+          )
+          marker = """test('sidebar has one History destination plus Browse and Insights', async ({ page }) => {"""
+          extra = """test('desktop now playing exposes current track actions', async ({ page }) => {\n  await openDemo(page, { width: 1280, height: 800 });\n  const actions = page.locator('#trackActionsButton');\n  await expect(actions).toBeVisible();\n  await actions.click();\n  await expect(page.locator('#uxTrackActionsDialog')).toBeVisible();\n  await expect(page.locator('#uxTrackPlaylist')).toBeVisible();\n});\n\n"""
+          assert marker in tests
+          tests = tests.replace(marker, extra + marker, 1)
+          spec.write_text(tests)
+          PY
+      - run: npx prettier --write ux-completion.js ux-completion.css tests/ux-completion.spec.js
+      - name: Commit patch
         run: |
           if git diff --quiet; then exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add library-browser.js mute-control.js premium-experience.css radio-visualizer.js ux-completion.js tests/ux-completion.spec.js
-          git commit -m "Format dashboard files"
+          git add ux-completion.js ux-completion.css tests/ux-completion.spec.js
+          git commit -m "Expose current track actions everywhere"
           git push
       - name: Prettier check
         run: npx prettier --check .
