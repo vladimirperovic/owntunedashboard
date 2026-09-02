@@ -14,8 +14,7 @@
     '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/></svg>';
   const browseIcon =
     '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8 4.8-2.2Z"/></svg>';
-  const statsIcon =
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V11M12 19V5M19 19v-7"/></svg>';
+  const statsIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V11M12 19V5M19 19v-7"/></svg>';
   const playlistIcon =
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7h11M8 12h11M8 17h7"/><circle cx="4" cy="7" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="17" r="1"/></svg>';
   const upIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>';
@@ -80,7 +79,14 @@
   }
 
   function findFavorites(items) {
-    return items.find(item => String(item.name || '').trim().toLowerCase() === 'favorites') || null;
+    return (
+      items.find(
+        item =>
+          String(item.name || '')
+            .trim()
+            .toLowerCase() === 'favorites'
+      ) || null
+    );
   }
 
   async function ensureFavoritesPlaylist() {
@@ -227,7 +233,9 @@
         </div>
       </div>`;
     document.body.appendChild(trackActionsDialog);
-    trackActionsDialog.querySelector('.ux-dialog-close').addEventListener('click', () => trackActionsDialog.close());
+    trackActionsDialog
+      .querySelector('.ux-dialog-close')
+      .addEventListener('click', () => trackActionsDialog.close());
     trackActionsDialog.addEventListener('click', event => {
       if (event.target === trackActionsDialog) trackActionsDialog.close();
     });
@@ -270,7 +278,9 @@
         <div class="ux-dialog-actions"><button type="button" class="ux-secondary" id="uxManagePlaylists">Manage playlists</button><button type="submit" class="ux-primary">Add track</button></div>
       </form>`;
     document.body.appendChild(addPlaylistDialog);
-    addPlaylistDialog.querySelector('.ux-dialog-close').addEventListener('click', () => addPlaylistDialog.close());
+    addPlaylistDialog
+      .querySelector('.ux-dialog-close')
+      .addEventListener('click', () => addPlaylistDialog.close());
     addPlaylistDialog.addEventListener('click', event => {
       if (event.target === addPlaylistDialog) addPlaylistDialog.close();
     });
@@ -288,7 +298,8 @@
       return;
     }
     ensureAddPlaylistDialog();
-    $('uxPlaylistTrackLabel').textContent = `${currentItem()?.title || 'Current track'} · ${currentItem()?.artist || 'OwnTone'}`;
+    $('uxPlaylistTrackLabel').textContent =
+      `${currentItem()?.title || 'Current track'} · ${currentItem()?.artist || 'OwnTone'}`;
     const select = $('uxPlaylistSelect');
     select.innerHTML = '<option value="">Loading playlists…</option>';
     $('uxPlaylistNewName').value = '';
@@ -326,7 +337,8 @@
       if (newName) {
         const created = await scheduler('/playlists', { method: 'POST', body: { name: newName } });
         items = await editablePlaylists();
-        playlist = items.find(item => item.slug === created?.slug) || items.find(item => item.name === newName);
+        playlist =
+          items.find(item => item.slug === created?.slug) || items.find(item => item.name === newName);
       } else {
         playlist = items.find(item => item.slug === $('uxPlaylistSelect').value);
       }
@@ -443,7 +455,9 @@
       history.innerHTML = `${span ? span.outerHTML : `<span>${icons.clock}</span>`}History`;
       history.title = 'Queue and listening history';
     }
-    const quick = [...nav.querySelectorAll('.nav-label')].find(label => /quick access/i.test(label.textContent || ''));
+    const quick = [...nav.querySelectorAll('.nav-label')].find(label =>
+      /quick access/i.test(label.textContent || '')
+    );
     if (!quick) return;
     if (!$('browseNavButton')) {
       quick.insertAdjacentElement(
@@ -587,7 +601,9 @@
 
   function normalizeCompositeCards() {
     document
-      .querySelectorAll('button.album-card,button.playlist-card,button.search-item,button.premium-recent-card')
+      .querySelectorAll(
+        'button.album-card,button.playlist-card,button.search-item,button.premium-recent-card'
+      )
       .forEach(replaceCompositeCard);
   }
 
