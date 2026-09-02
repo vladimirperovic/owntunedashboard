@@ -70,7 +70,7 @@ window.OWNTONE_DASHBOARD = {
  * that were not inserted by the HTML parser, so setting it only misleads.)
  */
 (() => {
-  const BUILD = '20260902-24';
+  const BUILD = '20260902-25';
   const asset = path => `${path}?v=${BUILD}`;
 
   const addStyle = href => {
@@ -136,6 +136,7 @@ window.OWNTONE_DASHBOARD = {
     'notifications.js',
     'dashboard-update.js',
     'ux-completion-safe.js',
+    'responsive-dock.js',
   ].forEach(addScript);
 
   // Deployed build identity, shown in the sidebar footer (with version.json commit when present).
