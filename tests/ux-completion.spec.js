@@ -25,9 +25,33 @@ test('music hero keeps the original light card treatment', async ({ page }) => {
   await expect(card).toHaveCSS('background-color', 'rgb(248, 242, 234)');
   await expect(card).toHaveCSS('border-color', 'rgba(255, 255, 255, 0.72)');
 
+  const ambience = await card.evaluate(element => {
+    const style = getComputedStyle(element, '::before');
+    return {
+      opacity: style.opacity,
+      inset: [style.top, style.right, style.bottom, style.left],
+      filter: style.filter,
+    };
+  });
+  expect(ambience.opacity).toBe('0.26');
+  expect(ambience.inset).toEqual(['0px', '0px', '0px', '0px']);
+  expect(ambience.filter).toContain('blur(52px)');
+
   const box = await card.boundingBox();
   expect(box.width).toBeGreaterThan(500);
   expect(box.height).toBeGreaterThan(250);
+});
+
+test('mobile music hero keeps the faint pre-screensaver ambience', async ({ page }) => {
+  await openDemo(page, { width: 390, height: 844 });
+
+  const ambience = await page.locator('#playerCard').evaluate(element => {
+    const style = getComputedStyle(element, '::before');
+    return { opacity: style.opacity, top: style.top, filter: style.filter };
+  });
+  expect(ambience.opacity).toBe('0.065');
+  expect(ambience.top).toBe('-32px');
+  expect(ambience.filter).toContain('blur(42px)');
 });
 
 test('mobile core controls remain reachable after the load hotfix', async ({ page }) => {
