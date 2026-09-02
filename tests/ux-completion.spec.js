@@ -4,6 +4,7 @@ async function openDemo(page, viewport) {
   await page.setViewportSize(viewport);
   await page.goto('/', { waitUntil: 'load' });
   await expect(page.locator('#connectionText')).toContainText('Preview mode', { timeout: 12000 });
+  await expect(page.locator('script[data-owntone-script="ux-completion-safe.js"]')).toHaveCount(1);
 }
 
 test('dashboard completes page load without the quarantined completion observer', async ({ page }) => {
@@ -42,6 +43,35 @@ test('music hero keeps the original light card treatment', async ({ page }) => {
   expect(box.height).toBeGreaterThan(250);
 });
 
+test('desktop navigation has one History plus Browse and Insights', async ({ page }) => {
+  await openDemo(page, { width: 1280, height: 800 });
+  await expect(page.locator('[data-nav="recent"]')).toHaveCount(0);
+  await expect(page.locator('#historyNavButton')).toContainText('History');
+  await expect(page.locator('#historyNavButton')).not.toContainText('Now playing history');
+  await expect(page.locator('#browseNavButton')).toBeVisible();
+  await expect(page.locator('#insightsNavButton')).toBeVisible();
+});
+
+test('current-track heart favorites the track instead of starting Favorites', async ({ page }) => {
+  await openDemo(page, { width: 1280, height: 800 });
+  const heart = page.locator('.dock-heart');
+  await expect(heart).toHaveAttribute('aria-label', 'Add current track to Favorites');
+  await heart.click();
+  await expect(heart).toHaveAttribute('aria-pressed', 'true');
+  await expect(heart).toHaveClass(/is-current-favorite/);
+  await expect(page.locator('#trackTitle')).toHaveText('La Vie En Rose');
+});
+
+test('fullscreen exposes volume, favorite, track actions and queue', async ({ page }) => {
+  await openDemo(page, { width: 1280, height: 800 });
+  await page.locator('#playerArt').click();
+  await expect(page.locator('#fullscreenNowPlaying')).toBeVisible();
+  await expect(page.locator('#fullscreenVolumeRange')).toBeVisible();
+  await expect(page.locator('#fullscreenFavoriteButton')).toBeVisible();
+  await expect(page.locator('#fullscreenTrackActionsButton')).toBeVisible();
+  await expect(page.locator('#fullscreenQueueButton')).toBeVisible();
+});
+
 test('mobile music hero keeps the faint pre-screensaver ambience', async ({ page }) => {
   await openDemo(page, { width: 390, height: 844 });
 
@@ -54,11 +84,35 @@ test('mobile music hero keeps the faint pre-screensaver ambience', async ({ page
   expect(ambience.filter).toContain('blur(42px)');
 });
 
-test('mobile core controls remain reachable after the load hotfix', async ({ page }) => {
+test('mobile navigation stays at five destinations and More uses the current track', async ({ page }) => {
   await openDemo(page, { width: 390, height: 844 });
 
   await expect(page.locator('.mobile-nav')).toBeVisible();
-  await expect(page.locator('#playerCard')).toBeVisible();
-  await expect(page.locator('#playButton')).toBeVisible();
-  await expect(page.locator('#queueDrawerButton')).toBeVisible();
+  await expect(page.locator('.mobile-nav button')).toHaveCount(5);
+  await expect(page.locator('#muteNavButton')).toHaveCount(0);
+  await expect(page.locator('#queueDrawerButton')).toBeHidden();
+  await expect(page.locator('#leftMoreButton')).toBeVisible();
+  await expect(page.locator('#dockMoreButton')).toBeVisible();
+
+  await page.locator('#leftMoreButton').click();
+  await expect(page.locator('#safeTrackActionsDialog')).toBeVisible();
+  await expect(page.locator('#safeTrackActionTitle')).toHaveText('La Vie En Rose');
+  await expect(page.locator('#safeTrackActionTitle')).not.toHaveText('Mezzanine');
+  await page.locator('#safeTrackActionsDialog .ux-dialog-close').click();
+
+  await page.locator('#dockMoreButton').click();
+  await expect(page.locator('#safeMoreDialog')).toBeVisible();
+  await expect(page.locator('#safeMoreDialog [data-safe-more="queue"]')).toBeVisible();
+  await expect(page.locator('#safeMoreDialog [data-safe-more="history"]')).toBeVisible();
+  await expect(page.locator('#safeMoreDialog [data-safe-more="browse"]')).toBeVisible();
+  await expect(page.locator('#safeMoreDialog [data-safe-more="insights"]')).toBeVisible();
+  await expect(page.locator('#safeMoreDialog [data-safe-more="update"]')).toBeHidden();
+});
+
+test('mobile mini player opens fullscreen instead of only scrolling home', async ({ page }) => {
+  await openDemo(page, { width: 390, height: 844 });
+  await page.locator('.mobile-nav [data-nav="library"]').click();
+  await expect(page.locator('#mobileMiniPlayer')).toHaveClass(/visible/);
+  await page.locator('#mobileMiniPlayer').click({ position: { x: 90, y: 25 } });
+  await expect(page.locator('#fullscreenNowPlaying')).toBeVisible();
 });
