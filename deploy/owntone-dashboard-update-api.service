@@ -1,0 +1,28 @@
+[Unit]
+Description=OwnTone Dashboard update API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/owntone-dashboard
+StateDirectory=owntone-dashboard
+Environment=PYTHONUNBUFFERED=1
+Environment=OWNTONE_UPDATE_HOST=127.0.0.1
+Environment=OWNTONE_UPDATE_PORT=3692
+Environment=OWNTONE_DASHBOARD_TARGET=/opt/owntone-dashboard
+Environment=OWNTONE_DASHBOARD_STATE=/var/lib/owntone-dashboard
+ExecStart=/usr/bin/python3 /opt/owntone-dashboard/deploy/update_server.py
+Restart=on-failure
+RestartSec=3
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/owntone-dashboard
+
+[Install]
+WantedBy=multi-user.target
