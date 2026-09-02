@@ -153,7 +153,7 @@
         const spectral = Math.pow(1 - Math.abs(p - 0.45) * 1.6, 0.6);
         // Three kicks land on a regular tempo. Beat frequency is in human
         // dance range, slightly varies per track.
-        const bpm = 90 + (seed * 60) | 0; // 90..150 bpm
+        const bpm = (90 + seed * 60) | 0; // 90..150 bpm
         const beatPhase = (t * bpm) / 60;
         const kick1 = Math.max(0, Math.sin(beatPhase * Math.PI)) ** 4;
         const kick2 = Math.max(0, Math.sin((beatPhase - 0.5) * Math.PI)) ** 6;

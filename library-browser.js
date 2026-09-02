@@ -64,7 +64,9 @@
       button.id = 'foldersMobileButton';
       button.innerHTML = `<span class="folder-mobile-icon">${icon.folder}</span><small>Folders</small>`;
       button.addEventListener('click', () => openBrowser(currentPath || defaultPath));
-      const albumLink = [...document.querySelectorAll('.side-link')].find(x => /albums/i.test(x.textContent || ''));
+      const albumLink = [...document.querySelectorAll('.side-link')].find(x =>
+        /albums/i.test(x.textContent || '')
+      );
       if (albumLink) albumLink.insertAdjacentElement('afterend', button);
     }
 

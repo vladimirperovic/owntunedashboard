@@ -770,7 +770,12 @@
     position: absolute;
     inset: 0;
     background:
-      radial-gradient(circle at 50% 30%, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.18) 55%, rgba(0, 0, 0, 0.45) 100%),
+      radial-gradient(
+        circle at 50% 30%,
+        rgba(0, 0, 0, 0) 0%,
+        rgba(0, 0, 0, 0.18) 55%,
+        rgba(0, 0, 0, 0.45) 100%
+      ),
       linear-gradient(180deg, rgba(8, 7, 10, 0.15), rgba(8, 7, 10, 0.55));
   }
   .fullscreen-shell {
@@ -801,7 +806,10 @@
     background: rgba(255, 255, 255, 0.075);
     border-color: rgba(255, 255, 255, 0.09);
     color: #fff;
-    transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+    transition:
+      background 0.18s ease,
+      border-color 0.18s ease,
+      transform 0.18s ease;
   }
   .fullscreen-close:hover {
     background: rgba(255, 255, 255, 0.14);
@@ -916,7 +924,9 @@
     background: rgba(255, 255, 255, 0.065);
     color: #fff;
     cursor: pointer;
-    transition: background 0.18s ease, transform 0.18s ease;
+    transition:
+      background 0.18s ease,
+      transform 0.18s ease;
   }
   .fullscreen-controls button:hover {
     background: rgba(255, 255, 255, 0.16);
@@ -930,7 +940,9 @@
     background: #fff;
     color: #0c0a09;
     box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
-    transition: box-shadow 0.22s ease, background 0.22s ease;
+    transition:
+      box-shadow 0.22s ease,
+      background 0.22s ease;
   }
   .fullscreen-controls .fullscreen-play:hover {
     background: #fff;
@@ -952,7 +964,9 @@
     border: 0;
     background: rgba(255, 255, 255, 0.075);
     color: #fff;
-    transition: background 0.18s ease, color 0.18s ease;
+    transition:
+      background 0.18s ease,
+      color 0.18s ease;
   }
   .fullscreen-mute svg {
     width: 19px;
@@ -988,7 +1002,10 @@
     font-size: 11px;
     font-weight: 690;
     cursor: pointer;
-    transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+    transition:
+      background 0.18s ease,
+      border-color 0.18s ease,
+      transform 0.18s ease;
   }
   .fullscreen-output:hover {
     background: rgba(255, 255, 255, 0.11);
