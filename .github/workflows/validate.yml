@@ -28,10 +28,7 @@ jobs:
         run: npx eslint .
 
       - name: Prettier
-        run: |
-          npx prettier --write config.js ux-completion-safe.js tests/ux-completion.spec.js
-          git diff -- config.js ux-completion-safe.js tests/ux-completion.spec.js
-          npx prettier --check .
+        run: npx prettier --check .
 
       - uses: actions/setup-python@v5
         with:
