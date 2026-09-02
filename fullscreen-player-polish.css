@@ -4,52 +4,6 @@
  * rectangular bounds of the copy/controls column.
  */
 
-/* The artwork ambience makes the normal music player deliberately dark, so its
- * content must use the same light-on-dark contrast language as the fullscreen
- * player. Without this, light-theme ink tokens render black over dark artwork. */
-body:not(.radio-mode) .player-card {
-  color: #fff;
-  background: #15110f;
-  border-color: rgba(255, 255, 255, 0.14);
-}
-
-body:not(.radio-mode) .player-card::after {
-  opacity: 1;
-  background:
-    linear-gradient(90deg, rgba(8, 7, 8, 0.62) 0%, rgba(8, 7, 8, 0.38) 58%, rgba(8, 7, 8, 0.2) 100%),
-    radial-gradient(circle at 78% 22%, var(--premium-accent-soft), transparent 36%);
-}
-
-body:not(.radio-mode) .player-card .playing-from {
-  color: rgba(255, 255, 255, 0.56);
-}
-
-body:not(.radio-mode) .player-card .playing-from b,
-body:not(.radio-mode) .player-card .track-copy h1,
-body:not(.radio-mode) .player-card .track-copy p:not(.track-meta),
-body:not(.radio-mode) .player-card .transport-row button {
-  color: #fff;
-}
-
-body:not(.radio-mode) .player-card .track-copy .track-meta,
-body:not(.radio-mode) .player-card .time-row {
-  color: rgba(255, 255, 255, 0.6);
-}
-
-body:not(.radio-mode) .player-card .track-chip,
-body:not(.radio-mode) .player-card .track-info-button {
-  color: rgba(255, 255, 255, 0.76);
-  background: rgba(255, 255, 255, 0.075);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-body:not(.radio-mode) .player-card #previousButton:hover,
-body:not(.radio-mode) .player-card #nextButton:hover,
-body:not(.radio-mode) .player-card .track-info-button:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.14);
-}
-
 /* Context actions are absolutely positioned. Album cards must establish their
  * own containing block or a hidden trigger can float across the page and steal
  * clicks from unrelated controls. Keep it at the bottom-right so it does not
