@@ -70,7 +70,7 @@ window.OWNTONE_DASHBOARD = {
  * that were not inserted by the HTML parser, so setting it only misleads.)
  */
 (() => {
-  const BUILD = '20260902-18';
+  const BUILD = '20260902-19';
   const asset = path => `${path}?v=${BUILD}`;
 
   const addStyle = href => {
