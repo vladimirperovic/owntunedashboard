@@ -66,6 +66,7 @@
     button.innerHTML =
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/><path d="M17 4v3M15.5 5.5h3"/></svg>';
     dock.appendChild(button);
+    window.dispatchEvent(new Event('owntone:sleep-mounted'));
 
     popover = document.createElement('div');
     popover.id = 'sleepPopover';
