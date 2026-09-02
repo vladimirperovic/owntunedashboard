@@ -14,14 +14,17 @@ test('dashboard completes page load without the quarantined completion observer'
   await expect(page.locator('#premiumOutputButton')).toBeVisible();
 });
 
-test('music hero keeps readable light text over artwork ambience', async ({ page }) => {
+test('music hero keeps the original light card treatment', async ({ page }) => {
   await openDemo(page, { width: 1280, height: 800 });
 
   const title = page.locator('#trackTitle');
   await expect(title).toBeVisible();
-  await expect(title).toHaveCSS('color', 'rgb(255, 255, 255)');
+  await expect(title).toHaveCSS('color', 'rgb(11, 10, 9)');
 
   const card = page.locator('#playerCard');
+  await expect(card).toHaveCSS('background-color', 'rgb(248, 242, 234)');
+  await expect(card).toHaveCSS('border-color', 'rgba(255, 255, 255, 0.72)');
+
   const box = await card.boundingBox();
   expect(box.width).toBeGreaterThan(500);
   expect(box.height).toBeGreaterThan(250);
