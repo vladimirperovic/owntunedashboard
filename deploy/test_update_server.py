@@ -3,6 +3,7 @@ import tempfile
 import threading
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -18,6 +19,7 @@ class UpdateServerTests(unittest.TestCase):
         update_server.REQUEST_FILE = update_server.STATE_DIR / "update.request"
         update_server.RUNNING_FILE = update_server.STATE_DIR / "update-running.json"
         update_server.RESULT_FILE = update_server.STATE_DIR / "update-result.json"
+        update_server.CHECK_FILE = update_server.STATE_DIR / "update-check.json"
         update_server.TARGET.mkdir(parents=True)
         update_server.STATE_DIR.mkdir(parents=True)
 
@@ -47,6 +49,32 @@ class UpdateServerTests(unittest.TestCase):
         payload = json.loads(update_server.REQUEST_FILE.read_text(encoding="utf-8"))
         self.assertEqual(payload["source"], "github-main")
         self.assertTrue(payload["requested_at"])
+
+    def test_check_latest_marks_new_main_and_reuses_12_hour_cache(self):
+        current = "1111111111111111111111111111111111111111"
+        latest = "2222222222222222222222222222222222222222"
+        (update_server.TARGET / "version.json").write_text(json.dumps({"commit": current}) + "\n", encoding="utf-8")
+        remote = {"commit": latest, "checked_at": update_server.now().isoformat()}
+
+        with patch.object(update_server, "fetch_latest_main", return_value=remote) as fetch:
+            first = update_server.check_latest()
+            second = update_server.check_latest()
+
+        self.assertTrue(first["update_available"])
+        self.assertEqual(first["latest"]["commit"], latest)
+        self.assertEqual(second["latest"]["commit"], latest)
+        self.assertEqual(fetch.call_count, 1)
+        self.assertEqual(first["check_interval_seconds"], 12 * 60 * 60)
+
+    def test_check_latest_accepts_short_deployed_commit_as_current(self):
+        latest = "abcdef0123456789abcdef0123456789abcdef01"
+        (update_server.TARGET / "version.json").write_text('{"commit":"abcdef0"}\n', encoding="utf-8")
+        remote = {"commit": latest, "checked_at": update_server.now().isoformat()}
+
+        with patch.object(update_server, "fetch_latest_main", return_value=remote):
+            value = update_server.check_latest(force=True)
+
+        self.assertFalse(value["update_available"])
 
     def test_http_request_requires_explicit_confirmation_header(self):
         server = update_server.ThreadingHTTPServer(("127.0.0.1", 0), update_server.Handler)
