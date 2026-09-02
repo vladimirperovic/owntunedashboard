@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 async function openDemo(page, viewport) {
   await page.setViewportSize(viewport);
-  await page.goto('/');
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#connectionText')).toContainText('Preview mode', { timeout: 12000 });
   await page.waitForTimeout(700);
 }
