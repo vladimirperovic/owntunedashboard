@@ -11,7 +11,7 @@ RUNNING_FILE="$STATE_DIR/update-running.json"
 RESULT_FILE="$STATE_DIR/update-result.json"
 BACKUP_DIR="${TARGET}.rollback"
 REPO_API="https://api.github.com/repos/vladimirperovic/owntunedashboard"
-REPO_TARBALL="https://github.com/vladimirperovic/owntunedashboard/archive/refs/heads/main.tar.gz"
+REPO_ARCHIVE="https://github.com/vladimirperovic/owntunedashboard/archive"
 TMP="$(mktemp -d)"
 SWAPPED=0
 COMMIT=""
@@ -125,7 +125,7 @@ if [ -n "$CURRENT" ] && { [ "$CURRENT" = "$COMMIT" ] || [ "$CURRENT" = "${COMMIT
   exit 0
 fi
 
-python3 - "$REPO_TARBALL" "$TMP/main.tar.gz" <<'PY'
+python3 - "$REPO_ARCHIVE/$COMMIT.tar.gz" "$TMP/main.tar.gz" <<'PY'
 import sys
 from urllib.request import Request, urlopen
 
