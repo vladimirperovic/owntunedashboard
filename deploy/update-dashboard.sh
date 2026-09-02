@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Root-only helper used by owntone-dashboard-updater.service.
-# It installs the latest public GitHub main branch, verifies the companion
-# service comes back, and restores the previous release if anything fails.
+# It installs the latest public GitHub main branch, verifies the dashboard
+# services come back, and restores the previous release if anything fails.
 set -Eeuo pipefail
 
 TARGET="${OWNTONE_DASHBOARD_TARGET:-/opt/owntone-dashboard}"
@@ -45,22 +45,32 @@ os.chmod(path, 0o644)
 PY
 }
 
+install_units_from() {
+  local root="$1"
+  install -m 0644 "$root/deploy/owntone-dashboard-scheduler.service" \
+    /etc/systemd/system/owntone-dashboard-scheduler.service
+  install -m 0644 "$root/deploy/owntone-dashboard-update-api.service" \
+    /etc/systemd/system/owntone-dashboard-update-api.service
+  install -m 0644 "$root/deploy/owntone-dashboard-updater.service" \
+    /etc/systemd/system/owntone-dashboard-updater.service
+  install -m 0644 "$root/deploy/owntone-dashboard-updater.path" \
+    /etc/systemd/system/owntone-dashboard-updater.path
+}
+
 rollback() {
   if [ "$SWAPPED" != 1 ] || [ ! -d "$BACKUP_DIR" ]; then
     return
   fi
   rm -rf "$TARGET"
   mv "$BACKUP_DIR" "$TARGET"
-  if [ -f "$TARGET/deploy/owntone-dashboard-scheduler.service" ]; then
-    install -m 0644 "$TARGET/deploy/owntone-dashboard-scheduler.service" \
-      /etc/systemd/system/owntone-dashboard-scheduler.service
-  fi
+  install_units_from "$TARGET" || true
   if [ -f "$TARGET/deploy/nginx.conf" ]; then
     cp "$TARGET/deploy/nginx.conf" /etc/nginx/sites-available/owntone-dashboard
   fi
   systemctl daemon-reload || true
   nginx -t >/dev/null 2>&1 && systemctl reload nginx || true
   systemctl restart owntone-dashboard-scheduler.service || true
+  systemctl restart owntone-dashboard-update-api.service || true
 }
 
 on_error() {
@@ -141,13 +151,15 @@ for required in \
   scheduler/scheduler_server.py \
   deploy/nginx.conf \
   deploy/owntone-dashboard-scheduler.service \
+  deploy/owntone-dashboard-update-api.service \
   deploy/owntone-dashboard-updater.service \
   deploy/owntone-dashboard-updater.path \
+  deploy/update_server.py \
   deploy/update-dashboard.sh; do
   [ -f "$SOURCE/$required" ] || { echo "Missing $required" >&2; exit 1; }
 done
 
-python3 -m py_compile "$SOURCE/scheduler/scheduler_server.py"
+python3 -m py_compile "$SOURCE/scheduler/scheduler_server.py" "$SOURCE/deploy/update_server.py"
 
 # Validate every dynamically loaded local asset before touching the live tree.
 python3 - "$SOURCE" <<'PY'
@@ -173,12 +185,7 @@ mv "$SOURCE" "$TARGET"
 SWAPPED=1
 
 install -m 0755 "$TARGET/deploy/update-dashboard.sh" /usr/local/sbin/owntone-dashboard-update
-install -m 0644 "$TARGET/deploy/owntone-dashboard-scheduler.service" \
-  /etc/systemd/system/owntone-dashboard-scheduler.service
-install -m 0644 "$TARGET/deploy/owntone-dashboard-updater.service" \
-  /etc/systemd/system/owntone-dashboard-updater.service
-install -m 0644 "$TARGET/deploy/owntone-dashboard-updater.path" \
-  /etc/systemd/system/owntone-dashboard-updater.path
+install_units_from "$TARGET"
 
 NGINX_SITE="/etc/nginx/sites-available/owntone-dashboard"
 if ! cmp -s "$TARGET/deploy/nginx.conf" "$NGINX_SITE"; then
@@ -189,15 +196,18 @@ fi
 
 systemctl daemon-reload
 systemctl enable owntone-dashboard-updater.path >/dev/null 2>&1 || true
+systemctl enable owntone-dashboard-update-api.service >/dev/null 2>&1 || true
 systemctl restart owntone-dashboard-scheduler.service
+systemctl restart owntone-dashboard-update-api.service
 
 for attempt in 1 2 3 4 5 6 7 8 9 10; do
   sleep 1
-  if curl -fsS -m4 http://127.0.0.1:3691/health >/dev/null; then
+  if curl -fsS -m4 http://127.0.0.1:3691/health >/dev/null \
+    && curl -fsS -m4 http://127.0.0.1:3692/health >/dev/null; then
     break
   fi
   if [ "$attempt" = 10 ]; then
-    echo "Companion health check failed after update" >&2
+    echo "Dashboard services health check failed after update" >&2
     exit 1
   fi
 done
