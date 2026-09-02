@@ -1,11 +1,31 @@
 (() => {
   'use strict';
 
-  const { scheduler: api, toast: say } = window.OwnTone;
+  const { toast: say } = window.OwnTone;
   let button;
   let statusEl;
   let pollTimer;
-  let lastResultAt = '';
+  let baselineResultAt = '';
+  let updateRequested = false;
+
+  async function updater(path, options = {}) {
+    const response = await fetch(`/updater${path}`, {
+      ...options,
+      cache: 'no-store',
+      headers: {
+        Accept: 'application/json',
+        ...(options.headers || {}),
+      },
+    });
+    if (!response.ok) {
+      let detail = '';
+      try {
+        detail = (await response.clone().json())?.error || '';
+      } catch (_) {}
+      throw new Error(detail || `${response.status} ${response.statusText}`);
+    }
+    return response.json();
+  }
 
   function setBusy(busy, text = '') {
     if (!button) return;
@@ -17,51 +37,62 @@
     return String(status?.result?.at || status?.result?.updated_at || '');
   }
 
+  function scheduleRefresh(delay = 1400) {
+    clearTimeout(pollTimer);
+    pollTimer = window.setTimeout(() => refresh(), delay);
+  }
+
   function render(status) {
     if (!button || !statusEl) return;
     button.hidden = false;
-    const busy = Boolean(status?.pending || status?.running);
+    const busy = Boolean(status?.pending || status?.running || updateRequested);
     setBusy(busy);
 
-    if (busy) {
+    if (status?.pending || status?.running) {
       statusEl.textContent = status.running ? 'Installing latest main…' : 'Update queued…';
       return;
     }
 
     const result = status?.result;
-    if (result?.status === 'success') {
+    const stamp = resultTimestamp(status);
+    if (updateRequested && result?.status === 'success' && stamp && stamp !== baselineResultAt) {
       const commit = String(result.commit || '').slice(0, 7);
       statusEl.textContent = commit ? `Installed ${commit}` : 'Update installed';
-      const stamp = resultTimestamp(status);
-      if (lastResultAt && stamp && stamp !== lastResultAt) {
-        say('Dashboard updated — reloading');
-        window.setTimeout(() => window.location.reload(), 1200);
-      }
-      lastResultAt = stamp || lastResultAt;
+      updateRequested = false;
+      say('Dashboard updated — reloading');
+      window.setTimeout(() => window.location.reload(), 1200);
       return;
     }
 
-    if (result?.status === 'error') {
+    if (updateRequested && result?.status === 'error' && stamp && stamp !== baselineResultAt) {
+      updateRequested = false;
+      setBusy(false);
       statusEl.textContent = String(result.message || 'Update failed').slice(0, 80);
+      say('Dashboard update failed — previous version restored');
       return;
     }
 
+    if (!updateRequested) baselineResultAt = stamp || baselineResultAt;
     const current = String(status?.current?.commit || '').slice(0, 7);
     statusEl.textContent = current ? `Current ${current}` : 'Install latest main';
   }
 
   async function refresh({ silent = true } = {}) {
     try {
-      const status = await api('/update', { cache: 'no-store' });
+      const status = await updater('/status');
       render(status);
-      if (status?.pending || status?.running) {
-        clearTimeout(pollTimer);
-        pollTimer = window.setTimeout(() => refresh(), 1400);
-      }
+      if (status?.pending || status?.running || updateRequested) scheduleRefresh();
       return status;
     } catch (error) {
-      if (button) button.hidden = true;
-      if (!silent) say(error?.message || 'Updater unavailable');
+      if (updateRequested) {
+        button.hidden = false;
+        setBusy(true, 'Updating…');
+        statusEl.textContent = 'Restarting dashboard services…';
+        scheduleRefresh(1800);
+      } else if (button) {
+        button.hidden = true;
+      }
+      if (!silent && !updateRequested) say(error?.message || 'Updater unavailable');
       return null;
     }
   }
@@ -71,19 +102,20 @@
     const ok = window.confirm('Install the latest dashboard from GitHub main?');
     if (!ok) return;
 
+    const before = await refresh();
+    baselineResultAt = resultTimestamp(before) || baselineResultAt;
+    updateRequested = true;
     setBusy(true);
     statusEl.textContent = 'Requesting update…';
     try {
-      await api('/update', {
+      await updater('/request', {
         method: 'POST',
         headers: { 'X-OwnTone-Update': '1' },
-        body: {},
       });
       say('Dashboard update started');
-      lastResultAt = resultTimestamp(await refresh()) || lastResultAt;
-      clearTimeout(pollTimer);
-      pollTimer = window.setTimeout(() => refresh(), 1400);
+      scheduleRefresh(500);
     } catch (error) {
+      updateRequested = false;
       setBusy(false);
       statusEl.textContent = 'Update unavailable';
       say(error?.message || 'Update failed');
