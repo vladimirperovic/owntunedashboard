@@ -337,6 +337,7 @@
     text-align: right;
   }
   #fullscreenFavoriteButton,
+  #fullscreenTrackActionsButton,
   #fullscreenQueueButton {
     width: 42px;
     height: 42px;
@@ -351,6 +352,7 @@
     cursor: pointer;
   }
   #fullscreenFavoriteButton:hover,
+  #fullscreenTrackActionsButton:hover,
   #fullscreenQueueButton:hover {
     background: rgba(255, 255, 255, 0.12);
   }
@@ -358,6 +360,14 @@
     color: #ff745f;
     background: rgba(239, 91, 67, 0.16);
   }
+  #fullscreenTrackActionsButton svg,
+  .track-actions-button svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+    stroke: none;
+  }
+
   #fullscreenQueueButton svg {
     width: 18px;
     height: 18px;
