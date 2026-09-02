@@ -68,7 +68,9 @@ rollback() {
     cp "$TARGET/deploy/nginx.conf" /etc/nginx/sites-available/owntone-dashboard
   fi
   systemctl daemon-reload || true
-  nginx -t >/dev/null 2>&1 && systemctl reload nginx || true
+  if nginx -t >/dev/null 2>&1; then
+    systemctl reload nginx || true
+  fi
   systemctl restart owntone-dashboard-scheduler.service || true
   systemctl restart owntone-dashboard-update-api.service || true
 }
