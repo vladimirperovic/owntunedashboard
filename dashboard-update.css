@@ -19,11 +19,30 @@
     font-size: 10px;
     font-weight: 760;
     cursor: pointer;
+    transition:
+      background 160ms ease,
+      border-color 160ms ease,
+      color 160ms ease,
+      transform 160ms ease,
+      box-shadow 160ms ease;
   }
 
   .dashboard-update-button:hover {
     background: rgba(255, 255, 255, 0.78);
     transform: translateY(-1px);
+  }
+
+  .dashboard-update-button.update-available,
+  .ux-more-grid [data-safe-more='update'].update-available {
+    background: #dff3e7;
+    border-color: #8ac8a2;
+    color: #1d6b43;
+    box-shadow: 0 0 0 1px rgba(29, 107, 67, 0.05), 0 8px 22px rgba(29, 107, 67, 0.11);
+  }
+
+  .dashboard-update-button.update-available:hover,
+  .ux-more-grid [data-safe-more='update'].update-available:hover {
+    background: #d3eedf;
   }
 
   .dashboard-update-button:disabled {
@@ -49,6 +68,10 @@
     color: var(--ds-muted, #746c65);
   }
 
+  .dashboard-update-button.update-available + .dashboard-update-status {
+    color: #1d6b43;
+  }
+
   body.radio-mode .dashboard-update-button {
     color: #fff;
     background: rgba(255, 255, 255, 0.06);
@@ -59,7 +82,19 @@
     background: rgba(255, 255, 255, 0.11);
   }
 
+  body.radio-mode .dashboard-update-button.update-available,
+  body.radio-mode .ux-more-grid [data-safe-more='update'].update-available {
+    color: #b9f3d0;
+    background: rgba(62, 190, 116, 0.17);
+    border-color: rgba(110, 224, 157, 0.42);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+  }
+
   body.radio-mode .dashboard-update-status {
     color: rgba(255, 255, 255, 0.5);
+  }
+
+  body.radio-mode .dashboard-update-button.update-available + .dashboard-update-status {
+    color: #b9f3d0;
   }
 }
