@@ -1,0 +1,65 @@
+@layer polish {
+  .sidebar-foot {
+    display: grid;
+    gap: 8px;
+  }
+
+  .dashboard-update-button {
+    width: 100%;
+    min-height: 32px;
+    padding: 0 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(20, 16, 12, 0.09);
+    background: rgba(255, 255, 255, 0.5);
+    color: var(--ds-ink, #0b0a09);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    font-size: 10px;
+    font-weight: 760;
+    cursor: pointer;
+  }
+
+  .dashboard-update-button:hover {
+    background: rgba(255, 255, 255, 0.78);
+    transform: translateY(-1px);
+  }
+
+  .dashboard-update-button:disabled {
+    opacity: 0.58;
+    cursor: wait;
+    transform: none;
+  }
+
+  .dashboard-update-button svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .dashboard-update-status {
+    min-height: 12px;
+    font-size: 9px;
+    line-height: 1.35;
+    color: var(--ds-muted, #746c65);
+  }
+
+  body.radio-mode .dashboard-update-button {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.09);
+  }
+
+  body.radio-mode .dashboard-update-button:hover {
+    background: rgba(255, 255, 255, 0.11);
+  }
+
+  body.radio-mode .dashboard-update-status {
+    color: rgba(255, 255, 255, 0.5);
+  }
+}
