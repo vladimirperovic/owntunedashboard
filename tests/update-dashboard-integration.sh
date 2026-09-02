@@ -62,7 +62,7 @@ run_update() {
     OWNTONE_DASHBOARD_STATE="$STATE_DIR" \
     FAKE_HEALTH="$health" \
     PATH="$FAKE_BIN:$PATH" \
-    "$ROOT/deploy/update-dashboard.sh"
+    bash "$ROOT/deploy/update-dashboard.sh"
 }
 
 assert_successful_update() {
