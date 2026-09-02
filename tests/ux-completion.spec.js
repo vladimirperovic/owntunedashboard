@@ -21,7 +21,9 @@ test('mobile navigation stays at five primary items and mini player opens fullsc
   await expect(page.locator('#fullscreenFavoriteButton')).toBeVisible();
 });
 
-test('favorites control toggles the current demo track instead of playing Favorites playlist', async ({ page }) => {
+test('favorites control toggles the current demo track instead of playing Favorites playlist', async ({
+  page,
+}) => {
   await openDemo(page, { width: 1280, height: 800 });
   const favorite = page.locator('.transport-row .current-favorite-control');
   await expect(favorite).toBeVisible();
