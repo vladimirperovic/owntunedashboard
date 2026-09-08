@@ -59,7 +59,6 @@
     playlistGrid: $('playlistGrid'),
     radioGrid: $('radioGrid'),
     radioFavoritesGrid: $('radioFavoritesGrid'),
-    serverVersion: $('serverVersion'),
     searchDialog: $('searchDialog'),
     searchForm: $('searchForm'),
     searchInput: $('searchInput'),
@@ -732,9 +731,6 @@
     // the 3 s poll caused.
     els.connectionText.textContent = status;
     if (els.desktopConnection) els.desktopConnection.textContent = status;
-    const base = state.config?.version ? `OwnTone ${state.config.version}` : 'OwnTone API';
-    els.serverVersion.textContent = base;
-    els.serverVersion.title = `Dashboard build ${window.OWNTONE_DASHBOARD_BUILD || 'preview'}`;
   }
 
   /**

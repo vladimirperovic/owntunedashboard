@@ -139,17 +139,17 @@ test('last update shows date and release; checking discovers updates without ins
   await page.goto('/');
   const button = page.locator('#dashboardUpdateButton');
   await expect(button.locator('.dashboard-update-label')).toHaveText('Last update');
-  await expect(button.locator('small')).toHaveText('08.09.2026 · v31');
+  await expect(button.locator('small')).toHaveText('08.09.2026 · v32');
   await expect(page.locator('#dashboardUpdateStatus')).toBeHidden();
   await button.click();
   await expect(button.locator('.dashboard-update-label')).toHaveText('Update available');
   await expect(button).toHaveClass(/update-available/);
   expect(forced).toBe(true);
   expect(installs).toBe(0);
-  await expect(page.locator('#serverVersion')).not.toContainText('20260908');
+  await expect(page.locator('#serverVersion')).toHaveCount(0);
 });
 
-test('sidebar contains its footer on short screens and navigation can scroll', async ({ page }) => {
+test('sidebar fits all navigation and its footer scrolls with the page', async ({ page }) => {
   const current = { deployed_at: '2026-09-08T12:00:00Z' };
   await page.route('**/updater/status', route => route.fulfill({ json: { current } }));
   await page.route('**/updater/check', route =>
@@ -164,6 +164,7 @@ test('sidebar contains its footer on short screens and navigation can scroll', a
     { width: 1440, height: 900 },
   ]) {
     await page.setViewportSize(viewport);
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
     const layout = await page.evaluate(() => {
       const sidebar = document.querySelector('.sidebar').getBoundingClientRect();
       const nav = document.querySelector('.side-nav');
@@ -177,14 +178,20 @@ test('sidebar contains its footer on short screens and navigation can scroll', a
         navBottom: nav.getBoundingClientRect().bottom,
         lastBottom: last.bottom,
         scroll: nav.scrollTop,
-        height: innerHeight,
+        position: getComputedStyle(document.querySelector('.sidebar')).position,
+        innerScroll: nav.scrollHeight > nav.clientHeight,
       };
     });
     expect(layout.footerBottom).toBeLessThanOrEqual(layout.sidebarBottom);
-    expect(layout.footerBottom).toBeLessThanOrEqual(layout.height);
+    expect(layout.position).toBe('relative');
+    expect(layout.innerScroll).toBe(false);
     expect(layout.navBottom).toBeLessThanOrEqual(layout.footerTop + 1);
     expect(layout.lastBottom).toBeLessThanOrEqual(layout.navBottom + 1);
-    if (viewport.height <= 600) expect(layout.scroll).toBeGreaterThan(0);
+    expect(layout.scroll).toBe(0);
+    await page.evaluate(() => window.scrollBy({ top: 160, behavior: 'instant' }));
+    await expect
+      .poll(async () => (await page.locator('.sidebar-foot').boundingBox()).y)
+      .toBeLessThan(layout.footerTop - 100);
   }
 });
 
@@ -197,6 +204,34 @@ test('mobile More shows the same installed date and update availability', async 
   await expect(page.locator('#dashboardUpdateButton')).toHaveAttribute('data-update-available', 'true');
   await page.locator('#dockMoreButton').click();
   await expect(page.locator('[data-safe-more="update"]')).toContainText(
-    'Update available · 08.09.2026 · v31'
+    'Update available · 08.09.2026 · v32'
   );
+});
+
+test('playback controls form a padded group at the left of the player', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#connectionText')).toContainText('Preview mode');
+  for (const width of [1440, 1024, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    const layout = await page.evaluate(() => {
+      const row = document.querySelector('.transport-row');
+      const rect = row.getBoundingClientRect();
+      const title = document.getElementById('trackTitle').getBoundingClientRect();
+      const buttons = [...row.querySelectorAll('button')].map(b => b.getBoundingClientRect());
+      return {
+        width: rect.width,
+        left: rect.left,
+        titleLeft: title.left,
+        padding: parseFloat(getComputedStyle(row).paddingTop),
+        right: rect.right,
+        buttonRight: buttons.at(-1).right,
+        gaps: buttons.slice(1).map((b, i) => b.left - buttons[i].right),
+      };
+    });
+    expect(layout.width).toBeLessThan(330);
+    expect(Math.abs(layout.left - layout.titleLeft)).toBeLessThan(8);
+    expect(layout.padding).toBeGreaterThanOrEqual(8);
+    expect(layout.buttonRight).toBeLessThanOrEqual(layout.right + 1);
+    expect(layout.gaps.every(gap => gap >= 5)).toBe(true);
+  }
 });

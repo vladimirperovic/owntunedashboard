@@ -78,9 +78,10 @@
     min-height: calc(100vh - 28px);
   }
   .sidebar {
-    position: sticky;
-    top: 14px;
-    height: calc(100vh - 28px);
+    position: relative;
+    align-self: start;
+    height: auto;
+    min-height: calc(100vh - 28px);
     padding: 24px 16px 16px;
     border-radius: 28px;
     background: rgba(249, 244, 237, 0.94);
@@ -88,8 +89,6 @@
     box-shadow: var(--shadow);
     display: flex;
     flex-direction: column;
-    min-height: 0;
-    overflow: hidden;
     backdrop-filter: blur(18px);
   }
   .sidebar-brand {
@@ -144,11 +143,7 @@
     height: 9px;
   }
   .side-nav {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
+    flex: 0 0 auto;
     display: flex;
     flex-direction: column;
     gap: 3px;
@@ -494,11 +489,12 @@
   .transport-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 6px;
-    width: 100%;
+    justify-content: flex-start;
+    gap: 14px;
+    width: fit-content;
+    max-width: 100%;
     margin-top: 12px;
-    padding: 0 2px;
+    padding: 10px 4px;
   }
   .transport-row .transport {
     display: contents;
@@ -1334,9 +1330,9 @@
     }
     .transport-row {
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-start;
       gap: 6px;
-      padding: 0 2px;
+      padding: 8px 0;
     }
     .transport-row .transport {
       display: contents;
@@ -1520,8 +1516,7 @@
     .sidebar {
       grid-column: 1;
       grid-row: 2;
-      top: 72px;
-      height: calc(100vh - 86px);
+      min-height: calc(100vh - 86px);
     }
     .page-area {
       grid-column: 2;

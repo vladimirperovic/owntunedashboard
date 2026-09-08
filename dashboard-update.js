@@ -237,9 +237,9 @@
     button.type = 'button';
     button.hidden = true;
     button.innerHTML = `
-      <svg viewBox="0 0 24 24" aria-hidden="true">
+      <span class="dashboard-update-icon" aria-hidden="true"><svg viewBox="0 0 24 24">
         <path d="M12 3v12m0 0 4-4m-4 4-4-4M5 20h14" />
-      </svg>
+      </svg></span>
       <span class="dashboard-update-copy"><span class="dashboard-update-label">Last update</span><small></small></span>`;
 
     statusEl = document.createElement('div');

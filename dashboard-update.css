@@ -3,21 +3,23 @@
     display: grid;
     gap: 8px;
     opacity: 1;
+    margin-top: 22px;
+    padding: 14px 0 0;
   }
 
   .dashboard-update-button {
     width: 100%;
-    min-height: 48px;
-    padding: 8px;
-    border-radius: 10px;
-    border: 1px solid rgba(20, 16, 12, 0.09);
-    background: rgba(255, 255, 255, 0.5);
+    min-height: 58px;
+    padding: 8px 6px;
+    border-radius: 16px;
+    border: 0;
+    background: transparent;
     color: var(--ds-ink, #0b0a09);
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 7px;
-    font-size: 10px;
+    justify-content: flex-start;
+    gap: 10px;
+    font-size: 11px;
     font-weight: 760;
     cursor: pointer;
     transition:
@@ -26,6 +28,24 @@
       color 160ms ease,
       transform 160ms ease,
       box-shadow 160ms ease;
+  }
+
+  .dashboard-update-icon {
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    color: var(--ds-coral, #ef5b43);
+    background: linear-gradient(145deg, #fff9f4, #f5ded1);
+    border: 1px solid rgba(239, 91, 67, 0.13);
+    box-shadow: 0 3px 9px rgba(89, 50, 28, 0.06);
+  }
+
+  .dashboard-update-button:focus-visible {
+    outline: 2px solid var(--ds-coral, #ef5b43);
+    outline-offset: 3px;
   }
 
   .dashboard-update-copy {
@@ -67,6 +87,17 @@
     background: #d3eedf;
   }
 
+  .dashboard-update-button.update-available {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .dashboard-update-button.update-available .dashboard-update-icon {
+    color: #1d6b43;
+    background: linear-gradient(145deg, #f1fff5, #ccebd8);
+    border-color: #a3d6b5;
+  }
+
   .dashboard-update-button:disabled {
     opacity: 0.58;
     cursor: wait;
@@ -97,8 +128,12 @@
 
   body.radio-mode .dashboard-update-button {
     color: #fff;
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.09);
+    background: transparent;
+  }
+
+  body.radio-mode .dashboard-update-icon {
+    background: rgba(239, 91, 67, 0.12);
+    border-color: rgba(239, 91, 67, 0.25);
   }
 
   body.radio-mode .dashboard-update-button:hover {
@@ -111,6 +146,11 @@
     background: rgba(62, 190, 116, 0.17);
     border-color: rgba(110, 224, 157, 0.42);
     box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+  }
+
+  body.radio-mode .dashboard-update-button.update-available {
+    background: transparent;
+    box-shadow: none;
   }
 
   body.radio-mode .dashboard-update-status {

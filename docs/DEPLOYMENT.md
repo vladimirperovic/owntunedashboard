@@ -222,9 +222,9 @@ journalctl -u owntone-dashboard-scheduler.service -n 100 --no-pager
 
 ## Dashboard version label
 
-`config.js` declares the user-facing `VERSION` (currently `31`) and the asset
+`config.js` declares the user-facing `VERSION` (currently `32`) and the asset
 cache key `BUILD`. Bump both for a new UI release. The updater button shows
-`Last update`, the local installation date from `version.json`, and `v31`.
+`Last update`, the local installation date from `version.json`, and `v32`.
 Clicking it checks GitHub without reinstalling. When a newer commit is found,
 the label changes to `Update available`; clicking then confirms installation.
 GitHub checks continue automatically every 12 hours. Commit hashes remain in

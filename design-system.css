@@ -39,8 +39,7 @@
     min-height: 100vh;
   }
   .sidebar {
-    top: 8px;
-    height: calc(100vh - 16px);
+    min-height: calc(100vh - 16px);
   }
 
   /* Shared interaction language */
@@ -1370,8 +1369,7 @@
       margin-right: 0;
     }
     .sidebar {
-      top: 74px;
-      height: calc(100vh - 74px);
+      min-height: calc(100vh - 88px);
     }
   }
 
