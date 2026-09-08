@@ -88,6 +88,8 @@
     box-shadow: var(--shadow);
     display: flex;
     flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
     backdrop-filter: blur(18px);
   }
   .sidebar-brand {
@@ -142,6 +144,11 @@
     height: 9px;
   }
   .side-nav {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
     display: flex;
     flex-direction: column;
     gap: 3px;
@@ -153,6 +160,7 @@
     letter-spacing: 0.1em;
   }
   .side-link {
+    flex-shrink: 0;
     height: 37px;
     border: 0;
     background: transparent;
@@ -177,6 +185,7 @@
     color: var(--coral);
   }
   .sidebar-foot {
+    flex-shrink: 0;
     margin-top: auto;
     padding: 13px 9px 0;
     border-top: 1px solid var(--line);

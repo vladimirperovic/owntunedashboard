@@ -2,12 +2,13 @@
   .sidebar-foot {
     display: grid;
     gap: 8px;
+    opacity: 1;
   }
 
   .dashboard-update-button {
     width: 100%;
-    min-height: 32px;
-    padding: 0 10px;
+    min-height: 48px;
+    padding: 8px;
     border-radius: 10px;
     border: 1px solid rgba(20, 16, 12, 0.09);
     background: rgba(255, 255, 255, 0.5);
@@ -25,6 +26,25 @@
       color 160ms ease,
       transform 160ms ease,
       box-shadow 160ms ease;
+  }
+
+  .dashboard-update-copy {
+    display: grid;
+    gap: 3px;
+    text-align: left;
+    min-width: 0;
+  }
+
+  .dashboard-update-copy small {
+    font-size: 9px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--ds-muted, #746c65);
+  }
+
+  .dashboard-update-button[hidden],
+  .dashboard-update-status[hidden] {
+    display: none;
   }
 
   .dashboard-update-button:hover {
@@ -54,6 +74,7 @@
   }
 
   .dashboard-update-button svg {
+    flex-shrink: 0;
     width: 14px;
     height: 14px;
     fill: none;
@@ -94,6 +115,10 @@
 
   body.radio-mode .dashboard-update-status {
     color: rgba(255, 255, 255, 0.5);
+  }
+
+  body.radio-mode .dashboard-update-copy small {
+    color: rgba(255, 255, 255, 0.6);
   }
 
   body.radio-mode .dashboard-update-button.update-available + .dashboard-update-status {

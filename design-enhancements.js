@@ -262,7 +262,7 @@
       } catch (_) {}
     }
     const next = station || 'Live radio';
-    if (label.textContent !== next) label.textContent = next;
+    window.OwnTone.setTextWithFade(label, next);
   }
 
   function mountMiniPlayer() {
@@ -302,9 +302,9 @@
     const fallback = mini.querySelector('.mini-fallback');
     const miniTitle = mini.querySelector('.mobile-mini-copy b');
     const miniSub = mini.querySelector('.mobile-mini-copy small');
-    if (miniTitle.textContent !== title) miniTitle.textContent = title;
+    window.OwnTone.setTextWithFade(miniTitle, title);
     const sub = artist || meta || 'OwnTone';
-    if (miniSub.textContent !== sub) miniSub.textContent = sub;
+    window.OwnTone.setTextWithFade(miniSub, sub);
     if (source) {
       if (img.getAttribute('src') !== source) img.src = source;
       img.hidden = false;

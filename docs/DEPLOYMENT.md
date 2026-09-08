@@ -219,3 +219,13 @@ journalctl -u owntone-dashboard-scheduler.service -n 100 --no-pager
   server-side, so stream URLs are never hardcoded in the dashboard.
 - Safari caches aggressively; a hard reload after deploying saves confusion if
   you forgot to bump `BUILD`.
+
+## Dashboard version label
+
+`config.js` declares the user-facing `VERSION` (currently `31`) and the asset
+cache key `BUILD`. Bump both for a new UI release. The updater button shows
+`Last update`, the local installation date from `version.json`, and `v31`.
+Clicking it checks GitHub without reinstalling. When a newer commit is found,
+the label changes to `Update available`; clicking then confirms installation.
+GitHub checks continue automatically every 12 hours. Commit hashes remain in
+the updater API for diagnostics rather than the sidebar display.

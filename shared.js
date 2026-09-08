@@ -83,6 +83,31 @@ window.OwnTone = (() => {
   const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
   const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => HTML_ESCAPES[ch]);
 
+  const textFades = new WeakMap();
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  // Publish text synchronously so other player views never read stale metadata.
+  // Only a real text change starts a fade; regular playback polls stay still.
+  function setTextWithFade(element, value) {
+    if (!element) return;
+    const text = String(value ?? '');
+    if (element.textContent === text) return;
+    const hadText = Boolean(element.textContent);
+    textFades.get(element)?.cancel();
+    textFades.delete(element);
+    element.textContent = text;
+    if (!hadText || !text || document.hidden || reducedMotion.matches || !element.animate) return;
+    const animation = element.animate([{ opacity: 0.25 }, { opacity: 1 }], {
+      id: 'owntone-text-fade',
+      duration: 300,
+      easing: 'ease-out',
+    });
+    textFades.set(element, animation);
+    animation.onfinish = () => {
+      if (textFades.get(element) === animation) textFades.delete(element);
+    };
+  }
+
   /** Milliseconds to `m:ss`. */
   function formatTime(ms) {
     const total = Math.max(0, Math.floor((Number(ms) || 0) / 1000));
@@ -328,6 +353,7 @@ window.OwnTone = (() => {
     scheduler,
     json,
     escapeHtml,
+    setTextWithFade,
     formatTime,
     toast,
     emit,

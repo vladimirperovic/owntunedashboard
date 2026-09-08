@@ -83,13 +83,13 @@ test('updater turns green for new main and installs it', async ({ page }) => {
   const status = page.locator('#dashboardUpdateStatus');
   await expect(button).toBeVisible();
   await expect(button).toHaveClass(/update-available/);
-  await expect(button.locator('span')).toHaveText('Update available');
-  await expect(status).toHaveText('New abcdef0 · current 1111111');
+  await expect(button.locator('.dashboard-update-label')).toHaveText('Update available');
+  await expect(status).toBeHidden();
   expect(checks).toBe(1);
 
   await button.click();
   await expect(status).toHaveText('Update queued…', { timeout: 3000 });
-  await expect(status).toHaveText('Installed abcdef0', { timeout: 5000 });
+  await expect(status).toHaveText('Update installed — reloading…', { timeout: 5000 });
   expect(requested).toBe(true);
 });
 
@@ -98,7 +98,7 @@ test('updater reports incomplete rollback without claiming the old release was r
 }) => {
   let requested = false;
   const message = 'Update failed; rollback incomplete, manual recovery required';
-  await page.route('**/updater/check', route => route.fulfill({ json: { update_available: false } }));
+  await page.route('**/updater/check', route => route.fulfill({ json: { update_available: true } }));
   await page.route('**/updater/status', route =>
     route.fulfill({
       json: {
@@ -119,4 +119,84 @@ test('updater reports incomplete rollback without claiming the old release was r
   await expect(page.locator('#dashboardUpdateStatus')).toHaveText(message);
   await expect(page.locator('#toast')).toHaveText(message);
   await expect(page.locator('#dashboardUpdateButton')).toBeEnabled();
+});
+
+test('last update shows date and release; checking discovers updates without installing', async ({
+  page,
+}) => {
+  const current = { commit: '1'.repeat(40), deployed_at: '2026-09-08T12:00:00Z' };
+  let installs = 0;
+  let forced = false;
+  await page.route('**/updater/status', route => route.fulfill({ json: { current } }));
+  await page.route('**/updater/check*', route => {
+    forced = new URL(route.request().url()).searchParams.get('force') === '1';
+    return route.fulfill({ json: { current, update_available: forced, latest: { commit: '2'.repeat(40) } } });
+  });
+  await page.route('**/updater/request', route => {
+    installs += 1;
+    return route.fulfill({ status: 202, json: { queued: true } });
+  });
+  await page.goto('/');
+  const button = page.locator('#dashboardUpdateButton');
+  await expect(button.locator('.dashboard-update-label')).toHaveText('Last update');
+  await expect(button.locator('small')).toHaveText('08.09.2026 · v31');
+  await expect(page.locator('#dashboardUpdateStatus')).toBeHidden();
+  await button.click();
+  await expect(button.locator('.dashboard-update-label')).toHaveText('Update available');
+  await expect(button).toHaveClass(/update-available/);
+  expect(forced).toBe(true);
+  expect(installs).toBe(0);
+  await expect(page.locator('#serverVersion')).not.toContainText('20260908');
+});
+
+test('sidebar contains its footer on short screens and navigation can scroll', async ({ page }) => {
+  const current = { deployed_at: '2026-09-08T12:00:00Z' };
+  await page.route('**/updater/status', route => route.fulfill({ json: { current } }));
+  await page.route('**/updater/check', route =>
+    route.fulfill({ json: { current, update_available: false } })
+  );
+  await page.goto('/');
+  await expect(page.locator('#dashboardUpdateButton')).toBeVisible();
+  await expect(page.locator('#browseNavButton')).toBeAttached();
+  for (const viewport of [
+    { width: 1280, height: 600 },
+    { width: 1024, height: 480 },
+    { width: 1440, height: 900 },
+  ]) {
+    await page.setViewportSize(viewport);
+    const layout = await page.evaluate(() => {
+      const sidebar = document.querySelector('.sidebar').getBoundingClientRect();
+      const nav = document.querySelector('.side-nav');
+      const footer = document.querySelector('.sidebar-foot').getBoundingClientRect();
+      nav.scrollTop = nav.scrollHeight;
+      const last = nav.querySelector('[data-nav="mymusic"]').getBoundingClientRect();
+      return {
+        sidebarBottom: sidebar.bottom,
+        footerBottom: footer.bottom,
+        footerTop: footer.top,
+        navBottom: nav.getBoundingClientRect().bottom,
+        lastBottom: last.bottom,
+        scroll: nav.scrollTop,
+        height: innerHeight,
+      };
+    });
+    expect(layout.footerBottom).toBeLessThanOrEqual(layout.sidebarBottom);
+    expect(layout.footerBottom).toBeLessThanOrEqual(layout.height);
+    expect(layout.navBottom).toBeLessThanOrEqual(layout.footerTop + 1);
+    expect(layout.lastBottom).toBeLessThanOrEqual(layout.navBottom + 1);
+    if (viewport.height <= 600) expect(layout.scroll).toBeGreaterThan(0);
+  }
+});
+
+test('mobile More shows the same installed date and update availability', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const current = { deployed_at: '2026-09-08T12:00:00Z' };
+  await page.route('**/updater/status', route => route.fulfill({ json: { current } }));
+  await page.route('**/updater/check', route => route.fulfill({ json: { current, update_available: true } }));
+  await page.goto('/');
+  await expect(page.locator('#dashboardUpdateButton')).toHaveAttribute('data-update-available', 'true');
+  await page.locator('#dockMoreButton').click();
+  await expect(page.locator('[data-safe-more="update"]')).toContainText(
+    'Update available · 08.09.2026 · v31'
+  );
 });

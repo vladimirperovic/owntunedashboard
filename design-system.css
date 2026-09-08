@@ -342,7 +342,6 @@
     white-space: nowrap;
   }
   .player-card.track-refreshed .player-art,
-  .player-card.track-refreshed .track-copy,
   .player-card.track-refreshed .track-chips {
     animation: track-refresh-in 0.5s var(--ds-ease) both;
   }
@@ -1304,7 +1303,6 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .player-card.track-refreshed .player-art,
-    .player-card.track-refreshed .track-copy,
     .player-card.track-refreshed .track-chips {
       animation: none;
     }

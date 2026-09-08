@@ -343,7 +343,7 @@
           <button type="button" data-safe-more="playlists">${playlistIcon}<span>Edit playlists</span></button>
           <button type="button" data-safe-more="stations">${icons.radio}<span>Manage stations</span></button>
           <button type="button" data-safe-more="notifications">${icons.info}<span>Notifications</span></button>
-          <button type="button" data-safe-more="update">${updateIcon}<span>Update dashboard</span></button>
+          <button type="button" data-safe-more="update">${updateIcon}<span>Last update</span></button>
         </div>
       </div>`;
     document.body.appendChild(moreDialog);
@@ -366,15 +366,25 @@
     });
     return moreDialog;
   }
+  function syncMoreUpdate() {
+    if (!moreDialog) return;
+    const update = moreDialog.querySelector('[data-safe-more="update"]');
+    const updater = $('dashboardUpdateButton');
+    update.hidden = !updater || updater.hidden;
+    update.disabled = !!updater?.disabled;
+    if (updater) {
+      update.querySelector('span').textContent =
+        `${updater.querySelector('.dashboard-update-label')?.textContent || 'Last update'} · ${updater.querySelector('small')?.textContent || ''}`;
+      update.title = updater.title;
+    }
+  }
+  document.addEventListener('owntone:updater', syncMoreUpdate);
   function openMore() {
     ensureMoreDialog();
     const radio = document.body.classList.contains('radio-mode');
     moreDialog.querySelector('[data-safe-more="stations"]').hidden = !radio;
     moreDialog.querySelector('[data-safe-more="playlists"]').hidden = radio;
-    const update = moreDialog.querySelector('[data-safe-more="update"]');
-    const updater = $('dashboardUpdateButton');
-    update.hidden = !updater || updater.hidden;
-    update.disabled = !!updater?.disabled;
+    syncMoreUpdate();
     moreDialog.showModal?.();
   }
 

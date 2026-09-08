@@ -14,6 +14,21 @@
   let latestCommit = '';
   let lastCheckAt = 0;
   let checkIntervalMs = DEFAULT_CHECK_INTERVAL_MS;
+  let installed = {};
+
+  function installationLabel() {
+    const date = new Date(installed.deployed_at || '');
+    const dateLabel = Number.isNaN(date.getTime())
+      ? 'Date unavailable'
+      : `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}.${date.getFullYear()}`;
+    const version = String(window.OWNTONE_DASHBOARD_VERSION || '');
+    return version ? `${dateLabel} · v${version}` : dateLabel;
+  }
+
+  function setStatus(text = '') {
+    statusEl.textContent = text;
+    statusEl.hidden = !text;
+  }
 
   async function updater(path, options = {}) {
     const response = await fetch(`/updater${path}`, {
@@ -37,8 +52,15 @@
   function setBusy(busy, text = '') {
     if (!button) return;
     button.disabled = busy;
-    button.querySelector('span').textContent =
-      text || (busy ? 'Updating…' : updateAvailable ? 'Update available' : 'Update dashboard');
+    button.querySelector('.dashboard-update-label').textContent =
+      text || (busy ? 'Updating…' : updateAvailable ? 'Update available' : 'Last update');
+    button.querySelector('small').textContent = installationLabel();
+    button.title = busy
+      ? 'Dashboard update in progress'
+      : updateAvailable
+        ? 'Install the available dashboard update'
+        : 'Check GitHub for updates';
+    document.dispatchEvent(new CustomEvent('owntone:updater'));
   }
 
   function setAvailability(available, latest = '') {
@@ -79,20 +101,24 @@
   function render(status) {
     if (!button || !statusEl) return;
     button.hidden = false;
+    installed = status?.current || installed;
+    if ((status?.pending || status?.running) && !updateRequested) {
+      baselineResultAt = resultTimestamp(status);
+      updateRequested = true;
+    }
     const busy = Boolean(status?.pending || status?.running || updateRequested);
     setBusy(busy);
 
     if (status?.pending || status?.running) {
-      statusEl.textContent = status.running ? 'Installing latest main…' : 'Update queued…';
+      setStatus(status.running ? 'Installing update…' : 'Update queued…');
       return;
     }
 
     const result = status?.result;
     const stamp = resultTimestamp(status);
     if (updateRequested && result?.status === 'success' && stamp && stamp !== baselineResultAt) {
-      const commit = String(result.commit || '').slice(0, 7);
       setAvailability(false, result.commit || latestCommit);
-      statusEl.textContent = commit ? `Installed ${commit}` : 'Update installed';
+      setStatus('Update installed — reloading…');
       updateRequested = false;
       say('Dashboard updated — reloading fresh files');
       window.setTimeout(() => reloadFresh(result.commit), 1200);
@@ -102,28 +128,24 @@
     if (updateRequested && result?.status === 'error' && stamp && stamp !== baselineResultAt) {
       updateRequested = false;
       setBusy(false);
-      statusEl.textContent = String(result.message || 'Update failed').slice(0, 80);
+      setStatus(String(result.message || 'Update failed').slice(0, 80));
       say(String(result.message || 'Dashboard update failed — check update status'));
+      scheduleCheck(RETRY_CHECK_MS);
       return;
     }
 
     if (!updateRequested) baselineResultAt = stamp || baselineResultAt;
-    const current = String(status?.current?.commit || '').slice(0, 7);
-    statusEl.textContent = current ? `Current ${current}` : 'Install latest main';
+    setStatus();
   }
 
   function renderCheck(value) {
     if (!button || !statusEl || updateRequested) return;
-    const current = String(value?.current?.commit || '');
+    installed = value?.current || installed;
     const latest = String(value?.latest?.commit || '');
     const seconds = Number(value?.check_interval_seconds || 0);
     if (Number.isFinite(seconds) && seconds >= 60) checkIntervalMs = seconds * 1000;
     setAvailability(Boolean(value?.update_available), latest);
-    const currentShort = current.slice(0, 7);
-    const latestShort = latest.slice(0, 7);
-    statusEl.textContent = updateAvailable
-      ? `New ${latestShort} · current ${currentShort || 'unknown'}`
-      : `Up to date · ${currentShort || latestShort || 'main'}`;
+    setStatus();
   }
 
   async function refresh({ silent = true } = {}) {
@@ -136,25 +158,31 @@
       if (updateRequested) {
         button.hidden = false;
         setBusy(true, 'Updating…');
-        statusEl.textContent = 'Restarting dashboard services…';
+        setStatus('Restarting dashboard services…');
         scheduleRefresh(1800);
       } else if (button) {
         button.hidden = true;
+        setStatus();
+        document.dispatchEvent(new CustomEvent('owntone:updater'));
       }
       if (!silent && !updateRequested) say(error?.message || 'Updater unavailable');
       return null;
     }
   }
 
-  async function checkForUpdate({ silent = true } = {}) {
+  async function checkForUpdate({ silent = true, force = false } = {}) {
     if (updateRequested) return null;
+    if (force) setBusy(true, 'Checking…');
     try {
-      const value = await updater('/check');
+      const value = await updater(force ? '/check?force=1' : '/check');
       lastCheckAt = Date.now();
+      if (force) setBusy(false);
       renderCheck(value);
+      if (!silent && !updateAvailable) say('Dashboard is up to date');
       scheduleCheck();
       return value;
     } catch (error) {
+      if (force) setBusy(false);
       scheduleCheck(RETRY_CHECK_MS);
       if (!silent) say(error?.message || 'Update check unavailable');
       return null;
@@ -163,15 +191,17 @@
 
   async function requestUpdate() {
     if (!button || button.disabled) return;
+    if (!updateAvailable) {
+      await checkForUpdate({ silent: false, force: true });
+      return;
+    }
     const ok = window.confirm('Install the latest dashboard from GitHub main?');
     if (!ok) return;
 
-    const before = await refresh();
-    baselineResultAt = resultTimestamp(before) || baselineResultAt;
     updateRequested = true;
     clearTimeout(checkTimer);
     setBusy(true);
-    statusEl.textContent = 'Requesting update…';
+    setStatus('Requesting update…');
     try {
       await updater('/request', {
         method: 'POST',
@@ -182,7 +212,7 @@
     } catch (error) {
       updateRequested = false;
       setBusy(false);
-      statusEl.textContent = 'Update unavailable';
+      setStatus('Update unavailable');
       say(error?.message || 'Update failed');
       scheduleCheck(RETRY_CHECK_MS);
     }
@@ -210,7 +240,7 @@
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M12 3v12m0 0 4-4m-4 4-4-4M5 20h14" />
       </svg>
-      <span>Update dashboard</span>`;
+      <span class="dashboard-update-copy"><span class="dashboard-update-label">Last update</span><small></small></span>`;
 
     statusEl = document.createElement('div');
     statusEl.id = 'dashboardUpdateStatus';

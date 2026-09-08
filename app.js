@@ -5,6 +5,7 @@
     config: cfg,
     api: request,
     escapeHtml,
+    setTextWithFade,
     formatTime: fmtTime,
     toast,
     emit,
@@ -720,8 +721,6 @@
     els.modeToggle.title = radio ? 'Open music library' : 'Open radio';
     els.playerKicker.textContent = isRadioCurrent(state.current) ? 'LIVE NOW' : 'NOW PLAYING';
   }
-  let buildSuffix = '',
-    buildInfoStarted = false;
   function renderConnection() {
     const status = state.demo
       ? 'Preview mode · connect OwnTone'
@@ -734,24 +733,8 @@
     els.connectionText.textContent = status;
     if (els.desktopConnection) els.desktopConnection.textContent = status;
     const base = state.config?.version ? `OwnTone ${state.config.version}` : 'OwnTone API';
-    els.serverVersion.textContent = buildSuffix ? `${base} · ${buildSuffix}` : base;
-    if (!buildInfoStarted) {
-      buildInfoStarted = true;
-      loadBuildInfo();
-    }
-  }
-  async function loadBuildInfo() {
-    const bits = [String(window.OWNTONE_DASHBOARD_BUILD || '')].filter(Boolean);
-    try {
-      const r = await fetch('version.json', { cache: 'no-store' });
-      if (r.ok) {
-        const d = await r.json();
-        const c = String(d.commit || '').slice(0, 7);
-        if (c) bits.push(c);
-      }
-    } catch (_) {}
-    buildSuffix = bits.join(' · ');
-    renderConnection();
+    els.serverVersion.textContent = base;
+    els.serverVersion.title = `Dashboard build ${window.OWNTONE_DASHBOARD_BUILD || 'preview'}`;
   }
 
   /**
@@ -820,28 +803,26 @@
     const browser = browserOutput();
     els.outputName.textContent = outputLabel(browser ? [...state.outputs, browser] : state.outputs);
     if (item) {
-      els.trackTitle.textContent = trackTitle(item, radio);
-      els.trackArtist.textContent = trackArtist(item, radio);
+      setTextWithFade(els.trackTitle, trackTitle(item, radio));
+      setTextWithFade(els.trackArtist, trackArtist(item, radio));
       const bits = [];
       if (!radio && item.album) bits.push(item.album);
       if (item.year) bits.push(item.year);
       if (radio && item.album && item.artist) bits.push(item.album);
-      els.trackMeta.textContent = bits.filter(Boolean).join(' · ');
+      setTextWithFade(els.trackMeta, bits.filter(Boolean).join(' · '));
       renderTrackChips(item, radio);
       if (!isStarting) els.formatPill.textContent = qualityText(item);
       setPlayerArtwork(item, p);
     } else {
-      els.trackTitle.textContent = playing
-        ? 'Updating now playing…'
-        : radio
-          ? 'Choose a station.'
-          : 'Choose something to play.';
-      els.trackArtist.textContent = playing ? 'OwnTone is syncing' : 'OwnTone';
-      els.trackMeta.textContent = playing
-        ? 'Syncing with OwnTone'
-        : radio
-          ? 'Your saved radio streams'
-          : 'Your local music library';
+      setTextWithFade(
+        els.trackTitle,
+        playing ? 'Updating now playing…' : radio ? 'Choose a station.' : 'Choose something to play.'
+      );
+      setTextWithFade(els.trackArtist, playing ? 'OwnTone is syncing' : 'OwnTone');
+      setTextWithFade(
+        els.trackMeta,
+        playing ? 'Syncing with OwnTone' : radio ? 'Your saved radio streams' : 'Your local music library'
+      );
       renderTrackChips(null, radio);
       if (!isStarting) els.formatPill.textContent = playing ? 'SYNCING…' : radio ? 'STREAM' : 'READY';
       setPlayerArtwork(null, p);

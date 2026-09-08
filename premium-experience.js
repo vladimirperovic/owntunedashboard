@@ -6,6 +6,7 @@
     schedulerUrl,
     json: requestJson,
     escapeHtml,
+    setTextWithFade,
     toast,
     whenReady,
     on,
@@ -668,10 +669,10 @@
     if (!fullscreen?.open) return;
     const state = appState();
     const item = state.current || {};
-    $('fullscreenTitle').textContent = item.title || $('trackTitle')?.textContent || 'OwnTone';
-    $('fullscreenArtist').textContent = item.artist || $('trackArtist')?.textContent || 'OwnTone';
-    $('fullscreenMeta').textContent = $('trackMeta')?.textContent || '';
-    $('fullscreenSource').textContent = inferSource().label;
+    setTextWithFade($('fullscreenTitle'), item.title || $('trackTitle')?.textContent || 'OwnTone');
+    setTextWithFade($('fullscreenArtist'), item.artist || $('trackArtist')?.textContent || 'OwnTone');
+    setTextWithFade($('fullscreenMeta'), $('trackMeta')?.textContent || '');
+    setTextWithFade($('fullscreenSource'), inferSource().label);
     $('fullscreenOutputName').textContent = currentOutputLabel();
     const src = $('artwork')?.getAttribute('src') || '';
     const img = $('fullscreenArtwork');

@@ -70,7 +70,8 @@ window.OWNTONE_DASHBOARD = {
  * that were not inserted by the HTML parser, so setting it only misleads.)
  */
 (async () => {
-  const BUILD = '20260908-03';
+  const BUILD = '20260908-04';
+  const VERSION = '31';
   const asset = path => `${path}?v=${BUILD}`;
 
   const addStyle = href => {
@@ -183,6 +184,7 @@ window.OWNTONE_DASHBOARD = {
     'responsive-dock.js',
   ].forEach(addScript);
 
-  // Deployed build identity, shown in the sidebar footer (with version.json commit when present).
+  // Human release label for the updater; BUILD remains the asset cache/diagnostic identity.
   window.OWNTONE_DASHBOARD_BUILD = BUILD;
+  window.OWNTONE_DASHBOARD_VERSION = VERSION;
 })();
