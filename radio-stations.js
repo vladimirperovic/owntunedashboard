@@ -43,7 +43,11 @@
   function writeArray(key, value) {
     try {
       localStorage.setItem(key, JSON.stringify(value));
-    } catch (_) {}
+      return true;
+    } catch (_) {
+      window.OwnTone.toast('Favorites could not be saved in this browser');
+      return false;
+    }
   }
   function favoriteSet() {
     return new Set(readArray(FAVORITES_KEY));
@@ -73,12 +77,41 @@
     const key = cardKey(card);
     if (!key) return;
     const set = new Set(readArray(FAVORITES_KEY));
-    if (set.has(key)) set.delete(key);
-    else set.add(key);
-    writeArray(FAVORITES_KEY, [...set]);
+    const name = stationName(card);
+    if (isFavorite(card, set)) {
+      set.delete(key);
+      set.delete(name);
+    } else {
+      set.add(name || key);
+    }
+    if (!writeArray(FAVORITES_KEY, [...set])) return false;
     applyPartition();
     updateActiveAndQuality();
+    window.OwnTone.emit('owntone:radio-favorites-updated');
+    return true;
   }
+
+  function currentCard() {
+    const item = window.OWNTONE_APP?.state.current;
+    if (!item || !window.OwnTone.isRadioItem(item)) return null;
+    const name = normalize(item.title || item.name);
+    return (
+      allCards().find(
+        card => (item.uri && card.dataset.uri === item.uri) || (name && normalize(stationName(card)) === name)
+      ) || null
+    );
+  }
+
+  window.OwnTone.radioFavorites = Object.freeze({
+    current: () => {
+      const card = currentCard();
+      return card ? { favorite: isFavorite(card), name: stationName(card) } : null;
+    },
+    toggleCurrent: () => {
+      const card = currentCard();
+      return card ? toggleFavorite(card) : false;
+    },
+  });
 
   function extractQuality(text) {
     const source = String(text || '')
@@ -281,10 +314,32 @@
   }
 
   function enhance() {
+    // Older releases also understand names. Resolve known URI pins before a
+    // library rebuild can reuse an ID for another station; keep unknown pins.
+    const favorites = favoriteSet();
+    let migrated = false;
+    allCards().forEach(card => {
+      const key = cardKey(card),
+        name = stationName(card);
+      if (key !== name && favorites.has(key) && name) {
+        favorites.delete(key);
+        favorites.add(name);
+        migrated = true;
+      }
+    });
+    if (migrated) writeArray(FAVORITES_KEY, [...favorites]);
     applyPartition();
     allCards().forEach(enhanceCard);
     updateActiveAndQuality();
+    window.OwnTone.emit('owntone:radio-favorites-updated');
   }
+
+  window.addEventListener('storage', event => {
+    if (event.key !== FAVORITES_KEY && event.key !== null) return;
+    applyPartition();
+    updateActiveAndQuality();
+    window.OwnTone.emit('owntone:radio-favorites-updated');
+  });
 
   window.OWNTONE_ENHANCE_RADIO = enhance;
   if (document.readyState === 'loading')

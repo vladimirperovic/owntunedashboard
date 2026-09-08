@@ -709,7 +709,22 @@
     renderRadio();
     renderLiveText();
   }
-  function renderMode() {
+  let modeTransition = null;
+  let pendingMode = null;
+  let modeGeneration = 0;
+  let modeAnimations = [];
+
+  function cancelModeTransition() {
+    modeGeneration++;
+    pendingMode = null;
+    modeTransition?.skipTransition();
+    modeTransition = null;
+    modeAnimations.forEach(animation => animation.cancel());
+    modeAnimations = [];
+  }
+
+  function renderMode({ fromTransition = false } = {}) {
+    if (!fromTransition) cancelModeTransition();
     const radio = state.mode === 'radio';
     document.body.classList.toggle('radio-mode', radio);
     els.musicView.hidden = radio;
@@ -1188,11 +1203,45 @@
     }
   }
   function toggleMode() {
-    state.mode = state.mode === 'music' ? 'radio' : 'music';
-    renderMode();
-    renderPlayer();
+    const wanted = (pendingMode || state.mode) === 'music' ? 'radio' : 'music';
+    cancelModeTransition();
+    pendingMode = wanted;
+    const generation = modeGeneration;
+    const apply = () => {
+      if (generation !== modeGeneration) return;
+      state.mode = wanted;
+      pendingMode = null;
+      renderMode({ fromTransition: true });
+      renderPlayer();
+    };
+    const animate = !document.hidden && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (animate && document.startViewTransition) {
+      const transition = document.startViewTransition(apply);
+      modeTransition = transition;
+      transition.ready.catch(() => {});
+      transition.finished
+        .catch(() => {})
+        .finally(() => {
+          if (modeTransition === transition) modeTransition = null;
+        });
+    } else {
+      apply();
+      const incoming = wanted === 'radio' ? els.radioView : els.musicView;
+      if (animate && incoming.animate) {
+        modeAnimations = [
+          incoming.animate(
+            [
+              { opacity: 0, transform: 'translateY(8px)' },
+              { opacity: 1, transform: 'none' },
+            ],
+            { duration: 340, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+          ),
+        ];
+      }
+    }
   }
   function syncPlaybackMode(uri) {
+    cancelModeTransition();
     const isRadio = !!uri && state.radioPlaylists.some(p => p.uri === uri);
     const wanted = isRadio ? 'radio' : 'music';
     if (state.mode !== wanted) {

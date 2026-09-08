@@ -139,7 +139,7 @@ test('last update shows date and release; checking discovers updates without ins
   await page.goto('/');
   const button = page.locator('#dashboardUpdateButton');
   await expect(button.locator('.dashboard-update-label')).toHaveText('Last update');
-  await expect(button.locator('small')).toHaveText('08.09.2026 · v32');
+  await expect(button.locator('small')).toHaveText('08.09.2026 · v33');
   await expect(page.locator('#dashboardUpdateStatus')).toBeHidden();
   await button.click();
   await expect(button.locator('.dashboard-update-label')).toHaveText('Update available');
@@ -204,7 +204,7 @@ test('mobile More shows the same installed date and update availability', async 
   await expect(page.locator('#dashboardUpdateButton')).toHaveAttribute('data-update-available', 'true');
   await page.locator('#dockMoreButton').click();
   await expect(page.locator('[data-safe-more="update"]')).toContainText(
-    'Update available · 08.09.2026 · v32'
+    'Update available · 08.09.2026 · v33'
   );
 });
 

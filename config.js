@@ -70,8 +70,8 @@ window.OWNTONE_DASHBOARD = {
  * that were not inserted by the HTML parser, so setting it only misleads.)
  */
 (async () => {
-  const BUILD = '20260908-05';
-  const VERSION = '32';
+  const BUILD = '20260908-06';
+  const VERSION = '33';
   const asset = path => `${path}?v=${BUILD}`;
 
   const addStyle = href => {

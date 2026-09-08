@@ -109,6 +109,8 @@
   }
   function renderFavorites() {
     const item = current();
+    const radioFavorite = isLive() ? window.OwnTone.radioFavorites?.current() : null;
+    if (isLive()) currentFavorite = !!radioFavorite?.favorite;
     favoriteControls().forEach(button => {
       bindFavorite(button);
       button.classList.toggle('is-current-favorite', currentFavorite);
@@ -118,11 +120,13 @@
         button.dataset.safeFavoriteVisual = visual;
       }
       const label = isLive()
-        ? 'Pin this radio station from its station card'
+        ? currentFavorite
+          ? 'Unpin current radio station from Favorites'
+          : 'Pin current radio station to Favorites'
         : currentFavorite
           ? 'Remove current track from Favorites'
           : 'Add current track to Favorites';
-      button.disabled = !item || favoriteBusy;
+      button.disabled = !item || favoriteBusy || (isLive() && !radioFavorite);
       button.setAttribute('aria-label', label);
       button.setAttribute('aria-pressed', String(currentFavorite));
       button.title = label;
@@ -153,7 +157,13 @@
   async function toggleFavorite() {
     if (favoriteBusy) return;
     if (!current()) return toast('Nothing is playing');
-    if (isLive()) return toast('Pin live radio from its station card');
+    if (isLive()) {
+      if (window.OwnTone.radioFavorites?.toggleCurrent()) {
+        renderFavorites();
+        toast(currentFavorite ? 'Station pinned to Favorites' : 'Station unpinned');
+      }
+      return;
+    }
     if (isDemo()) {
       currentFavorite = !readDemoFavorite();
       writeDemoFavorite(currentFavorite);
@@ -187,6 +197,8 @@
       syncFavorite();
     }
   }
+
+  window.addEventListener('owntone:radio-favorites-updated', renderFavorites);
 
   function ensureTrackDialog() {
     if (trackDialog) return trackDialog;
