@@ -29,7 +29,7 @@ jobs:
           # while the workflow stayed green.
           set -euo pipefail
           mkdir -p _site
-          cp *.html *.js *.css *.png icon.svg manifest.webmanifest README.md _site/
+          cp *.html *.js *.css *.png icon.svg manifest.webmanifest site-config.json README.md _site/
           cp -r station-logos docs _site/
           touch _site/.nojekyll
 
