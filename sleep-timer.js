@@ -7,6 +7,9 @@
   let popover;
   let statusEl;
   let pollTimer;
+  let refreshing = false;
+  let setting = false;
+  let revision = 0;
 
   function renderStatus(status) {
     if (!statusEl || !button) return;
@@ -18,6 +21,8 @@
     } else if (status?.active) {
       statusEl.textContent = 'Fading out…';
       statusEl.classList.add('active');
+      button.classList.add('has-timer');
+      button.title = 'Sleep timer: fading out';
     } else {
       statusEl.textContent = 'Timer off';
       statusEl.classList.remove('active');
@@ -27,12 +32,24 @@
   }
 
   async function refresh() {
+    if (document.hidden || refreshing || setting) return;
+    refreshing = true;
+    const version = revision;
     try {
-      renderStatus(await api('/sleep', { cache: 'no-store' }));
-    } catch (_) {}
+      const status = await api('/sleep', { cache: 'no-store' });
+      if (version === revision) renderStatus(status);
+    } catch (_) {
+      // The timer runs on the companion even when a status read fails.
+    } finally {
+      refreshing = false;
+    }
   }
 
   async function set(minutes) {
+    if (setting) return;
+    setting = true;
+    revision++;
+    popover.querySelectorAll('button').forEach(el => (el.disabled = true));
     try {
       const result = await api('/sleep', {
         method: 'POST',
@@ -44,6 +61,9 @@
       say(minutes > 0 ? `Sleep timer: ${minutes} min` : 'Sleep timer off');
     } catch (_) {
       say('Scheduler unavailable');
+    } finally {
+      setting = false;
+      popover.querySelectorAll('button').forEach(el => (el.disabled = false));
     }
   }
 
@@ -101,6 +121,9 @@
 
     clearInterval(pollTimer);
     pollTimer = setInterval(refresh, 60000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) refresh();
+    });
     refresh();
   }
 

@@ -1,6 +1,6 @@
 # Known issues — OwnTone Dashboard
 
-Reviewed 2026-08-24. Everything below is either open or explains a decision.
+Reviewed 2026-09-08. Everything below is either open or explains a decision.
 Items fixed in the cleanup pass are listed at the bottom for reference.
 
 ## Open
@@ -12,35 +12,62 @@ Items fixed in the cleanup pass are listed at the bottom for reference.
    network — add `auth_basic` or an `allow`/`deny` block to the site config
    before exposing it any further.
 
-2. **No CSRF protection on the companion service.** `_body()` parses JSON
-   without checking `Content-Type`, so a POST from any page the browser happens
-   to be on is a "simple request" and skips the CORS preflight. Practical
-   effect: a website could start radio in the house. `PUT` and `DELETE` are
-   protected by preflight. The fix is small — require
-   `Content-Type: application/json` and check `Origin` — and belongs with the
-   authentication work above.
+2. **Legacy installations need the new migration-capable installer once.**
+   Browser overrides and custom artwork now live outside releases. The old
+   installed updater cannot migrate them: first upgrade with the new manual
+   deployment/common installer. See [migration instructions](DEPLOYMENT.md#operator-configuration).
+   Existing custom units must merge the new optional EnvironmentFile lines.
 
-3. **Stream health probes follow redirects.** `stream_alive()` and
-   `probe_radio()` fetch URLs read from playlist files, and `urlopen` follows
-   3xx, so a station URL can point the server at an internal address. Bounded by
-   `URL_RE` (http/https only) and by the station having to exist in OwnTone.
+3. **Private radio probes require an explicit trusted host.** Public-address
+   validation now applies to every stream probe and redirect. For an intentional
+   LAN stream, configure `OWNTONE_STREAM_TRUSTED_HOSTS` as a comma-separated list
+   of exact hostnames/IPs (no schemes or ports). Redirect targets need their own
+   entry. This trust is limited to administrator configuration.
 
-4. **`probe_radio` reads only 768 bytes with `Connection: close`.** Some servers
-   hold the connection until the 5 s timeout, which inflates the reported
-   latency. Cosmetic.
+4. **Custom nginx configurations need the public Host including its port.** The
+   bundled proxy now forwards `Host $http_host` to the scheduler. Existing custom
+   nginx files are preserved by the updater; merge this change manually when
+   using a nondefault dashboard port so same-origin validation can succeed.
+   For HTTPS/default-port proxy deployments set `OWNTONE_SCHEDULER_ORIGIN`
+   explicitly, e.g. `https://music.example.com`.
 
-5. **`outputName` label fight.** `app.js renderPlayer` writes the selected
-   output name; `context-multiroom syncGroupLabel` (1.8 s interval) writes
-   "N outputs" for the same multi-room case. Cosmetic flicker.
+5. **Some UI timers remain.** Major player/history/queue-preview/radio-health
+   polling and sleep/statistics pollers pause while hidden, and several now avoid
+   overlapping requests. Small DOM timers and the open queue drawer still use
+   their own schedules. Opted-in desktop notifications continue polling intentionally. A full event-driven rewrite is deferred.
 
-6. **Kicker flicker.** `renderMode` sets the kicker from the view mode; the
-   live-polish interval corrects it within 500 ms when a file is playing. One
-   frame after a mode toggle.
+6. **Hardware and production-service validation is still required.** Mock API
+   tests cannot prove HomePod pairing, actual audio, Linux service restarts or
+   physical iOS behavior. See `DEPLOYMENT.md` for the manual checklist.
 
-7. **Ten independent timers**, from 500 ms to 120 s, with no shared schedule.
-   Only `app.js`, `live-playback-polish.js` and `screensaver.js` check
-   `document.hidden`, so the rest keep running — and a few keep fetching — while
-   the tab is in the background.
+7. **Uncatchable interruptions.** The common installer uses
+   two directory renames; power loss or SIGKILL in between requires manual
+   recovery from the rollback tree. Manual deployment now uses the same lock,
+   validation and recovery implementation as the updater, with unique upload
+   directories. External operator data is additive and survives rollback.
+
+## Fixed in the 2026-09-08 audit
+
+See [the detailed audit](AUDIT-2026-09-08.md) for findings, tests and limits.
+
+- Resume, zero-volume and combined browser/AirPlay playback now use the shared
+  volume guard; playback stops before the queue request if volume setup fails.
+- Search, folder, playlist, album, sleep and favorite responses cannot replace
+  more recent state. Repeated playlist renders no longer accumulate handlers.
+- Left/right arrow shortcuts seek; editable text is respected by mute shortcuts.
+- Dynamic numeric HTML fields are escaped or normalized before rendering.
+- The companion validates mutation origins, JSON media types and request
+  framing, and serializes playback/file mutations. Temporary writes are unique
+  and playlist permissions remain readable by OwnTone.
+- Overnight stops, DST transitions, stale ramps and malformed persisted state
+  have dedicated regression coverage.
+- Radio probes validate public destinations and redirects, pin the resolved
+  socket address, and read available bytes without waiting for a full block.
+- Updater failures restore the release plus installed configuration, including
+  the helper executable; incomplete rollback is reported honestly. Archives,
+  hashes, health payloads and concurrent invocations are validated.
+- Header/output labels now have consistent rules; the kicker follows the actual
+  playing source rather than the selected library view.
 
 ## Fixed in the 2026-08-24 cleanup
 

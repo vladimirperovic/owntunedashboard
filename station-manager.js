@@ -8,10 +8,31 @@
   let msgEl;
   let nameInput;
   let urlInput;
+  let listVersion = 0;
+  let mutating = false;
+  let refreshTimer;
+
+  function setBusy(value) {
+    mutating = value;
+    dialog.querySelectorAll('button, input').forEach(el => (el.disabled = value));
+  }
+
+  function refreshLibraryLater() {
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => {
+      Promise.resolve()
+        .then(() => window.OWNTONE_APP?.refreshLibrary?.())
+        .catch(() => {
+          say('Station updated, but the library refresh failed');
+        });
+    }, 4000);
+  }
 
   async function refreshList() {
+    const version = ++listVersion;
     try {
       const data = await api('/stations', { cache: 'no-store' });
+      if (version !== listVersion) return;
       const items = data?.items || [];
       listEl.innerHTML = items.length
         ? items
@@ -28,11 +49,15 @@
         .querySelectorAll('[data-slug]')
         .forEach(btn => btn.addEventListener('click', () => removeStation(btn.dataset.slug)));
     } catch (error) {
+      if (version !== listVersion) return;
       listEl.innerHTML = `<div class="station-row"><span><b>Unavailable</b><small>${escapeHtml(error.message)}</small></span></div>`;
     }
   }
 
   async function addStation() {
+    if (mutating) return;
+    setBusy(true);
+    listVersion++;
     msgEl.textContent = 'Saving…';
     msgEl.classList.remove('error');
     try {
@@ -45,24 +70,32 @@
       urlInput.value = '';
       msgEl.textContent = 'Saved — library rescan started.';
       await refreshList();
-      setTimeout(() => window.OWNTONE_APP?.refreshLibrary?.(), 4000);
+      refreshLibraryLater();
       say('Station added');
     } catch (error) {
       msgEl.textContent = error.message;
       msgEl.classList.add('error');
+    } finally {
+      setBusy(false);
     }
   }
 
   async function removeStation(slug) {
+    if (mutating) return;
+    setBusy(true);
+    listVersion++;
+    msgEl.classList.remove('error');
     try {
       await api(`/stations/${encodeURIComponent(slug)}`, { method: 'DELETE' });
       msgEl.textContent = 'Deleted — library rescan started.';
       await refreshList();
-      setTimeout(() => window.OWNTONE_APP?.refreshLibrary?.(), 4000);
+      refreshLibraryLater();
       say('Station deleted');
     } catch (error) {
       msgEl.textContent = error.message;
       msgEl.classList.add('error');
+    } finally {
+      setBusy(false);
     }
   }
 

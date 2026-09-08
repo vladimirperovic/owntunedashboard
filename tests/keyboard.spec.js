@@ -88,3 +88,36 @@ test('typing keys still reach text inputs', async ({ page }) => {
   await input.type('kind of blue');
   await expect(input).toHaveValue('kind of blue');
 });
+
+for (const [key, delta] of [
+  ['ArrowRight', 10000],
+  ['ArrowLeft', -10000],
+]) {
+  test(`${key} seeks without changing volume`, async ({ page }) => {
+    await openDemo(page);
+    const before = await page.evaluate(() => ({
+      progress: window.OWNTONE_APP.state.player.item_progress_ms,
+      volume: document.getElementById('volumeRange').value,
+    }));
+    await page.keyboard.press(key);
+    expect(await page.evaluate(() => window.OWNTONE_APP.state.player.item_progress_ms)).toBe(
+      before.progress + delta
+    );
+    await expect(page.locator('#volumeRange')).toHaveValue(before.volume);
+  });
+}
+
+test('mute shortcut does not intercept contenteditable text', async ({ page }) => {
+  await openDemo(page);
+  await page.evaluate(() => {
+    const input = document.createElement('div');
+    input.id = 'editableTest';
+    input.contentEditable = 'true';
+    document.body.appendChild(input);
+    input.focus();
+  });
+  const before = await page.locator('#volumeRange').inputValue();
+  await page.keyboard.type('music');
+  await expect(page.locator('#editableTest')).toHaveText('music');
+  await expect(page.locator('#volumeRange')).toHaveValue(before);
+});

@@ -145,6 +145,7 @@
   }
 
   async function checkHealth(card, force = false) {
+    if (document.hidden || !card.isConnected) return;
     const id = playlistId(card);
     if (!id) return;
     // demo mode has no companion — always present stations as live
@@ -192,10 +193,12 @@
   }
 
   function checkAllHealth() {
+    if (document.hidden) return;
     allCards().forEach((card, index) => setTimeout(() => checkHealth(card), index * 280));
   }
 
   function updateActiveAndQuality() {
+    if (document.hidden) return;
     const currentTitle = normalize(document.getElementById('trackTitle')?.textContent || '');
     const currentArtist = document.getElementById('trackArtist')?.textContent || '';
     const currentMeta = document.getElementById('trackMeta')?.textContent || '';
@@ -290,4 +293,10 @@
   window.addEventListener('load', enhance, { once: true });
   setInterval(updateActiveAndQuality, 3000);
   setInterval(checkAllHealth, 90000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      updateActiveAndQuality();
+      checkAllHealth();
+    }
+  });
 })();

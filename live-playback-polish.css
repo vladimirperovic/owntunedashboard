@@ -1,6 +1,11 @@
 @layer polish {
   /* Live playback presentation: distinguish streams from finite music tracks. */
 
+  .player-card:not(.is-live-current) .live-pill,
+  .player-card:not(.is-live-current) .hero-station-label {
+    display: none;
+  }
+
   .player-card.is-live-current .progress-block.is-live-stream {
     margin-top: auto;
     padding-top: 12px;

@@ -1,7 +1,17 @@
 (() => {
   'use strict';
 
-  const { apiUrl, schedulerUrl, json: requestJson, escapeHtml, toast, whenReady, on } = window.OwnTone;
+  const {
+    apiUrl,
+    schedulerUrl,
+    json: requestJson,
+    escapeHtml,
+    toast,
+    whenReady,
+    on,
+    browserOutput,
+    outputLabel,
+  } = window.OwnTone;
 
   const $ = id => document.getElementById(id);
   const app = () => window.OWNTONE_APP || null;
@@ -257,17 +267,17 @@
     row.insertBefore(outputButton, select.nextSibling);
     outputButton.addEventListener('click', openOutputSheet);
     select.addEventListener('change', syncOutputButton);
-    new MutationObserver(syncOutputButton).observe(select, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-    });
+  }
+
+  function currentOutputLabel() {
+    const outputs = appState().outputs || [];
+    const browser = browserOutput();
+    return outputLabel(browser ? [...outputs, browser] : outputs);
   }
 
   function syncOutputButton() {
     if (!outputButton) return;
-    const select = $('outputSelect');
-    const label = select?.options[select.selectedIndex]?.text || 'No output';
+    const label = currentOutputLabel();
     const b = outputButton.querySelector('b');
     if (b && b.textContent !== label) b.textContent = label;
   }
@@ -644,9 +654,9 @@
   }
 
   function openFullscreen() {
-    syncPremiumNowPlaying();
     if (typeof fullscreen.showModal === 'function') fullscreen.showModal();
     else fullscreen.setAttribute('open', '');
+    syncPremiumNowPlaying();
   }
 
   function fmtTime(ms) {
@@ -655,15 +665,14 @@
   }
 
   function syncFullscreen() {
-    if (!fullscreen) return;
+    if (!fullscreen?.open) return;
     const state = appState();
     const item = state.current || {};
     $('fullscreenTitle').textContent = item.title || $('trackTitle')?.textContent || 'OwnTone';
     $('fullscreenArtist').textContent = item.artist || $('trackArtist')?.textContent || 'OwnTone';
     $('fullscreenMeta').textContent = $('trackMeta')?.textContent || '';
     $('fullscreenSource').textContent = inferSource().label;
-    $('fullscreenOutputName').textContent =
-      $('outputSelect')?.options[$('outputSelect')?.selectedIndex]?.text || 'No output';
+    $('fullscreenOutputName').textContent = currentOutputLabel();
     const src = $('artwork')?.getAttribute('src') || '';
     const img = $('fullscreenArtwork');
     const fallback = $('fullscreenArtFallback');
@@ -773,18 +782,6 @@
   }
 
   function mountMutationObservers() {
-    const player = $('playerCard');
-    if (player)
-      new MutationObserver(() => {
-        syncPremiumNowPlaying();
-        enhanceAlbumCards();
-      }).observe(player, {
-        subtree: true,
-        childList: true,
-        characterData: true,
-        attributes: true,
-        attributeFilter: ['src', 'class', 'aria-label'],
-      });
     const albumGrid = $('albumGrid');
     if (albumGrid) new MutationObserver(enhanceAlbumCards).observe(albumGrid, { childList: true });
   }
@@ -798,6 +795,11 @@
     mountMiniQueue();
     mountFullscreen();
     mountMutationObservers();
+    on('owntone:player-updated', syncPremiumNowPlaying);
+    on('owntone:artwork-updated', () => {
+      accentToken = '';
+      syncPremiumNowPlaying();
+    });
     syncPremiumNowPlaying();
 
     document.addEventListener('click', capturePlaybackSource, true);
@@ -807,6 +809,9 @@
 
     clearInterval(refreshHandle);
     refreshHandle = setInterval(refreshAll, 9000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) refreshAll();
+    });
 
     // The first render happens before app.js has answered the server, so redraw
     // once the library is in. Without this the panels show whatever the empty
@@ -816,6 +821,7 @@
   }
 
   function refreshAll() {
+    if (document.hidden) return;
     syncPremiumNowPlaying();
     refreshRecentRail();
     refreshMiniQueue();

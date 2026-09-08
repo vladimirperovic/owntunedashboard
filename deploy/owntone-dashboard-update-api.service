@@ -14,6 +14,8 @@ Environment=OWNTONE_UPDATE_HOST=127.0.0.1
 Environment=OWNTONE_UPDATE_PORT=3692
 Environment=OWNTONE_DASHBOARD_TARGET=/opt/owntone-dashboard
 Environment=OWNTONE_DASHBOARD_STATE=/var/lib/owntone-dashboard
+EnvironmentFile=-/etc/owntone-dashboard/update-api.env
+
 ExecStart=/usr/bin/python3 /opt/owntone-dashboard/deploy/update_server.py
 Restart=on-failure
 RestartSec=3

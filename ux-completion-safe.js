@@ -26,6 +26,7 @@
   let currentFavorite = false;
   let lastToken = '';
   let favoriteRequest = 0;
+  let favoriteBusy = false;
 
   const current = () => state().current || null;
   const token = () => {
@@ -121,7 +122,7 @@
         : currentFavorite
           ? 'Remove current track from Favorites'
           : 'Add current track to Favorites';
-      button.disabled = !item;
+      button.disabled = !item || favoriteBusy;
       button.setAttribute('aria-label', label);
       button.setAttribute('aria-pressed', String(currentFavorite));
       button.title = label;
@@ -130,24 +131,27 @@
     if (action) {
       action.innerHTML = `${currentFavorite ? heartFill : heart}<span>${currentFavorite ? 'Remove from Favorites' : 'Add to Favorites'}</span>`;
       action.classList.toggle('active', currentFavorite);
-      action.disabled = !current() || isLive();
+      action.disabled = !current() || isLive() || favoriteBusy;
     }
   }
   async function syncFavorite() {
     const request = ++favoriteRequest;
-    if (!current() || isLive()) currentFavorite = false;
-    else if (isDemo()) currentFavorite = readDemoFavorite();
-    else if (!currentPath()) currentFavorite = false;
-    else {
+    const track = token();
+    const path = currentPath();
+    let favorite = false;
+    if (current() && !isLive() && isDemo()) favorite = readDemoFavorite();
+    else if (current() && !isLive() && path) {
       try {
-        currentFavorite = !!favoritesFrom(await editablePlaylists())?.lines?.includes(currentPath());
-      } catch (_) {
-        currentFavorite = false;
-      }
+        favorite = !!favoritesFrom(await editablePlaylists())?.lines?.includes(path);
+      } catch (_) {}
     }
-    if (request === favoriteRequest) renderFavorites();
+    if (request === favoriteRequest && track === token()) {
+      currentFavorite = favorite;
+      renderFavorites();
+    }
   }
   async function toggleFavorite() {
+    if (favoriteBusy) return;
     if (!current()) return toast('Nothing is playing');
     if (isLive()) return toast('Pin live radio from its station card');
     if (isDemo()) {
@@ -158,6 +162,10 @@
     }
     const path = currentPath();
     if (!path) return toast('This track has no file path that can be saved');
+    const track = token();
+    favoriteBusy = true;
+    favoriteRequest++;
+    renderFavorites();
     try {
       const favorites = await ensureFavorites();
       const lines = [...(favorites.lines || [])];
@@ -165,12 +173,18 @@
       if (index >= 0) lines.splice(index, 1);
       else lines.push(path);
       await savePlaylist(favorites, lines);
-      currentFavorite = index < 0;
-      renderFavorites();
-      toast(currentFavorite ? 'Added to Favorites' : 'Removed from Favorites');
+      if (track === token()) {
+        currentFavorite = index < 0;
+        renderFavorites();
+      }
+      toast(index < 0 ? 'Added to Favorites' : 'Removed from Favorites');
       setTimeout(() => app()?.refreshLibrary?.(), 4000);
     } catch (error) {
       toast(`Favorites failed: ${error.message}`);
+    } finally {
+      favoriteBusy = false;
+      renderFavorites();
+      syncFavorite();
     }
   }
 
@@ -539,6 +553,7 @@
   }
 
   function reconcile() {
+    if (document.hidden) return;
     cleanMobileNav();
     cleanSidebar();
     enhanceDock();
@@ -604,6 +619,9 @@
     lastToken = token();
     syncFavorite();
     setInterval(reconcile, 1000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) reconcile();
+    });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount, { once: true });
   else mount();

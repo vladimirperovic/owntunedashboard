@@ -13,6 +13,7 @@
     isRadioItem: isRadioCurrent,
     browserOutput,
     startPlayback,
+    preparePlaybackVolume,
     setOutputVolume,
     outputLabel,
   } = window.OwnTone;
@@ -82,7 +83,7 @@
     }
   }
 
-  const state = {
+  const store = window.OwnTone.createAppState({
     mode: 'music',
     albumColumns: readAlbumColumns(),
     online: false,
@@ -95,6 +96,10 @@
     library: null,
     config: null,
     radioPlaylists: [],
+  });
+  const state = store.mutable;
+  // Interaction flags and timer handles are local view state, not domain data.
+  const ui = {
     seekDragging: false,
     volumeDragging: false,
     lastVolumeChangeTime: 0,
@@ -118,7 +123,11 @@
       samplerate: '44100',
       data_kind: 'file',
     },
-    outputs: [{ id: 'hp', name: 'HomePod mini', type: 'AirPlay', selected: true, volume: 18 }],
+    outputs: [
+      { id: 'hp', name: 'HomePod mini', type: 'AirPlay', selected: true, volume: 18 },
+      { id: 'office', name: 'Office HomePod', type: 'AirPlay', selected: false, volume: 22, format: 'alac' },
+      { id: 'kitchen', name: 'Kitchen', type: 'AirPlay', selected: false, volume: 16, format: 'alac' },
+    ],
     library: { songs: 8283, albums: 714, artists: 489 },
     playlists: [
       {
@@ -340,8 +349,10 @@
       if (wrapEl) wrapEl.style.setProperty('--art-url', `url("${url.replace(/"/g, '%22')}")`);
       els.artwork.onload = () => {
         if (els.artwork.dataset.artworkToken !== token) return;
-        if (els.artwork.naturalWidth > 0) els.playerArt.classList.add('has-art');
-        else {
+        if (els.artwork.naturalWidth > 0) {
+          els.playerArt.classList.add('has-art');
+          emit('owntone:artwork-updated');
+        } else {
           index += 1;
           if (index < candidates.length) loadNext();
         }
@@ -450,12 +461,12 @@
   }
 
   function startPlaybackFeedback(uri, title) {
-    state.startingPlayback = true;
-    state.startingUri = uri || null;
-    clearTimeout(state.startingTimeout);
-    state.startingTimeout = setTimeout(() => {
-      state.startingPlayback = false;
-      state.startingUri = null;
+    ui.startingPlayback = true;
+    ui.startingUri = uri || null;
+    clearTimeout(ui.startingTimeout);
+    ui.startingTimeout = setTimeout(() => {
+      ui.startingPlayback = false;
+      ui.startingUri = null;
       renderPlayer();
     }, 11000);
     if (title) toast(`Connecting to ${title}…`);
@@ -472,9 +483,9 @@
   }
 
   function clearPlaybackFeedback() {
-    state.startingPlayback = false;
-    state.startingUri = null;
-    clearTimeout(state.startingTimeout);
+    ui.startingPlayback = false;
+    ui.startingUri = null;
+    clearTimeout(ui.startingTimeout);
     document.querySelectorAll('.radio-card.is-starting').forEach(card => {
       card.classList.remove('is-starting');
       const playBtn = card.querySelector('.radio-play-btn');
@@ -544,6 +555,7 @@
     realtimeConnected = false;
   function pollLater() {
     clearTimeout(pollHandle);
+    if (state.demo || document.hidden) return;
     const delay = realtimeConnected
       ? Math.max(5000, Number(cfg.fallbackPollMs) || 15000)
       : Math.max(1500, Number(cfg.pollMs) || 3000);
@@ -635,7 +647,7 @@
   async function refreshPlayback() {
     // Demo mode has no server to poll. Returning without rescheduling stops a
     // timer that used to fire every 3 s for the lifetime of the tab.
-    if (state.demo) return;
+    if (state.demo || document.hidden) return;
     const requestId = ++playbackRequestId;
     const previousKey = playingItemKey(state.player, state.current);
     try {
@@ -706,7 +718,7 @@
     els.modeToggleLabel.textContent = radio ? 'Music' : 'Radio';
     els.modeToggle.setAttribute('aria-label', radio ? 'Open music library' : 'Open radio');
     els.modeToggle.title = radio ? 'Open music library' : 'Open radio';
-    els.playerKicker.textContent = radio ? 'LIVE NOW' : 'NOW PLAYING';
+    els.playerKicker.textContent = isRadioCurrent(state.current) ? 'LIVE NOW' : 'NOW PLAYING';
   }
   let buildSuffix = '',
     buildInfoStarted = false;
@@ -782,7 +794,7 @@
       out = selectedOutput(),
       playing = p.state === 'play',
       radio = state.mode === 'radio',
-      isStarting = state.startingPlayback;
+      isStarting = ui.startingPlayback;
     const directRadio = isRadioCurrent(item);
     const playerCard = document.querySelector('.player-card');
     if (playerCard) {
@@ -836,7 +848,7 @@
     }
     const len = Number(p.item_length_ms || item?.length_ms || 0),
       pos = Number(p.item_progress_ms || 0);
-    if (!state.seekDragging) {
+    if (!ui.seekDragging) {
       const ratio = len > 0 ? Math.min(1, Math.max(0, pos / len)) : 0;
       els.progressRange.value = Math.round(ratio * 1000);
       els.progressRange.style.setProperty('--range-progress', `${ratio * 100}%`);
@@ -844,7 +856,7 @@
       els.remainingTime.textContent = `−${fmtTime(Math.max(0, len - pos))}`;
     }
     els.progressRange.disabled = !len || directRadio;
-    if (!state.volumeDragging && Date.now() - state.lastVolumeChangeTime > 3500) {
+    if (!ui.volumeDragging && Date.now() - ui.lastVolumeChangeTime > 3500) {
       const volume = Number(out?.volume ?? p.volume ?? 0);
       els.volumeRange.value = volume;
       els.volumeRange.style.setProperty('--range-progress', `${volume}%`);
@@ -862,6 +874,12 @@
       button.setAttribute('aria-label', button.title);
     });
     renderLiveText();
+    // Consumers subscribe to the completed player render instead of observing
+    // each other's DOM writes. Artwork completion has its own asynchronous event.
+    emit(
+      'owntone:player-updated',
+      store.snapshot(['mode', 'online', 'demo', 'player', 'current', 'outputs'])
+    );
   }
 
   function renderLiveText() {
@@ -985,6 +1003,9 @@
       return;
     }
     try {
+      if (command === 'play' || (command === 'toggle' && state.player?.state !== 'play')) {
+        await preparePlaybackVolume();
+      }
       await request(`/player/${command}`, { method: 'PUT' });
       await refreshPlayback();
     } catch (err) {
@@ -1116,7 +1137,7 @@
   }
   async function setVolume(value) {
     const v = Math.max(0, Math.min(100, Math.round(value)));
-    state.lastVolumeChangeTime = Date.now();
+    ui.lastVolumeChangeTime = Date.now();
     const out = selectedOutput();
     if (out) out.volume = v;
     state.player.volume = v;
@@ -1137,19 +1158,37 @@
     }
   }
   function setVolumeThrottled(value) {
-    clearTimeout(state.volumeDebounceTimer);
-    state.volumeDebounceTimer = setTimeout(() => setVolume(value), 100);
+    clearTimeout(ui.volumeDebounceTimer);
+    ui.volumeDebounceTimer = setTimeout(() => setVolume(value), 100);
   }
-  async function setOutput(id) {
-    if (!id) return;
+  async function selectPhysicalOutputs(ids) {
+    const selected = [...new Set(ids.map(String))];
     if (state.demo) {
-      state.outputs.forEach(o => (o.selected = String(o.id) === String(id)));
+      state.outputs.forEach(output => {
+        output.selected = selected.includes(String(output.id));
+      });
       renderPlayer();
       return;
     }
+    await request('/outputs/set', { method: 'PUT', body: { outputs: selected } });
+    await refreshPlayback();
+  }
+
+  // Per-room changes commit only after the server accepts them. The view owns
+  // in-progress slider text, so a failed write cannot corrupt shared state.
+  async function setPhysicalOutputVolume(id, value) {
+    const volume = Math.max(0, Math.min(100, Math.round(Number(value))));
+    if (!Number.isFinite(volume)) throw new TypeError('Volume must be a number');
+    if (!state.demo) await request(`/outputs/${encodeURIComponent(id)}`, { method: 'PUT', body: { volume } });
+    const output = state.outputs.find(item => String(item.id) === String(id));
+    if (output) output.volume = volume;
+    renderPlayer();
+  }
+
+  async function setOutput(id) {
+    if (!id) return;
     try {
-      await request('/outputs/set', { method: 'PUT', body: { outputs: [String(id)] } });
-      await refreshPlayback();
+      await selectPhysicalOutputs([id]);
     } catch (err) {
       toast(`Output failed: ${err.message}`);
     }
@@ -1185,7 +1224,9 @@
     }
   }
 
+  let searchRequestId = 0;
   async function search(query) {
+    const requestId = ++searchRequestId;
     const q = query.trim();
     if (!q) {
       els.searchResults.innerHTML = '<p class="empty-state">Start typing to search your OwnTone library.</p>';
@@ -1209,6 +1250,7 @@
         limit: '8',
       });
       const result = await request(`/search?${qs}`);
+      if (requestId !== searchRequestId) return;
       const items = [
         ...(result.tracks?.items || []).map(x => ({
           kind: 'track',
@@ -1237,6 +1279,7 @@
       ];
       renderSearchResults(items);
     } catch (err) {
+      if (requestId !== searchRequestId) return;
       els.searchResults.innerHTML = `<p class="empty-state">Search failed: ${escapeHtml(err.message)}</p>`;
     }
   }
@@ -1377,34 +1420,34 @@
     }
   });
   els.volumeRange.addEventListener('pointerdown', () => {
-    state.volumeDragging = true;
-    state.lastVolumeChangeTime = Date.now();
+    ui.volumeDragging = true;
+    ui.lastVolumeChangeTime = Date.now();
   });
   els.volumeRange.addEventListener('input', () => {
     const v = Number(els.volumeRange.value);
-    state.lastVolumeChangeTime = Date.now();
+    ui.lastVolumeChangeTime = Date.now();
     els.volumeRange.style.setProperty('--range-progress', `${v}%`);
     els.volumeValue.textContent = `${v}%`;
     setVolumeThrottled(v);
   });
   els.volumeRange.addEventListener('change', () => {
-    state.volumeDragging = false;
-    state.lastVolumeChangeTime = Date.now();
-    clearTimeout(state.volumeDebounceTimer);
+    ui.volumeDragging = false;
+    ui.lastVolumeChangeTime = Date.now();
+    clearTimeout(ui.volumeDebounceTimer);
     setVolume(Number(els.volumeRange.value));
   });
   els.volumeRange.addEventListener('pointerup', () => {
-    state.volumeDragging = false;
-    state.lastVolumeChangeTime = Date.now();
-    clearTimeout(state.volumeDebounceTimer);
+    ui.volumeDragging = false;
+    ui.lastVolumeChangeTime = Date.now();
+    clearTimeout(ui.volumeDebounceTimer);
     setVolume(Number(els.volumeRange.value));
   });
   els.volumeRange.addEventListener('pointercancel', () => {
-    state.volumeDragging = false;
+    ui.volumeDragging = false;
   });
   els.outputSelect.addEventListener('change', () => setOutput(els.outputSelect.value));
   els.progressRange.addEventListener('pointerdown', () => {
-    state.seekDragging = true;
+    ui.seekDragging = true;
   });
   els.progressRange.addEventListener('input', () => {
     const ratio = Number(els.progressRange.value) / 1000;
@@ -1416,10 +1459,10 @@
   els.progressRange.addEventListener('change', async () => {
     const ratio = Number(els.progressRange.value) / 1000;
     await seekTo(ratio);
-    state.seekDragging = false;
+    ui.seekDragging = false;
   });
   els.progressRange.addEventListener('pointerup', () => {
-    state.seekDragging = false;
+    ui.seekDragging = false;
   });
   els.searchButton.addEventListener('click', () => {
     if (typeof els.searchDialog.showModal === 'function') els.searchDialog.showModal();
@@ -1427,8 +1470,9 @@
     setTimeout(() => els.searchInput.focus(), 60);
   });
   els.searchInput.addEventListener('input', () => {
-    clearTimeout(state.searchTimer);
-    state.searchTimer = setTimeout(() => search(els.searchInput.value), 220);
+    searchRequestId++;
+    clearTimeout(ui.searchTimer);
+    ui.searchTimer = setTimeout(() => search(els.searchInput.value), 220);
   });
   els.searchResults.addEventListener('click', e => {
     const item = e.target.closest('[data-uri]');
@@ -1443,8 +1487,11 @@
     playUri(uri);
   };
   window.OWNTONE_SYNC_PLAYBACK_MODE = syncPlaybackMode;
-  window.OWNTONE_APP = {
-    state,
+  window.OWNTONE_APP = Object.freeze({
+    state: store.readOnly,
+    getSnapshot: store.snapshot,
+    selectPhysicalOutputs,
+    setPhysicalOutputVolume,
     playUri,
     playExpression,
     playerCommand,
@@ -1452,12 +1499,13 @@
     seekTo,
     refreshPlayback,
     refreshLibrary,
-  };
+  });
   window.addEventListener('owntone-browser-output-change', () => {
     renderPlayer();
   });
 
   document.addEventListener('visibilitychange', () => {
+    if (document.hidden) clearTimeout(pollHandle);
     if (!document.hidden && !state.demo) refreshPlayback();
   });
   renderMode();

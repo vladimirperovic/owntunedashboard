@@ -92,3 +92,31 @@ test('updater turns green for new main and installs it', async ({ page }) => {
   await expect(status).toHaveText('Installed abcdef0', { timeout: 5000 });
   expect(requested).toBe(true);
 });
+
+test('updater reports incomplete rollback without claiming the old release was restored', async ({
+  page,
+}) => {
+  let requested = false;
+  const message = 'Update failed; rollback incomplete, manual recovery required';
+  await page.route('**/updater/check', route => route.fulfill({ json: { update_available: false } }));
+  await page.route('**/updater/status', route =>
+    route.fulfill({
+      json: {
+        pending: false,
+        running: false,
+        result: requested ? { status: 'error', at: '2026-09-08T10:00:00Z', message } : null,
+      },
+    })
+  );
+  await page.route('**/updater/request', route => {
+    requested = true;
+    return route.fulfill({ status: 202, json: { queued: true } });
+  });
+  page.on('dialog', dialog => dialog.accept());
+  await page.goto('/');
+  await expect(page.locator('#dashboardUpdateButton')).toBeVisible();
+  await page.locator('#dashboardUpdateButton').click();
+  await expect(page.locator('#dashboardUpdateStatus')).toHaveText(message);
+  await expect(page.locator('#toast')).toHaveText(message);
+  await expect(page.locator('#dashboardUpdateButton')).toBeEnabled();
+});

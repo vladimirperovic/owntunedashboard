@@ -4,6 +4,11 @@
   const { scheduler, escapeHtml, whenReady } = window.OwnTone;
   let section;
   let timer;
+  let rendering = false;
+  const count = value => {
+    const number = Number(value);
+    return Number.isFinite(number) ? Math.max(0, Math.floor(number)) : 0;
+  };
 
   function fmtDay(iso) {
     try {
@@ -22,12 +27,12 @@
 
   function barChart(days) {
     if (!days.length) return '<div class="browse-empty">Nothing played in this window yet.</div>';
-    const max = Math.max(...days.map(d => d.count), 1);
+    const max = Math.max(...days.map(d => count(d.count)), 1);
     const last = days.slice(-21);
     return `<div class="stats-bars">${last
       .map(
         d => `
-      <div class="stats-bar" style="--h:${Math.max(8, Math.round((d.count / max) * 100))}%" title="${escapeHtml(fmtDay(d.date))}: ${d.count}">
+      <div class="stats-bar" style="--h:${Math.max(8, Math.round((count(d.count) / max) * 100))}%" title="${escapeHtml(fmtDay(d.date))}: ${count(d.count)}">
         <i></i><small>${escapeHtml(fmtDay(d.date).split(' ')[1] || '')}</small>
       </div>`
       )
@@ -36,13 +41,13 @@
 
   function topList(items, emptyText) {
     if (!items?.length) return `<span class="browse-empty">${escapeHtml(emptyText)}</span>`;
-    const max = items[0].count || 1;
+    const max = Math.max(...items.map(it => count(it.count)), 1);
     return `<ol class="stats-list">${items
       .map(
         it => `
       <li><span class="stats-name">${escapeHtml(it.name)}</span>
-      <span class="stats-countbar" style="--w:${Math.round((it.count / max) * 100)}%"></span>
-      <b>${it.count}</b></li>`
+      <span class="stats-countbar" style="--w:${Math.round((count(it.count) / max) * 100)}%"></span>
+      <b>${count(it.count)}</b></li>`
       )
       .join('')}</ol>`;
   }
@@ -59,15 +64,16 @@
   }
 
   async function render() {
-    if (!section || !window.OWNTONE_APP?.state?.online) return;
+    if (document.hidden || rendering || !section || !window.OWNTONE_APP?.state?.online) return;
+    rendering = true;
     try {
       const [stats, activity] = await Promise.all([
         scheduler('/stats?days=30').catch(() => null),
         scheduler('/activity').catch(() => null),
       ]);
-      if (!stats && !activity) return;
+      if (document.hidden || (!stats && !activity)) return;
       section.innerHTML = `
-        <div class="section-heading-row compact-head"><div><span class="section-kicker">INSIGHTS</span><h2>Your last 30 days</h2></div>${stats ? `<div class="library-count">${stats.total_plays ?? 0} plays · ${stats.radio_plays ?? 0} radio</div>` : ''}</div>
+        <div class="section-heading-row compact-head"><div><span class="section-kicker">INSIGHTS</span><h2>Your last 30 days</h2></div>${stats ? `<div class="library-count">${count(stats.total_plays)} plays · ${count(stats.radio_plays)} radio</div>` : ''}</div>
         ${stats ? barChart(stats.days || []) : ''}
         <div class="stats-columns">
           <div><h3>Top stations</h3>${topList(stats?.top_stations, 'No radio plays yet.')}</div>
@@ -75,7 +81,11 @@
         </div>
         <h3 class="activity-title">Activity</h3>
         ${activityFeed(activity?.items)}`;
-    } catch (_) {}
+    } catch (_) {
+      // Insights are optional; keep the last successful render.
+    } finally {
+      rendering = false;
+    }
   }
 
   function mount() {
@@ -90,6 +100,9 @@
     render();
     clearInterval(timer);
     timer = setInterval(render, 120000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) render();
+    });
   }
 
   // Same as browse.js: wait for the ready event rather than polling for it.

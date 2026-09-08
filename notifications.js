@@ -6,6 +6,8 @@
   const SEEN_KEY = 'owntone-notify-last-seen';
   let button;
   let timer;
+  let polling = false;
+  let requestingPermission = false;
 
   const supported = typeof window.Notification !== 'undefined';
 
@@ -43,15 +45,24 @@
       toast('Notifications off');
       return;
     }
-    let permission = Notification.permission;
-    if (permission === 'default') permission = await Notification.requestPermission();
-    if (permission !== 'granted') {
-      toast('Notification permission denied');
+    if (requestingPermission) return;
+    requestingPermission = true;
+    try {
+      let permission = Notification.permission;
+      if (permission === 'default') permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        toast('Notification permission denied');
+        setEnabled(false);
+        return;
+      }
+      setEnabled(true);
+      toast('Notifications on');
+    } catch (_) {
       setEnabled(false);
-      return;
+      toast('Notification permission unavailable');
+    } finally {
+      requestingPermission = false;
     }
-    setEnabled(true);
-    toast('Notifications on');
   }
 
   function notify(text) {
@@ -87,11 +98,15 @@
   }
 
   async function poll() {
-    if (!enabled()) return;
+    // Background polling is intentional for opted-in desktop notifications.
+    if (polling || !enabled() || !supported || Notification.permission !== 'granted') return;
+    polling = true;
     try {
       const data = await scheduler('/activity').catch(() => null);
-      if (!data) return;
-      const items = data?.items || [];
+      if (!data || !enabled()) return;
+      const items = (data?.items || [])
+        .filter(it => Number.isFinite(instant(it.at)))
+        .sort((a, b) => instant(b.at) - instant(a.at));
       const seen = lastSeen();
       const fresh = items.filter(it => {
         const at = instant(it.at);
@@ -103,8 +118,13 @@
         .forEach(ev => {
           if (/^(schedule|sleep|error|station|playlist)/.test(ev.kind)) notify(ev.text);
         });
-      markSeen(items[0]?.at);
-    } catch (_) {}
+      const newest = items[0]?.at;
+      if (newest && (Number.isNaN(seen) || instant(newest) > seen)) markSeen(newest);
+    } catch (_) {
+      // Retry on the next poll without advancing the last-seen timestamp.
+    } finally {
+      polling = false;
+    }
   }
 
   function mount() {

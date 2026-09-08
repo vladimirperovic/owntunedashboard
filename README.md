@@ -75,10 +75,16 @@ git via `deploy/deploy.local.conf` (see `deploy/deploy.local.conf.example`).
 
 ## Configuration
 
-Everything lives in [`config.js`](config.js) — API paths, poll intervals,
-night-safe hours and cap, preferred output, default folder, per-station quality
-labels and artwork. The defaults work out of the box; tune stations and paths
-to your library.
+Shipped defaults and the asset loader live in [`config.js`](config.js). On an
+installed host, put browser overrides in `/etc/owntone-dashboard/config.json`
+and custom images in `/etc/owntone-dashboard/artwork/`. The common installer
+links these into each release as `site-config.json` and `site-assets/`, so an
+update preserves them. For a development checkout, edit `site-config.json`.
+
+Only browser-safe settings belong in this JSON file; it is publicly readable.
+Optional `scheduler.env`, `update-api.env` and `installer.env` files in the same
+external directory configure services and are not served by the dashboard.
+See the [migration and configuration instructions](docs/DEPLOYMENT.md#operator-configuration).
 
 ## Radio stations
 
@@ -134,6 +140,15 @@ npx playwright install chromium
 
 CI runs all of them on every push and pull request.
 
+UI tests start their own server on `127.0.0.1:4185` and refuse to reuse an
+existing server. Set `OWNTONE_TEST_PORT=4186` when that port is occupied or when
+running another browser suite in parallel.
+
+For a local DOM observer measurement, start `PORT=4184 node tests/static-server.js`
+in one terminal, then run `node tools/measure-ui.cjs` in another. The script
+counts observer callbacks in preview mode; it does not measure production CPU
+time or network latency.
+
 ### How the front end is put together
 
 No build step — plain `<script>` files loaded in order by
@@ -145,10 +160,20 @@ lives.
   night-safe rule, and `startPlayback()` — the single entry point every
   playback path goes through.
 - [`app.js`](app.js) owns the player, the library and the radio grid, and
-  announces `owntone:ready` and `owntone:library-updated`. Feature modules wait
-  for those events rather than polling.
-- Feature modules mount themselves into the shell and talk to `app.js` through
-  `window.OWNTONE_APP`.
+  announces `owntone:ready` and `owntone:library-updated`. Player consumers use
+  `owntone:player-updated`, emitted synchronously after `renderPlayer()` completes,
+  and `owntone:artwork-updated`, emitted when the current artwork finishes loading
+  successfully. Player events carry a detached, deeply frozen playback snapshot;
+  artwork events signal image completion. Modules synchronize once on mount as well, since
+  player and artwork events are not replayed to late subscribers.
+- [`app-state.js`](app-state.js) provides the private owner state, a live read-only
+  view and detached snapshots. Feature modules read `window.OWNTONE_APP.state`
+  or `getSnapshot()` and invoke actions such as `selectPhysicalOutputs()` and
+  `setPhysicalOutputVolume()`. They cannot mutate shared state directly. Timer
+  handles, drag flags and pairing-dialog state stay local to their owners.
+
+See the [architecture review](docs/ARCHITECTURE-2026-09-08.md) for the implemented
+optimizations, measurements and remaining frontend/backend priorities.
 
 CSS uses cascade layers, declared at the top of
 [`styles.css`](styles.css):

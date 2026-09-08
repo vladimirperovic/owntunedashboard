@@ -1,4 +1,6 @@
 const { test, expect } = require('@playwright/test');
+const { exposeMutableState } = require('./helpers/app-state');
+test.beforeEach(async ({ page }) => exposeMutableState(page));
 
 async function openDemo(page, viewport) {
   await page.setViewportSize(viewport);
@@ -9,8 +11,8 @@ async function openDemo(page, viewport) {
 async function enterLiveStreamWhileBrowsingMusic(page) {
   await page.evaluate(async () => {
     await window.OWNTONE_APP.playUri('library:playlist:11');
-    window.OWNTONE_APP.state.player.item_progress_ms = 1272000;
-    window.OWNTONE_APP.state.player.item_length_ms = 1272000;
+    window.__testState.player.item_progress_ms = 1272000;
+    window.__testState.player.item_length_ms = 1272000;
     document.getElementById('modeToggle').click();
   });
   await expect(page.locator('body')).not.toHaveClass(/radio-mode/);
@@ -66,4 +68,19 @@ test('finite music track keeps normal elapsed and remaining controls', async ({ 
   await expect(page.locator('#elapsedTime')).toBeVisible();
   await expect(page.locator('#remainingTime')).toBeVisible();
   await expect(page.locator('#liveStreamStatus')).toBeHidden();
+});
+
+test('browsing radio does not label a local track as live', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#connectionText')).toContainText('Preview mode');
+  await page.locator('#modeToggle').click();
+  await expect(page.locator('body')).toHaveClass(/radio-mode/);
+  await expect(page.locator('#trackTitle')).toHaveText('La Vie En Rose');
+  await expect(page.locator('#playerKicker')).toHaveText('NOW PLAYING');
+  await expect(page.locator('#livePill')).toBeHidden();
+  await expect(page.locator('.hero-station-label')).toBeHidden();
+  await page.locator('.radio-card').first().click();
+  await expect(page.locator('#playerCard')).toHaveClass(/is-live-current/);
+  await expect(page.locator('#livePill')).toBeVisible();
+  await expect(page.locator('.hero-station-label')).toBeVisible();
 });

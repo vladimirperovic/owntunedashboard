@@ -8,6 +8,5 @@ PROXMOX_TARGET="user@proxmox-host"
 LXC_ID="000"
 
 # Install path inside the container. Must be under /opt, /srv or
-# /usr/local/share — deploy.sh refuses anything else, because it removes the
-# directory before unpacking.
+# /usr/local/share — deploy.sh refuses anything else, because the installer replaces the release directory after validation.
 TARGET_DIR="/opt/owntone-dashboard"

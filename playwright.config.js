@@ -1,4 +1,6 @@
 const { defineConfig } = require('@playwright/test');
+const port = Number(process.env.OWNTONE_TEST_PORT || 4185);
+const baseURL = `http://127.0.0.1:${port}`;
 
 module.exports = defineConfig({
   testDir: './tests',
@@ -7,13 +9,16 @@ module.exports = defineConfig({
   fullyParallel: false,
   reporter: [['line']],
   use: {
-    baseURL: 'http://127.0.0.1:4173',
+    baseURL,
     trace: 'retain-on-failure',
   },
   webServer: {
     command: 'node tests/static-server.js',
-    url: 'http://127.0.0.1:4173',
-    reuseExistingServer: !process.env.CI,
+    env: { PORT: String(port) },
+    url: baseURL,
+    // A different project may already occupy a development port. Never run
+    // this suite against an arbitrary server simply because it returns 200.
+    reuseExistingServer: false,
     stdout: 'ignore',
     stderr: 'pipe',
   },

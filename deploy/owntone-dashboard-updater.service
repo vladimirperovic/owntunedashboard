@@ -5,4 +5,6 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
+EnvironmentFile=-/etc/owntone-dashboard/installer.env
+
 ExecStart=/usr/local/sbin/owntone-dashboard-update

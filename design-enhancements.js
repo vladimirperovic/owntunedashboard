@@ -392,13 +392,8 @@
         },
         { threshold: 0.12 }
       ).observe(player);
-      new MutationObserver(syncMiniPlayer).observe(player, {
-        subtree: true,
-        childList: true,
-        characterData: true,
-        attributes: true,
-        attributeFilter: ['src', 'class', 'aria-label'],
-      });
+      window.OwnTone.on('owntone:player-updated', syncMiniPlayer);
+      window.OwnTone.on('owntone:artwork-updated', syncMiniPlayer);
     }
 
     const connection = document.getElementById('connectionText');

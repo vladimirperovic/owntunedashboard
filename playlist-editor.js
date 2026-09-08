@@ -8,17 +8,39 @@
   let editorEl;
   let msgEl;
   let currentSlug = '';
+  let listVersion = 0;
+  let editorVersion = 0;
+  let mutating = false;
+  let refreshTimer;
+
+  function setBusy(value) {
+    mutating = value;
+    dialog.querySelectorAll('button, input').forEach(el => (el.disabled = value));
+  }
+
+  function refreshLibraryLater() {
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => {
+      Promise.resolve()
+        .then(() => window.OWNTONE_APP?.refreshLibrary?.())
+        .catch(() => {
+          say('Playlist saved, but the library refresh failed');
+        });
+    }, 4000);
+  }
 
   async function renderList() {
+    const version = ++listVersion;
     try {
       const data = await api('/playlists', { cache: 'no-store' });
+      if (version !== listVersion) return;
       const items = data?.items || [];
       listEl.innerHTML = items.length
         ? items
             .map(
               p => `
         <button type="button" class="station-row playlist-pick ${p.slug === currentSlug ? 'active' : ''}" data-slug="${escapeHtml(p.slug)}">
-          <span><b>${escapeHtml(p.name)}</b><small>${p.track_count} tracks · ${escapeHtml(p.file)}</small></span>
+          <span><b>${escapeHtml(p.name)}</b><small>${escapeHtml(p.track_count)} tracks · ${escapeHtml(p.file)}</small></span>
         </button>`
             )
             .join('')
@@ -27,30 +49,36 @@
         .querySelectorAll('[data-slug]')
         .forEach(btn => btn.addEventListener('click', () => openEditor(btn.dataset.slug)));
     } catch (error) {
+      if (version !== listVersion) return;
       listEl.innerHTML = `<div class="station-row"><span><b>Unavailable</b><small>${escapeHtml(error.message)}</small></span></div>`;
     }
   }
 
   async function openEditor(slug) {
+    if (mutating) return;
+    const version = ++editorVersion;
     currentSlug = slug || '';
+    editorEl.hidden = true;
+    setMsg('');
     if (!slug) {
       editorEl.hidden = true;
       return;
     }
     try {
       const data = await api('/playlists', { cache: 'no-store' });
+      if (version !== editorVersion) return;
       const item = (data?.items || []).find(p => p.slug === slug);
       if (!item) throw new Error('Playlist not found');
       renderEditor(item);
       editorEl.hidden = false;
     } catch (error) {
-      say(`Load failed: ${error.message}`);
+      if (version === editorVersion) say(`Load failed: ${error.message}`);
     }
   }
 
   function renderEditor(item) {
     editorEl.innerHTML = `
-      <h3>${escapeHtml(item.name)} <small>(${item.track_count})</small></h3>
+      <h3>${escapeHtml(item.name)} <small>(${escapeHtml(item.track_count)})</small></h3>
       <div class="pline-list" id="plineList">${(item.lines || []).map((line, i) => plineRow(line, i)).join('') || '<div class="browse-empty">Empty — add stream URLs or /paths below.</div>'}</div>
       <form class="pline-add" id="plineAddForm">
         <input type="text" placeholder="Stream URL or /media/music/path/file.flac" aria-label="New line">
@@ -101,7 +129,7 @@
         rerenderFromLines(lines);
       })
     );
-    editorEl.querySelector('#plineAddForm').addEventListener('submit', e => {
+    editorEl.querySelector('#plineAddForm').onsubmit = e => {
       e.preventDefault();
       const input = e.target.querySelector('input');
       const value = input.value.trim();
@@ -110,9 +138,9 @@
       lines.push(value);
       input.value = '';
       rerenderFromLines(lines);
-    });
-    editorEl.querySelector('#plineSave').addEventListener('click', save);
-    editorEl.querySelector('#plineDelete').addEventListener('click', removeCurrent);
+    };
+    editorEl.querySelector('#plineSave').onclick = save;
+    editorEl.querySelector('#plineDelete').onclick = removeCurrent;
   }
 
   function moveLine(index, delta) {
@@ -124,6 +152,8 @@
   }
 
   async function save() {
+    if (mutating || !currentSlug || editorEl.hidden) return;
+    setBusy(true);
     setMsg('Saving…');
     try {
       await api(`/playlists/${encodeURIComponent(currentSlug)}`, {
@@ -132,16 +162,19 @@
         body: JSON.stringify({ lines: collectLines() }),
       });
       setMsg('Saved — rescan started.');
-      setTimeout(() => window.OWNTONE_APP?.refreshLibrary?.(), 4000);
+      refreshLibraryLater();
       say('Playlist saved');
-      renderList();
+      await renderList();
     } catch (error) {
       setMsg(error.message, true);
+    } finally {
+      setBusy(false);
     }
   }
 
   async function removeCurrent() {
-    if (!currentSlug) return;
+    if (mutating || !currentSlug || editorEl.hidden) return;
+    setBusy(true);
     setMsg('Deleting…');
     try {
       await api(`/playlists/${encodeURIComponent(currentSlug)}`, { method: 'DELETE' });
@@ -149,9 +182,12 @@
       editorEl.hidden = true;
       setMsg('');
       say('Playlist deleted');
-      renderList();
+      refreshLibraryLater();
+      await renderList();
     } catch (error) {
       setMsg(error.message, true);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -162,6 +198,10 @@
   }
 
   async function createPlaylist(name) {
+    if (mutating) return;
+    setBusy(true);
+    const version = ++editorVersion;
+    let created;
     try {
       await api('/playlists', {
         method: 'POST',
@@ -171,11 +211,13 @@
       say('Playlist created');
       await renderList();
       const data = await api('/playlists', { cache: 'no-store' });
-      const created = (data?.items || []).reverse().find(p => p.name.toLowerCase() === name.toLowerCase());
-      if (created) openEditor(created.slug);
+      created = (data?.items || []).reverse().find(p => p.name.toLowerCase() === name.toLowerCase());
     } catch (error) {
       say(error.message);
+    } finally {
+      setBusy(false);
     }
+    if (created && version === editorVersion) await openEditor(created.slug);
   }
 
   function ensureDialog() {

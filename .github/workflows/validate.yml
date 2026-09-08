@@ -37,7 +37,7 @@ jobs:
       - name: Ruff
         run: |
           pip install --quiet ruff==0.14.4
-          ruff check scheduler/ deploy/update_server.py deploy/test_update_server.py
+          ruff check scheduler/ deploy/update_server.py deploy/test_update_server.py deploy/site_config.py deploy/test_site_config.py
 
       - name: Shellcheck deploy and updater scripts
         run: shellcheck deploy/deploy.sh deploy/update-dashboard.sh tests/update-dashboard-integration.sh
@@ -61,11 +61,13 @@ jobs:
       - name: Updater API unit tests
         run: python -m unittest deploy.test_update_server -v
 
-      # Exercise the real updater script against GitHub main in an isolated
-      # temporary install. systemd/nginx/health commands are faked, while the
-      # download, validation, atomic swap, version write and rollback are real.
+      - name: Operator configuration migration
+        run: python -m unittest deploy.test_site_config -v
+
+      # Exercise the real updater in a temporary install with offline release
+      # fixtures and injected failures. No root or real services are needed.
       - name: Dashboard updater integration
-        run: sudo bash tests/update-dashboard-integration.sh
+        run: bash tests/update-dashboard-integration.sh
 
       - uses: actions/setup-node@v4
         with:

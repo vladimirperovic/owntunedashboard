@@ -69,8 +69,8 @@ window.OWNTONE_DASHBOARD = {
  * (`script.defer` is deliberately not set — the spec ignores defer on scripts
  * that were not inserted by the HTML parser, so setting it only misleads.)
  */
-(() => {
-  const BUILD = '20260902-25';
+(async () => {
+  const BUILD = '20260908-03';
   const asset = path => `${path}?v=${BUILD}`;
 
   const addStyle = href => {
@@ -110,9 +110,53 @@ window.OWNTONE_DASHBOARD = {
     'ux-completion.css',
   ].forEach(addStyle);
 
+  // Operator data is a JSON file outside the versioned release in production.
+  // Do not start playback modules with silently reset settings on read errors.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch('site-config.json', { cache: 'no-store', signal: controller.signal });
+    if (!response.ok) throw new Error(`Site configuration HTTP ${response.status}`);
+    const overrides = await response.json();
+    const defaults = window.OWNTONE_DASHBOARD;
+    if (!overrides || Array.isArray(overrides) || typeof overrides !== 'object')
+      throw new Error('Site configuration must be a JSON object');
+    for (const [key, value] of Object.entries(overrides)) {
+      if (!Object.hasOwn(defaults, key)) throw new Error(`Unknown site setting: ${key}`);
+      const original = defaults[key];
+      const map = original && !Array.isArray(original) && typeof original === 'object';
+      const valid = Array.isArray(original)
+        ? Array.isArray(value) && value.every(item => typeof item === 'string')
+        : map
+          ? value &&
+            !Array.isArray(value) &&
+            typeof value === 'object' &&
+            Object.values(value).every(item => typeof item === 'string')
+          : typeof value === typeof original && (typeof value !== 'number' || Number.isFinite(value));
+      if (!valid) throw new Error(`Invalid site setting: ${key}`);
+      if (typeof value === 'number') {
+        const maximum = /Hour$/.test(key) ? 24 : /Volume$/.test(key) ? 100 : Infinity;
+        if (value < 0 || value > maximum || (/Ms$|Limit$/.test(key) && value <= 0))
+          throw new Error(`Out-of-range site setting: ${key}`);
+      }
+      defaults[key] = map ? { ...original, ...value } : value;
+    }
+  } catch (error) {
+    const status = document.getElementById('connectionText');
+    if (status) {
+      status.textContent = `Configuration error: ${error.message}`;
+      status.setAttribute('role', 'alert');
+    }
+    console.error('Dashboard configuration failed:', error);
+    return;
+  } finally {
+    clearTimeout(timeout);
+  }
+
   // shared.js and app.js first — every module below depends on both.
   [
     'shared.js',
+    'app-state.js',
     'app.js',
     'playback-tools.js',
     'radio-stations.js',

@@ -4,8 +4,6 @@
   const $ = id => document.getElementById(id);
   const app = () => window.OWNTONE_APP || null;
   let liveStatus = null;
-  let syncTimer = null;
-  let observer = null;
   let syncing = false;
 
   function isLiveItem(item) {
@@ -45,7 +43,7 @@
   }
 
   function syncLivePresentation() {
-    if (syncing) return;
+    if (syncing || document.hidden) return;
     syncing = true;
     try {
       const state = app()?.state || {};
@@ -123,22 +121,7 @@
     ensureLiveStatus();
     syncLivePresentation();
 
-    observer = new MutationObserver(() => {
-      window.requestAnimationFrame(syncLivePresentation);
-    });
-    const card = $('playerCard');
-    if (card) {
-      observer.observe(card, {
-        subtree: true,
-        childList: true,
-        characterData: true,
-        attributes: true,
-        attributeFilter: ['class', 'src'],
-      });
-    }
-
-    clearInterval(syncTimer);
-    syncTimer = setInterval(syncLivePresentation, 500);
+    window.OwnTone.on('owntone:player-updated', syncLivePresentation);
 
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) syncLivePresentation();

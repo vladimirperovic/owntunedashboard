@@ -196,9 +196,10 @@ window.OwnTone = (() => {
   /** Every output OwnTone currently plays to, plus the browser output if active. */
   async function selectedOutputs() {
     const browser = browserOutput();
-    if (browser?.active) return [browser];
-    const data = await api('/outputs').catch(() => null);
-    return (data?.outputs || []).filter(output => output.selected);
+    const data = await api('/outputs');
+    const outputs = (data?.outputs || []).filter(output => output.selected);
+    if (browser?.active) outputs.push(browser);
+    return outputs;
   }
 
   async function setOutputVolume(outputId, volume) {
@@ -240,45 +241,31 @@ window.OwnTone = (() => {
 
   /* ------------------------------------------------------------ playback -- */
 
-  /**
-   * The single entry point for starting playback from the browser.
-   *
-   * Everything that used to build its own `/queue/items/add?...playback=start`
-   * request goes through here, which is why the night-safe ceiling no longer
-   * needs a `window.fetch` monkey patch to catch stragglers.
-   *
-   * @param {object}  request
-   * @param {string} [request.uris]        comma-separated OwnTone URIs
-   * @param {string} [request.expression]  smart-playlist expression (instead of uris)
-   * @param {boolean}[request.shuffle]
-   * @param {boolean}[request.clear]       replace the queue (default true)
-   * @param {number} [request.volume]      desired volume; defaults to the slider
-   */
-  async function startPlayback({ uris, expression, shuffle = false, clear = true, volume } = {}) {
-    if (!uris && !expression) throw new Error('startPlayback needs uris or an expression');
-
+  /** Apply the manual volume and night ceiling before starting or resuming. */
+  async function preparePlaybackVolume(volume) {
     const slider = Number(document.getElementById('volumeRange')?.value ?? config.manualVolume);
     const desired = Number.isFinite(Number(volume)) ? Number(volume) : slider;
     const target = nightSafe.limit(desired);
 
-    if (target > 0) {
-      // Apply to every selected output, so multi-room starts in step instead of
-      // one speaker at the slider value and the rest wherever they were left.
-      const outputs = await selectedOutputs();
-      await Promise.all(
-        outputs
-          .filter(output => output.id != null)
-          .map(output =>
-            setOutputVolume(output.id, target).catch(error =>
-              console.warn(`Volume for output ${output.id} failed:`, error)
-            )
-          )
-      );
-      if (target !== desired) {
-        reflectVolume(target);
-        emit('owntone:night-cap-applied', { requested: desired, applied: target });
-      }
+    // Zero is an explicit mute. Fail closed if the outputs or their volume
+    // cannot be set: playback must never start at an unknown previous level.
+    const outputs = await selectedOutputs();
+    await Promise.all(
+      outputs.filter(output => output.id != null).map(output => setOutputVolume(output.id, target))
+    );
+    if (target !== desired) {
+      reflectVolume(target);
+      emit('owntone:night-cap-applied', { requested: desired, applied: target });
     }
+  }
+
+  /**
+   * Start OwnTone URIs or a smart-playlist expression through the common volume
+   * guard. Replaces the queue unless clear is false; volume defaults to the slider.
+   */
+  async function startPlayback({ uris, expression, shuffle = false, clear = true, volume } = {}) {
+    if (!uris && !expression) throw new Error('startPlayback needs uris or an expression');
+    await preparePlaybackVolume(volume);
 
     const query = new URLSearchParams({
       clear: String(clear),
@@ -354,6 +341,7 @@ window.OwnTone = (() => {
     setOutputVolume,
     outputLabel,
     reflectVolume,
+    preparePlaybackVolume,
     startPlayback,
     icons,
   };

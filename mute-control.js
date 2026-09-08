@@ -283,19 +283,27 @@
   }
 
   // Mute + up/down steppers share one keyboard handler: M toggles mute,
-  // arrow-up / arrow-right raise the volume, arrow-down / arrow-left lower it.
+  // up/down change volume; left/right remain the seek shortcuts.
   document.addEventListener('keydown', event => {
     const tag = String(event.target?.tagName || '').toLowerCase();
-    if (event.metaKey || event.ctrlKey || event.altKey || /input|textarea|select/.test(tag)) return;
+    if (
+      event.defaultPrevented ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.altKey ||
+      /input|textarea|select/.test(tag) ||
+      event.target?.isContentEditable
+    )
+      return;
     if (event.key?.toLowerCase() === 'm') {
       event.preventDefault();
       toggleMute();
       return;
     }
-    if (event.key === 'ArrowUp' || event.key === 'ArrowRight') {
+    if (event.key === 'ArrowUp') {
       event.preventDefault();
       stepVolume(STEP);
-    } else if (event.key === 'ArrowDown' || event.key === 'ArrowLeft') {
+    } else if (event.key === 'ArrowDown') {
       event.preventDefault();
       stepVolume(-STEP);
     }

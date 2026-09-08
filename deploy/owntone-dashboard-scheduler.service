@@ -41,6 +41,8 @@ Environment=OWNTONE_NIGHT_MAX=8
 Environment=OWNTONE_RADIO_PATH_HINT=/radio/
 Environment=OWNTONE_RADIO_NAME_HINTS=radio
 
+EnvironmentFile=-/etc/owntone-dashboard/scheduler.env
+
 ExecStart=/usr/bin/python3 /opt/owntone-dashboard/scheduler/scheduler_server.py
 Restart=on-failure
 RestartSec=3

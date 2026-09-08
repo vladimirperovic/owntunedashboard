@@ -12,7 +12,7 @@
   let countBadge;
   let currentPath = defaultPath;
   let currentTracks = [];
-  let busy = false;
+  let browseVersion = 0;
 
   const icon = {
     folder:
@@ -204,8 +204,11 @@
   }
 
   async function browse(path) {
-    if (busy) return;
-    busy = true;
+    const version = ++browseVersion;
+    currentTracks = [];
+    dialog.querySelector('#folderPlayAll').disabled = true;
+    dialog.querySelector('#folderShuffle').disabled = true;
+    countBadge.textContent = '0 items';
     currentPath = path || '';
     pathLabel.textContent = currentPath || 'Local library';
     renderCrumbs(currentPath);
@@ -217,18 +220,22 @@
     try {
       const qs = currentPath ? `?directory=${encodeURIComponent(currentPath)}` : '';
       const data = await request(`/library/files${qs}`);
+      if (version !== browseVersion) return;
       currentTracks = data?.tracks?.items || [];
       renderDirectory(data || {});
+      filterCurrentDirectory(searchInput.value);
     } catch (error) {
+      if (version !== browseVersion) return;
       currentTracks = [];
       body.innerHTML = `<div class="folder-empty"><b>Could not open this folder</b><span>${escapeHtml(error.message)}</span></div>`;
       if (countBadge) countBadge.textContent = '0 items';
     } finally {
-      busy = false;
-      const play = dialog.querySelector('#folderPlayAll');
-      const shuffle = dialog.querySelector('#folderShuffle');
-      play.disabled = !currentTracks.length;
-      shuffle.disabled = !currentTracks.length;
+      if (version === browseVersion) {
+        const play = dialog.querySelector('#folderPlayAll');
+        const shuffle = dialog.querySelector('#folderShuffle');
+        play.disabled = !currentTracks.length;
+        shuffle.disabled = !currentTracks.length;
+      }
     }
   }
 
@@ -338,27 +345,27 @@
   async function playNext(uri) {
     if (!uri) return;
     try {
-      const player = await request('/player').catch(() => null);
+      const player = await request('/player');
       const running = player?.state === 'play' || player?.state === 'pause';
       if (!running) {
         // Nothing is playing, so "play next" is really "play now" — it starts
         // audio and therefore goes through the shared night-safe entry point.
         await startPlayback({ uris: uri, clear: false });
       } else {
-        await request(`/queue/items/add?uris=${encodeURIComponent(uri)}&clear=false&playback=stop`, {
-          method: 'POST',
-        });
-        const q = await request('/queue?start=0&end=500');
-        const queue = q?.items || [];
-        const now = await request('/queue?id=now_playing').catch(() => null);
+        // Insert the new copy directly. Searching by URI after appending can
+        // select an older duplicate and misses items beyond the first 500.
+        const now = await request('/queue?id=now_playing');
         const current = now?.items?.[0];
-        const item = queue.find(i => String(i.uri) === String(uri)) || queue[queue.length - 1];
-        if (item) {
-          const target = current?.position != null ? Number(current.position) + 1 : 0;
-          await request(`/queue/items/${encodeURIComponent(item.id)}?new_position=${target}`, {
-            method: 'PUT',
-          });
-        }
+        const position = Number(current?.position);
+        if (current?.position == null || !Number.isInteger(position) || position < 0)
+          throw new Error('Current queue position unavailable');
+        const query = new URLSearchParams({
+          uris: uri,
+          clear: 'false',
+          playback: 'stop',
+          position: String(position + 1),
+        });
+        await request(`/queue/items/add?${query}`, { method: 'POST' });
       }
       flash(document.activeElement);
     } catch (error) {

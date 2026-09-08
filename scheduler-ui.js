@@ -26,6 +26,15 @@
     outputs = [],
     editingId = null;
 
+  let busy = false;
+
+  function setBusy(value) {
+    busy = value;
+    dialog
+      .querySelectorAll('form button, form input, form select, #scheduleList button, #scheduleList input')
+      .forEach(el => (el.disabled = value));
+  }
+
   const clockIcon = icons.clock;
 
   const dayLabel = days => {
@@ -135,6 +144,9 @@
       const button = event.target.closest('[data-day]');
       if (button) button.classList.toggle('active');
     });
+    dialog.querySelector('#scheduleSource').addEventListener('change', () => {
+      populateFallbacks(dialog.querySelector('#scheduleFallback').value);
+    });
     form.addEventListener('submit', saveForm);
   }
 
@@ -142,6 +154,8 @@
     mount();
     if (typeof dialog.showModal === 'function') dialog.showModal();
     else dialog.setAttribute('open', '');
+    if (busy) return;
+    setBusy(true);
     setMessage('Loading…');
     try {
       const [scheduleData, playlistData, outputData] = await Promise.all([
@@ -154,11 +168,13 @@
       outputs = outputData?.outputs || [];
       populateOutputs();
       renderSchedules();
-      if (!editingId) resetForm();
+      if (editingId == null) resetForm();
       else editSchedule(editingId);
       setMessage('');
     } catch (error) {
       setMessage(`Scheduler unavailable: ${error.message}`, true);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -169,7 +185,7 @@
         .toLowerCase()
         .includes(String(cfg.preferredOutput || 'HomePod').toLowerCase())
     );
-    const wanted = selected || preferred?.id || outputs[0]?.id || '';
+    const wanted = selected !== '' ? selected : (preferred?.id ?? outputs[0]?.id ?? '');
     select.innerHTML = outputs.length
       ? outputs
           .map(
@@ -289,13 +305,15 @@
 
   async function saveForm(event) {
     event.preventDefault();
+    if (busy) return;
     const data = formData();
     if (!data.days.length) return setMessage('Select at least one day.', true);
     if (!data.source_uri || !data.output_id) return setMessage('Choose a source and output.', true);
+    setBusy(true);
     setMessage('Saving…');
     try {
-      const path = editingId ? `/schedules/${encodeURIComponent(editingId)}` : '/schedules';
-      const method = editingId ? 'PUT' : 'POST';
+      const path = editingId != null ? `/schedules/${encodeURIComponent(editingId)}` : '/schedules';
+      const method = editingId != null ? 'PUT' : 'POST';
       await sched(path, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -308,19 +326,25 @@
       setMessage('Saved.');
     } catch (error) {
       setMessage(error.message, true);
+    } finally {
+      setBusy(false);
     }
   }
 
   async function deleteCurrent() {
-    if (!editingId) return;
+    if (busy || editingId == null) return;
+    setBusy(true);
+    const id = editingId;
     setMessage('Deleting…');
     try {
-      await sched(`/schedules/${encodeURIComponent(editingId)}`, { method: 'DELETE' });
-      schedules = schedules.filter(x => String(x.id) !== String(editingId));
+      await sched(`/schedules/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      schedules = schedules.filter(x => String(x.id) !== String(id));
       renderSchedules();
       resetForm();
     } catch (error) {
       setMessage(error.message, true);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -338,8 +362,10 @@
   }
 
   async function toggleEnabled(id, enabled) {
+    if (busy) return;
     const item = schedules.find(x => String(x.id) === String(id));
     if (!item) return;
+    setBusy(true);
     try {
       await sched(`/schedules/${encodeURIComponent(id)}`, {
         method: 'PUT',
@@ -349,7 +375,10 @@
       item.enabled = enabled;
       renderSchedules();
     } catch (error) {
+      renderSchedules();
       setMessage(error.message, true);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -361,7 +390,7 @@
     const summary = dialog.querySelector('#scheduleSummary');
     if (next) {
       const date = new Date(next.next_run);
-      summary.innerHTML = `<span>NEXT</span><b>${date.toLocaleDateString(undefined, { weekday: 'short' })} ${date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</b><small>${escapeHtml(next.source_name)} · ${escapeHtml(next.output_name)} · ${next.volume}%${next.ramp_minutes && next.ramp_volume ? ` → ${next.ramp_volume}% after ${next.ramp_minutes} min` : ''}</small>`;
+      summary.innerHTML = `<span>NEXT</span><b>${date.toLocaleDateString(undefined, { weekday: 'short' })} ${date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</b><small>${escapeHtml(next.source_name)} · ${escapeHtml(next.output_name)} · ${escapeHtml(next.volume)}%${next.ramp_minutes && next.ramp_volume ? ` → ${escapeHtml(next.ramp_volume)}% after ${escapeHtml(next.ramp_minutes)} min` : ''}</small>`;
     } else summary.innerHTML = '<span>NEXT</span><b>—</b><small>No enabled schedules</small>';
 
     list.innerHTML = schedules.length
@@ -371,7 +400,7 @@
       <article class="schedule-card ${item.enabled ? '' : 'disabled'}" data-id="${escapeHtml(item.id)}">
         <button type="button" class="schedule-card-main" data-edit="${escapeHtml(item.id)}">
           <span class="schedule-time">${escapeHtml(item.time)}</span>
-          <span class="schedule-card-copy"><b>${escapeHtml(item.name)}</b><small>${escapeHtml(dayLabel(item.days || []))} · ${escapeHtml(item.source_name)}</small><em>${escapeHtml(item.output_name)} · ${item.volume}%${item.ramp_minutes && item.ramp_volume ? ` → ${item.ramp_volume}% after ${item.ramp_minutes} min` : ''}${item.stop_time ? ` · stop ${escapeHtml(item.stop_time)}` : ''}</em></span>
+          <span class="schedule-card-copy"><b>${escapeHtml(item.name)}</b><small>${escapeHtml(dayLabel(item.days || []))} · ${escapeHtml(item.source_name)}</small><em>${escapeHtml(item.output_name)} · ${escapeHtml(item.volume)}%${item.ramp_minutes && item.ramp_volume ? ` → ${escapeHtml(item.ramp_volume)}% after ${escapeHtml(item.ramp_minutes)} min` : ''}${item.stop_time ? ` · stop ${escapeHtml(item.stop_time)}` : ''}</em></span>
         </button>
         <div class="schedule-card-actions"><button type="button" class="schedule-run" data-run="${escapeHtml(item.id)}">Play now</button><label class="schedule-switch"><input type="checkbox" data-toggle="${escapeHtml(item.id)}" ${item.enabled ? 'checked' : ''}><span></span></label></div>
       </article>`

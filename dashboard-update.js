@@ -103,7 +103,7 @@
       updateRequested = false;
       setBusy(false);
       statusEl.textContent = String(result.message || 'Update failed').slice(0, 80);
-      say('Dashboard update failed — previous version restored');
+      say(String(result.message || 'Dashboard update failed — check update status'));
       return;
     }
 

@@ -6,6 +6,9 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import re
+import tempfile
+import threading
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -25,6 +28,7 @@ LATEST_MAIN_URL = os.environ.get(
     "https://api.github.com/repos/vladimirperovic/owntunedashboard/commits/main",
 )
 CHECK_INTERVAL_SECONDS = int(os.environ.get("OWNTONE_UPDATE_CHECK_SECONDS", str(12 * 60 * 60)))
+CHECK_LOCK = threading.Lock()
 
 
 def now() -> datetime:
@@ -34,22 +38,28 @@ def now() -> datetime:
 def read_json(path: Path, fallback):
     try:
         return json.loads(path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
+    except (UnicodeError, json.JSONDecodeError, OSError):
         return fallback
 
 
 def write_json(path: Path, value) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(value, ensure_ascii=False) + "\n", encoding="utf-8")
-    os.replace(tmp, path)
-    path.chmod(0o644)
+    fd, tmp = tempfile.mkstemp(prefix=path.name + ".", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(value, handle, ensure_ascii=False)
+            handle.write("\n")
+            os.fchmod(handle.fileno(), 0o644)
+        os.replace(tmp, path)
+    finally:
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(tmp)
 
 
 def same_commit(left: str, right: str) -> bool:
     left = str(left or "").strip()
     right = str(right or "").strip()
-    if not left or not right:
+    if not re.fullmatch(r"[0-9a-f]{7,40}", left) or not re.fullmatch(r"[0-9a-f]{7,40}", right):
         return False
     prefixes_match = len(left) >= 7 and len(right) >= 7 and (left.startswith(right) or right.startswith(left))
     return left == right or prefixes_match
@@ -76,14 +86,17 @@ def fetch_latest_main() -> dict:
     )
     with urlopen(request, timeout=15) as response:
         payload = json.load(response)
-    commit = str(payload.get("sha", "")).strip()
-    if len(commit) < 7:
+    commit = payload.get("sha") if isinstance(payload, dict) else None
+    if not isinstance(commit, str) or not re.fullmatch(r"[0-9a-f]{40}", commit):
         raise ValueError("GitHub main did not return a valid commit")
     return {"commit": commit, "checked_at": now().isoformat()}
 
 
 def cached_latest_is_fresh(value) -> bool:
-    if not isinstance(value, dict) or not value.get("commit") or not value.get("checked_at"):
+    if (not isinstance(value, dict)
+            or not isinstance(value.get("commit"), str)
+            or not re.fullmatch(r"[0-9a-f]{40}", value["commit"])
+            or not value.get("checked_at")):
         return False
     try:
         checked = datetime.fromisoformat(str(value["checked_at"]))
@@ -91,14 +104,15 @@ def cached_latest_is_fresh(value) -> bool:
             checked = checked.replace(tzinfo=timezone.utc)
     except ValueError:
         return False
-    return now() - checked.astimezone() < timedelta(seconds=max(60, CHECK_INTERVAL_SECONDS))
+    return timedelta(0) <= now() - checked.astimezone() < timedelta(seconds=max(60, CHECK_INTERVAL_SECONDS))
 
 
 def check_latest(*, force: bool = False) -> dict:
-    latest = read_json(CHECK_FILE, None)
-    if force or not cached_latest_is_fresh(latest):
-        latest = fetch_latest_main()
-        write_json(CHECK_FILE, latest)
+    with CHECK_LOCK:
+        latest = read_json(CHECK_FILE, None)
+        if force or not cached_latest_is_fresh(latest):
+            latest = fetch_latest_main()
+            write_json(CHECK_FILE, latest)
 
     current = read_json(TARGET / "version.json", {})
     current = current if isinstance(current, dict) else {}
@@ -147,6 +161,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(raw)))
+        if self.close_connection:
+            self.send_header("Connection", "close")
         self.end_headers()
         self.wfile.write(raw)
 
@@ -165,6 +181,14 @@ class Handler(BaseHTTPRequestHandler):
         self.send_json(404, {"error": "Not found"})
 
     def do_POST(self):
+        # This endpoint takes no body. Close on every POST so unread or rejected
+        # bytes cannot become another request on an HTTP/1.1 connection.
+        self.close_connection = True
+        lengths = self.headers.get_all("Content-Length", [])
+        if (self.headers.get_all("Transfer-Encoding") or len(lengths) > 1
+                or (lengths and lengths[0] != "0")):
+            self.send_json(400, {"error": "Update requests must have an empty body"})
+            return
         if urlparse(self.path).path != "/request":
             self.send_json(404, {"error": "Not found"})
             return

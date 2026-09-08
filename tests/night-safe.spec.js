@@ -1,4 +1,6 @@
 const { test, expect } = require('@playwright/test');
+const { exposeMutableState } = require('./helpers/app-state');
+test.beforeEach(async ({ page }) => exposeMutableState(page));
 
 /**
  * The night cap is the one behaviour in this dashboard that exists to prevent a
@@ -171,3 +173,80 @@ test('the night cap survives a change to apiBase', async ({ page }) => {
   expect(volumeCalls(calls)).toEqual([8]);
   expect(calls.some(call => call.url.includes('/queue/items/add'))).toBe(true);
 });
+
+test('an explicit zero volume is applied before starting', async ({ page }) => {
+  await openDemo(page);
+  await stubApi(page);
+  const calls = await page.evaluate(async () => {
+    await window.OwnTone.startPlayback({ uris: 'library:playlist:1', volume: 0 });
+    return window.__calls;
+  });
+  expect(volumeCalls(calls)).toEqual([0]);
+  expect(calls.at(-1).url).toContain('/queue/items/add');
+});
+
+for (const failure of ['/outputs', '/player/volume']) {
+  test(`playback does not start when ${failure} fails`, async ({ page }) => {
+    await openDemo(page);
+    await stubApi(page);
+    await setNightWindow(page, true);
+    const result = await page.evaluate(async endpoint => {
+      const original = window.fetch;
+      window.fetch = async (url, init) => {
+        if (String(url).includes(endpoint)) {
+          window.__calls.push({ url, method: init?.method || 'GET' });
+          return new Response(JSON.stringify({ error: 'Speaker unavailable' }), { status: 503 });
+        }
+        return original(url, init);
+      };
+      let error = '';
+      try {
+        await window.OwnTone.startPlayback({ uris: 'library:playlist:1', volume: 70 });
+      } catch (failure) {
+        error = failure.message;
+      }
+      return { error, calls: window.__calls };
+    }, failure);
+    expect(result.error).toBe('Speaker unavailable');
+    expect(result.calls.some(call => call.url.includes('/queue/items/add'))).toBe(false);
+  });
+}
+
+test('browser playback also caps selected AirPlay speakers', async ({ page }) => {
+  await openDemo(page);
+  await stubApi(page);
+  await setNightWindow(page, true);
+  const result = await page.evaluate(async () => {
+    window.__browserVolume = null;
+    window.OWNTONE_BROWSER_OUTPUT = {
+      getState: () => ({ id: 'browser', active: true, selected: true, volume: 60 }),
+      setVolume: volume => {
+        window.__browserVolume = volume;
+      },
+    };
+    await window.OwnTone.startPlayback({ uris: 'library:playlist:1', volume: 60 });
+    return { calls: window.__calls, browserVolume: window.__browserVolume };
+  });
+  expect(volumeCalls(result.calls)).toEqual([8]);
+  expect(result.browserVolume).toBe(8);
+});
+
+for (const command of ['play', 'toggle']) {
+  test(`resuming with ${command} applies the night cap first`, async ({ page }) => {
+    await openDemo(page);
+    await stubApi(page);
+    await setNightWindow(page, true);
+    const calls = await page.evaluate(async action => {
+      const app = window.OWNTONE_APP;
+      window.__testState.demo = false;
+      window.__testState.player.state = 'pause';
+      document.getElementById('volumeRange').value = '65';
+      await app.playerCommand(action);
+      return window.__calls;
+    }, command);
+    expect(volumeCalls(calls)).toEqual([8]);
+    const setVolume = calls.findIndex(call => call.url.includes('/player/volume'));
+    const resume = calls.findIndex(call => call.url.endsWith(`/player/${command}`));
+    expect(resume).toBeGreaterThan(setVolume);
+  });
+}

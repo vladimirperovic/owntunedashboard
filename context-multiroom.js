@@ -40,7 +40,28 @@
   let lastAlbumContext = null;
   let exactTrackRewrite = false;
   let exactTrackTimer = null;
-  let syncTimer = null;
+  let changingOutputs = false;
+  const pairingOutputs = new Set();
+
+  function updateOutputControls() {
+    multiroomSheet
+      ?.querySelectorAll('.multiroom-toggle, #multiroomAll, [data-scene-apply], .multiroom-auth button')
+      .forEach(button => (button.disabled = changingOutputs));
+  }
+
+  async function changeOutputs(action) {
+    if (changingOutputs) return;
+    changingOutputs = true;
+    updateOutputControls();
+    try {
+      await action();
+    } catch (error) {
+      toast(`Output change failed: ${error.message}`);
+    } finally {
+      changingOutputs = false;
+      updateOutputControls();
+    }
+  }
   const SCENES_KEY = 'owntone-output-scenes-v1';
   const BROWSER_OUTPUT_ID = 'browser';
 
@@ -84,19 +105,7 @@
   }
 
   async function setPhysicalOutputs(ids) {
-    const unique = [...new Set(ids.map(String))];
-    if (isDemo()) {
-      physicalOutputs().forEach(output => {
-        output.selected = unique.includes(String(output.id));
-      });
-      return true;
-    }
-    await requestJson('/outputs/set', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ outputs: unique }),
-    });
-    await app()?.refreshPlayback?.();
+    await app().selectPhysicalOutputs(ids);
     return true;
   }
 
@@ -136,20 +145,6 @@
     }
   }
 
-  function ensureDemoOutputs() {
-    if (!isDemo()) return;
-    const outputs = state().outputs || [];
-    if (outputs.length >= 3) return;
-    const extras = [
-      { id: 'office', name: 'Office HomePod', type: 'AirPlay', selected: false, volume: 22, format: 'alac' },
-      { id: 'kitchen', name: 'Kitchen', type: 'AirPlay', selected: false, volume: 16, format: 'alac' },
-    ];
-    extras.forEach(extra => {
-      if (!outputs.some(output => String(output.id) === extra.id)) outputs.push({ ...extra });
-    });
-    state().outputs = outputs;
-  }
-
   function syncLegacyOutputSelect() {
     const select = $('outputSelect');
     const selected = selectedOutputs();
@@ -161,7 +156,7 @@
   }
 
   function syncGroupLabel() {
-    ensureDemoOutputs();
+    if (document.hidden) return;
     const label = outputLabel();
     const button = $('premiumOutputButton');
     const b = button?.querySelector('b');
@@ -176,7 +171,16 @@
   function readScenes() {
     try {
       const scenes = JSON.parse(localStorage.getItem(SCENES_KEY) || '[]');
-      return Array.isArray(scenes) ? scenes : [];
+      return Array.isArray(scenes)
+        ? scenes.filter(
+            scene =>
+              scene &&
+              typeof scene.id === 'string' &&
+              typeof scene.name === 'string' &&
+              Array.isArray(scene.outputs) &&
+              scene.outputs.every(output => output && output.id != null)
+          )
+        : [];
     } catch (_) {
       return [];
     }
@@ -193,13 +197,6 @@
     const wantPhysical = unique.filter(id => id !== BROWSER_OUTPUT_ID);
     const browserActive = browserOutput().active;
 
-    // Browser is independent — toggle it without touching AirPlay
-    if (wantBrowser && !browserActive) {
-      if (!(await enableBrowserOutput())) return false;
-    } else if (!wantBrowser && browserActive) {
-      if (!(await disableBrowserOutput())) return false;
-    }
-
     if (!wantPhysical.length && !wantBrowser) {
       toast('Keep at least one output active');
       return false;
@@ -210,20 +207,19 @@
     );
     if (locked.length) {
       locked.forEach(output => {
-        output._authOpen = true;
+        pairingOutputs.add(String(output.id));
       });
       renderMultiroomSheet();
       toast(`Enter the AirPlay code for ${locked[0].name || 'this output'}`);
       return false;
     }
-    if (isDemo()) {
-      physicalOutputs().forEach(output => {
-        output.selected = wantPhysical.includes(String(output.id));
-      });
-      syncGroupLabel();
-      renderMultiroomSheet();
-      return true;
+    // Browser is independent — toggle it without touching AirPlay
+    if (wantBrowser && !browserActive) {
+      if (!(await enableBrowserOutput())) return false;
+    } else if (!wantBrowser && browserActive) {
+      if (!(await disableBrowserOutput())) return false;
     }
+
     try {
       await setPhysicalOutputs(wantPhysical);
       syncGroupLabel();
@@ -236,7 +232,7 @@
 
   async function beginOutputPairing(output) {
     if (!output) return;
-    output._authOpen = true;
+    pairingOutputs.add(String(output.id));
     renderMultiroomSheet();
     try {
       await requestJson(`/outputs/${encodeURIComponent(output.id)}`, {
@@ -296,15 +292,8 @@
       syncGroupLabel();
       return true;
     }
-    const output = allOutputs().find(item => String(item.id) === String(id));
-    if (output) output.volume = volume;
-    if (isDemo()) return true;
     try {
-      await requestJson(`/outputs/${encodeURIComponent(id)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ volume }),
-      });
+      await app().setPhysicalOutputVolume(id, volume);
       return true;
     } catch (error) {
       if (!quiet) toast(`Volume failed: ${error.message}`);
@@ -328,7 +317,7 @@
     const ids = matched.map(output => String(output.id));
     const enabled = await setEnabledOutputs(ids);
     if (!enabled) return;
-    await Promise.all(
+    const volumes = await Promise.all(
       matched.map(output => {
         const saved =
           scene.outputs.find(item => String(item.id) === String(output.id)) ||
@@ -338,7 +327,9 @@
     );
     syncGroupLabel();
     renderMultiroomSheet();
-    toast(`${scene.name} scene applied`);
+    toast(
+      volumes.every(Boolean) ? `${scene.name} scene applied` : `${scene.name}: some volumes could not be set`
+    );
   }
 
   function saveCurrentScene() {
@@ -395,7 +386,6 @@
   }
 
   function openMultiroomSheet() {
-    ensureDemoOutputs();
     ensureMultiroomSheet();
     renderMultiroomSheet();
     multiroomSheet.classList.add('open');
@@ -410,7 +400,6 @@
 
   function renderMultiroomSheet() {
     if (!multiroomSheet) return;
-    ensureDemoOutputs();
     const outputs = allOutputs();
     const scenes = readScenes();
     const selectedCount = outputs.filter(output => output.selected).length;
@@ -427,7 +416,7 @@
         <span class="multiroom-output-copy"><b>${escapeHtml(output.name || 'Output')}</b><small>${escapeHtml(outputMeta)}${output.selected ? (output.id === BROWSER_OUTPUT_ID ? ' · Playing' : ' · Connected') : authNeeded ? ' · AirPlay code required' : ''}</small></span>
         <span class="multiroom-volume-value">${Number(output.volume ?? 0)}%</span>
         <input class="multiroom-volume" type="range" min="0" max="100" value="${Number(output.volume ?? 0)}" aria-label="${escapeHtml(output.name)} volume" ${output.selected ? '' : 'disabled'}>
-        ${authNeeded && output._authOpen ? `<form class="multiroom-auth"><p>Enter the code shown on ${escapeHtml(output.name || 'your AirPlay device')}.</p><input class="multiroom-pin" type="text" inputmode="numeric" autocomplete="one-time-code" minlength="4" maxlength="8" pattern="[0-9]{4,8}" placeholder="AirPlay code" aria-label="AirPlay code for ${escapeHtml(output.name)}" required><button type="submit">Connect</button></form>` : ''}
+        ${authNeeded && pairingOutputs.has(String(output.id)) ? `<form class="multiroom-auth"><p>Enter the code shown on ${escapeHtml(output.name || 'your AirPlay device')}.</p><input class="multiroom-pin" type="text" inputmode="numeric" autocomplete="one-time-code" minlength="4" maxlength="8" pattern="[0-9]{4,8}" placeholder="AirPlay code" aria-label="AirPlay code for ${escapeHtml(output.name)}" required><button type="submit">Connect</button></form>` : ''}
       </div>`;
       })
       .join('');
@@ -444,13 +433,15 @@
       <section class="multiroom-output-list">${rows || '<p class="multiroom-empty">No outputs available.</p>'}</section>
       <section class="multiroom-scenes"><div class="multiroom-scenes-title"><div><span class="section-kicker">SCENES</span><h3>Room presets</h3></div></div><div class="multiroom-scene-list">${sceneHtml}</div><div class="multiroom-scene-save"><input id="multiroomSceneName" type="text" maxlength="40" placeholder="e.g. Whole home"><button id="multiroomSaveScene" type="button">${icons.save}<span>Save current</span></button></div></section>`;
 
-    $('multiroomAll')?.addEventListener('click', async () => {
-      await setEnabledOutputs([
-        ...physicalOutputs().map(output => String(output.id)),
-        ...(browserOutput().active ? [BROWSER_OUTPUT_ID] : []),
-      ]);
-      renderMultiroomSheet();
-    });
+    $('multiroomAll')?.addEventListener('click', () =>
+      changeOutputs(async () => {
+        await setEnabledOutputs([
+          ...physicalOutputs().map(output => String(output.id)),
+          ...(browserOutput().active ? [BROWSER_OUTPUT_ID] : []),
+        ]);
+        renderMultiroomSheet();
+      })
+    );
     $('multiroomSaveScene')?.addEventListener('click', saveCurrentScene);
     $('multiroomSceneName')?.addEventListener('keydown', event => {
       if (event.key === 'Enter') {
@@ -461,7 +452,7 @@
     multiroomSheet.querySelectorAll('[data-scene-apply]').forEach(button =>
       button.addEventListener('click', () => {
         const scene = readScenes().find(item => item.id === button.dataset.sceneApply);
-        if (scene) applyScene(scene);
+        if (scene) changeOutputs(() => applyScene(scene));
       })
     );
     multiroomSheet
@@ -469,45 +460,48 @@
       .forEach(button => button.addEventListener('click', () => deleteScene(button.dataset.sceneDelete)));
     multiroomSheet.querySelectorAll('[data-mr-output]').forEach(row => {
       const id = row.dataset.mrOutput;
-      row.querySelector('.multiroom-toggle')?.addEventListener('click', async () => {
-        if (id === BROWSER_OUTPUT_ID) {
-          if (browserOutput().active) await disableBrowserOutput();
-          else await enableBrowserOutput();
-          renderMultiroomSheet();
-          return;
-        }
-        const output = allOutputs().find(item => String(item.id) === id);
-        if (output && !output.selected && needsOutputAuth(output)) {
-          await beginOutputPairing(output);
-          return;
-        }
-        const active = selectedOutputs().map(output => String(output.id));
-        const next = active.includes(id) ? active.filter(item => item !== id) : [...active, id];
-        const changed = await setEnabledOutputs(next);
-        if (changed) renderMultiroomSheet();
-      });
+      row.querySelector('.multiroom-toggle')?.addEventListener('click', () =>
+        changeOutputs(async () => {
+          if (id === BROWSER_OUTPUT_ID) {
+            if (browserOutput().active) await disableBrowserOutput();
+            else await enableBrowserOutput();
+            renderMultiroomSheet();
+            return;
+          }
+          const output = allOutputs().find(item => String(item.id) === id);
+          if (output && !output.selected && needsOutputAuth(output)) {
+            await beginOutputPairing(output);
+            return;
+          }
+          const active = selectedOutputs().map(output => String(output.id));
+          const next = active.includes(id) ? active.filter(item => item !== id) : [...active, id];
+          const changed = await setEnabledOutputs(next);
+          if (changed) renderMultiroomSheet();
+        })
+      );
       row.querySelector('.multiroom-auth')?.addEventListener('submit', async event => {
         event.preventDefault();
         const output = allOutputs().find(item => String(item.id) === id);
         if (output)
-          await authorizeOutput(
-            output,
-            row.querySelector('.multiroom-pin')?.value,
-            row.querySelector('.multiroom-auth button')
+          await changeOutputs(() =>
+            authorizeOutput(
+              output,
+              row.querySelector('.multiroom-pin')?.value,
+              row.querySelector('.multiroom-auth button')
+            )
           );
       });
       const slider = row.querySelector('.multiroom-volume');
       const value = row.querySelector('.multiroom-volume-value');
       slider?.addEventListener('input', () => {
         if (value) value.textContent = `${slider.value}%`;
-        const output = allOutputs().find(item => String(item.id) === id);
-        if (output) output.volume = Number(slider.value);
       });
       slider?.addEventListener('change', async () => {
         await setOutputVolume(id, slider.value);
         syncGroupLabel();
       });
     });
+    updateOutputControls();
   }
 
   function interceptOutputButtons() {
@@ -597,15 +591,11 @@
     element.appendChild(trigger);
   }
 
-  function enhanceContextTargets() {
-    document
-      .querySelectorAll(
-        '.album-card[data-uri],.playlist-card[data-uri],.search-item[data-uri],.premium-recent-card[data-uri]'
-      )
-      .forEach(element => addContextTrigger(element));
-    document
-      .querySelectorAll('.album-track-row[data-context-uri]')
-      .forEach(element => addContextTrigger(element));
+  const contextTargets =
+    '.album-card[data-uri],.playlist-card[data-uri],.search-item[data-uri],.premium-recent-card[data-uri],.album-track-row[data-context-uri]';
+  function enhanceContextTargets(root = document) {
+    if (root.matches?.(contextTargets)) addContextTrigger(root);
+    root.querySelectorAll(contextTargets).forEach(element => addContextTrigger(element));
   }
 
   function ensureContextMenu() {
@@ -669,12 +659,12 @@
   }
 
   async function queuePositionForNext() {
-    const now = await requestJson('/queue?id=now_playing', { cache: 'no-store' }).catch(() => null);
+    const now = await requestJson('/queue?id=now_playing', { cache: 'no-store' });
     const current = now?.items?.[0];
     return current?.position != null ? Number(current.position) + 1 : 0;
   }
   async function queueCount() {
-    const queue = await requestJson('/queue?start=0&end=1', { cache: 'no-store' }).catch(() => null);
+    const queue = await requestJson('/queue?start=0&end=1', { cache: 'no-store' });
     return Number(queue?.count || 0);
   }
   async function addUriAt(uri, position) {
@@ -702,7 +692,7 @@
     try {
       if (action === 'play-now') {
         if (context.element && !context.element.matches('.album-track-row')) context.element.click();
-        else app()?.playUri?.(context.uri);
+        else await app()?.playUri?.(context.uri);
         return;
       }
       if (action === 'play-next') {
@@ -732,7 +722,7 @@
         return;
       }
       await app()?.refreshPlayback?.();
-      if (typeof window.OWNTONE_REFRESH_QUEUE === 'function') window.OWNTONE_REFRESH_QUEUE();
+      if (typeof window.OWNTONE_REFRESH_QUEUE === 'function') await window.OWNTONE_REFRESH_QUEUE();
     } catch (error) {
       toast(`Queue action failed: ${error.message}`);
     }
@@ -770,11 +760,15 @@
   async function rewriteExactAlbumTracks() {
     const list = $('albumTrackList');
     if (!list || !lastAlbumContext || exactTrackRewrite) return;
-    if (list.querySelector('[data-context-uri]')) {
+    if (
+      list.dataset.contextAlbumUri === lastAlbumContext.uri &&
+      list.querySelector('[data-context-uri], .premium-empty')
+    ) {
       enhanceContextTargets();
       return;
     }
-    const albumId = albumIdFromUri(lastAlbumContext.uri);
+    const context = lastAlbumContext;
+    const albumId = albumIdFromUri(context.uri);
     exactTrackRewrite = true;
     try {
       let tracks;
@@ -783,8 +777,8 @@
           (title, index) => ({
             uri: `library:track:demo-${index + 1}`,
             title,
-            artist: lastAlbumContext.artist,
-            album: lastAlbumContext.name,
+            artist: context.artist,
+            album: context.name,
             track_number: index + 1,
             length_ms: (188 + index * 17) * 1000,
           })
@@ -795,13 +789,15 @@
         });
         tracks = data?.items || [];
       } else return;
+      if (lastAlbumContext !== context || $('albumTrackList') !== list) return;
+      list.dataset.contextAlbumUri = context.uri;
       const count = $('albumTrackCount');
       if (count) count.textContent = `${tracks.length} tracks`;
       list.innerHTML = tracks.length
         ? tracks
             .map(
               (track, index) =>
-                `<div class="album-track-row" data-context-uri="${escapeHtml(track.uri || '')}" data-context-artist="${escapeHtml(track.artist || lastAlbumContext.artist)}" data-context-album="${escapeHtml(track.album || lastAlbumContext.name)}"><span>${String(track.track_number || index + 1).padStart(2, '0')}</span><span><b>${escapeHtml(track.title || 'Untitled')}</b><small>${escapeHtml(track.artist || lastAlbumContext.artist)}</small></span><em>${formatDuration(track.length_ms)}</em></div>`
+                `<div class="album-track-row" data-context-uri="${escapeHtml(track.uri || '')}" data-context-artist="${escapeHtml(track.artist || context.artist)}" data-context-album="${escapeHtml(track.album || context.name)}"><span>${escapeHtml(String(track.track_number || index + 1).padStart(2, '0'))}</span><span><b>${escapeHtml(track.title || 'Untitled')}</b><small>${escapeHtml(track.artist || context.artist)}</small></span><em>${formatDuration(track.length_ms)}</em></div>`
             )
             .join('')
         : '<div class="premium-empty">No tracks found for this album.</div>';
@@ -810,6 +806,7 @@
       console.warn('Exact album tracklist failed:', error);
     } finally {
       exactTrackRewrite = false;
+      if (lastAlbumContext !== context) scheduleExactAlbumTracks();
     }
   }
 
@@ -820,7 +817,13 @@
 
   function observeDynamicContent() {
     const observer = new MutationObserver(mutations => {
-      enhanceContextTargets();
+      // Enhance only new elements, rather than rescanning the entire library
+      // whenever any player label, clock or unrelated dialog changes.
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node instanceof Element && node.isConnected) enhanceContextTargets(node);
+        }
+      }
       if (
         $('albumTrackList') &&
         lastAlbumContext &&
@@ -861,7 +864,6 @@
   }
 
   function mount() {
-    ensureDemoOutputs();
     ensureContextMenu();
     ensureMultiroomSheet();
     interceptOutputButtons();
@@ -875,18 +877,13 @@
       syncGroupLabel();
       if (multiroomSheet?.classList.contains('open')) renderMultiroomSheet();
     });
-    const labelTarget = $('premiumOutputButton')?.querySelector('b');
-    if (labelTarget)
-      new MutationObserver(syncGroupLabel).observe(labelTarget, {
-        childList: true,
-        characterData: true,
-        subtree: true,
-      });
-    // No observer on #outputName: syncGroupLabel writes to that very element, so
-    // watching it meant every renderPlayer() pass bounced the label back and
-    // forth. app.js now derives the same text from the shared helper.
-    clearInterval(syncTimer);
-    syncTimer = setInterval(syncGroupLabel, 1800);
+    window.OwnTone.on('owntone:player-updated', syncGroupLabel);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        syncGroupLabel();
+        enhanceContextTargets();
+      }
+    });
 
     document.addEventListener('click', event => {
       if (contextMenu?.hidden) return;

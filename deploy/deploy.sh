@@ -17,7 +17,12 @@ source "$CONF"
 : "${LXC_ID:?Set LXC_ID in $CONF}"
 TARGET_DIR="${TARGET_DIR:-/opt/owntone-dashboard}"
 
-# The remote install starts with `rm -rf "$TARGET"`, and TARGET_DIR comes from a
+# LXC_ID is interpolated into a remote shell command, not passed as argv.
+case "$LXC_ID" in
+  ''|*[!0-9]*) echo "LXC_ID must contain only digits" >&2; exit 1 ;;
+esac
+
+# The remote install replaces TARGET and its rollback tree; TARGET_DIR comes from a
 # hand-edited config file. Refuse anything that is not a deliberate install path.
 # ssh joins its arguments with spaces rather than quoting them, so a path
 # containing whitespace or a shell metacharacter would be re-split remotely —
@@ -30,6 +35,16 @@ case "$TARGET_DIR" in
     ;;
 esac
 case "$TARGET_DIR" in
+  */../*|*/./*|*/..|*/.|*//*)
+    echo "TARGET_DIR must not contain dot components or repeated slashes" >&2
+    exit 1
+    ;;
+esac
+if [ "${TARGET_DIR%/}" != "$TARGET_DIR" ]; then
+  echo "TARGET_DIR must not have a trailing slash" >&2
+  exit 1
+fi
+case "$TARGET_DIR" in
   /opt/?*|/srv/?*|/usr/local/share/?*) ;;
   *)
     echo "Refusing to deploy to '$TARGET_DIR'." >&2
@@ -39,7 +54,7 @@ case "$TARGET_DIR" in
 esac
 
 BRANCH="$(git branch --show-current)"
-COMMIT="$(git rev-parse --short HEAD)"
+COMMIT="$(git rev-parse HEAD)"
 [ "$BRANCH" = "main" ] || echo "WARNING: deploying branch '$BRANCH', not main"
 
 if ! git diff --quiet HEAD --; then
@@ -52,87 +67,39 @@ trap 'rm -rf "$STAGE"' EXIT
 # git archive, not `tar .` — the old command packaged the working tree while the
 # message claimed HEAD, so uncommitted files shipped stamped with a commit that
 # did not contain them.
-git archive --format=tar.gz -o "$STAGE/dashboard.tar.gz" HEAD
-
-echo "==> Uploading via $PROXMOX_TARGET to LXC $LXC_ID"
-scp -q "$STAGE/dashboard.tar.gz" "$PROXMOX_TARGET:/tmp/dashboard-deploy.tar.gz"
-# LXC_ID and TARGET_DIR are deliberately expanded here, on this machine: they
-# come from deploy.local.conf and the container knows nothing about them.
-# shellcheck disable=SC2029
-ssh "$PROXMOX_TARGET" "pct push $LXC_ID /tmp/dashboard-deploy.tar.gz /tmp/dashboard-deploy.tar.gz >/dev/null"
-
-echo "==> Installing on LXC $LXC_ID"
-# shellcheck disable=SC2029
-ssh "$PROXMOX_TARGET" "pct exec $LXC_ID -- /bin/bash -s" "$COMMIT" "$TARGET_DIR" <<'REMOTE'
-set -euo pipefail
-COMMIT="$1"; TARGET="$2"
-
-case "$TARGET" in
-  /opt/?*|/srv/?*|/usr/local/share/?*) ;;
-  *) echo "Refusing to remove '$TARGET'" >&2; exit 1 ;;
-esac
-
-rm -rf "$TARGET"
-mkdir -p "$TARGET"
-tar xzf /tmp/dashboard-deploy.tar.gz -C "$TARGET"
-find "$TARGET" -type d -exec chmod 0755 {} +
-find "$TARGET" -type f -exec chmod 0644 {} +
-printf '{"commit":"%s","deployed_at":"%s"}\n' "$COMMIT" "$(date -Is)" > "$TARGET/version.json"
-rm -f /tmp/dashboard-deploy.tar.gz
-
-# Companion service plus the isolated one-click updater. The browser-facing
-# update API runs as www-data and can only create a request file. A root-owned
-# systemd path/service performs the actual release swap with rollback.
-install -m 0644 "$TARGET/deploy/owntone-dashboard-scheduler.service" \
-  /etc/systemd/system/owntone-dashboard-scheduler.service
-install -m 0644 "$TARGET/deploy/owntone-dashboard-update-api.service" \
-  /etc/systemd/system/owntone-dashboard-update-api.service
-install -m 0644 "$TARGET/deploy/owntone-dashboard-updater.service" \
-  /etc/systemd/system/owntone-dashboard-updater.service
-install -m 0644 "$TARGET/deploy/owntone-dashboard-updater.path" \
-  /etc/systemd/system/owntone-dashboard-updater.path
-install -m 0755 "$TARGET/deploy/update-dashboard.sh" /usr/local/sbin/owntone-dashboard-update
-
-systemctl daemon-reload
-systemctl enable owntone-dashboard-scheduler.service >/dev/null 2>&1 || true
-systemctl enable owntone-dashboard-update-api.service >/dev/null 2>&1 || true
-systemctl enable owntone-dashboard-updater.path >/dev/null 2>&1 || true
-systemctl restart owntone-dashboard-scheduler.service
-systemctl restart owntone-dashboard-update-api.service
-systemctl restart owntone-dashboard-updater.path
-
-NGINX_SITE="/etc/nginx/sites-available/owntone-dashboard"
-if ! cmp -s "$TARGET/deploy/nginx.conf" "$NGINX_SITE"; then
-  [ -f "$NGINX_SITE" ] && cp "$NGINX_SITE" "$NGINX_SITE.bak"
-  cp "$TARGET/deploy/nginx.conf" "$NGINX_SITE"
-  if ! nginx -t; then
-    [ -f "$NGINX_SITE.bak" ] && cp "$NGINX_SITE.bak" "$NGINX_SITE"
-    echo "nginx -t failed; restored previous site config" >&2
-    exit 1
-  fi
-  systemctl reload nginx
+git archive --format=tar.gz --prefix="owntunedashboard-$COMMIT/" -o "$STAGE/dashboard.tar.gz" HEAD
+git show HEAD:deploy/update-dashboard.sh > "$STAGE/install.sh"
+if ! git cat-file -e HEAD:deploy/site_config.py; then
+  echo "Commit the common installer and config migration before deploying HEAD" >&2
+  exit 1
 fi
 
-# systemctl restart returns before sockets are bound, so poll both local APIs.
-for attempt in 1 2 3 4 5 6 7 8; do
-  sleep 1
-  if curl -fsS -m5 http://127.0.0.1:3691/health \
-      | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin).get("ok") else 1)' \
-    && curl -fsS -m5 http://127.0.0.1:3692/health \
-      | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin).get("ok") else 1)'; then
-    break
-  fi
-  if [ "$attempt" = 8 ]; then
-    echo "dashboard service health check failed" >&2
-    systemctl status --no-pager owntone-dashboard-scheduler.service >&2 || true
-    systemctl status --no-pager owntone-dashboard-update-api.service >&2 || true
-    exit 1
-  fi
-done
-
-curl -fsS -m5 -o /dev/null http://127.0.0.1:3690/
-curl -fsS -m5 -o /dev/null http://127.0.0.1:3690/updater/status
-echo "BUILD: $(grep -o "BUILD = '[^']*'" "$TARGET/config.js" || echo '?')  commit: $COMMIT"
+echo "==> Uploading via $PROXMOX_TARGET to LXC $LXC_ID"
+# Unique root-owned staging on both hosts; no fixed /tmp upload names.
+REMOTE_STAGE="$(ssh "$PROXMOX_TARGET" 'mktemp -d /tmp/owntone-upload.XXXXXXXX')"
+[[ "$REMOTE_STAGE" =~ ^/tmp/owntone-upload\.[A-Za-z0-9]+$ ]] || exit 1
+cleanup_remote() {
+  local code=$?
+  trap - EXIT
+  # shellcheck disable=SC2029
+  ssh "$PROXMOX_TARGET" "rm -rf -- '$REMOTE_STAGE'" || true
+  rm -rf "$STAGE"
+  exit "$code"
+}
+trap cleanup_remote EXIT
+scp -q "$STAGE/dashboard.tar.gz" "$STAGE/install.sh" "$PROXMOX_TARGET:$REMOTE_STAGE/"
+# Only validated ID, SHA, target and mktemp output enter remote shell text.
+# shellcheck disable=SC2029
+ssh "$PROXMOX_TARGET" "bash -s -- '$LXC_ID' '$COMMIT' '$TARGET_DIR' '$REMOTE_STAGE'" <<'REMOTE'
+set -Eeuo pipefail
+LXC_ID="$1"; COMMIT="$2"; TARGET="$3"; UPLOAD="$4"
+CONTAINER_STAGE="$(pct exec "$LXC_ID" -- mktemp -d /tmp/owntone-install.XXXXXXXX)"
+[[ "$CONTAINER_STAGE" =~ ^/tmp/owntone-install\.[A-Za-z0-9]+$ ]] || exit 1
+trap 'pct exec "$LXC_ID" -- rm -rf -- "$CONTAINER_STAGE"' EXIT
+pct push "$LXC_ID" "$UPLOAD/dashboard.tar.gz" "$CONTAINER_STAGE/dashboard.tar.gz"
+pct push "$LXC_ID" "$UPLOAD/install.sh" "$CONTAINER_STAGE/install.sh"
+pct exec "$LXC_ID" -- env "OWNTONE_DASHBOARD_TARGET=$TARGET" \
+  bash "$CONTAINER_STAGE/install.sh" --archive "$CONTAINER_STAGE/dashboard.tar.gz" "$COMMIT"
 REMOTE
 
 echo "==> Deploy done ($COMMIT)"

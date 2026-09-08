@@ -1,4 +1,6 @@
 const { test, expect } = require('@playwright/test');
+const { exposeMutableState } = require('./helpers/app-state');
+test.beforeEach(async ({ page }) => exposeMutableState(page));
 
 test('now playing changes automatically with fresh data and a fade', async ({ page }) => {
   let current = 1;
@@ -132,7 +134,7 @@ test('live radio keeps the current station when previous or next is requested', 
   await page.goto('/');
   await expect(page.locator('#connectionText')).toContainText('Preview mode', { timeout: 12000 });
   const result = await page.evaluate(async () => {
-    window.OWNTONE_APP.state.current = {
+    window.__testState.current = {
       title: 'Radio Kotor Live',
       artist: 'Radio Kotor Live',
       data_kind: 'url',

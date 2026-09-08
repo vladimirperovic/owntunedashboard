@@ -45,7 +45,7 @@ export default [
   },
   {
     // Node scripts: the test server and the Playwright config.
-    files: ['tests/static-server.js', 'playwright.config.js'],
+    files: ['tests/static-server.js', 'tests/helpers/**/*.js', 'playwright.config.js'],
     languageOptions: { globals: { ...globals.node } },
   },
   {
